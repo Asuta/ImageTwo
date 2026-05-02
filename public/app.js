@@ -28,6 +28,8 @@ const ratioPanel = document.querySelector("#ratioPanel");
 const ratioOptions = document.querySelector("#ratioOptions");
 const ratioIcon = document.querySelector("#ratioIcon");
 const ratioLabel = document.querySelector("#ratioLabel");
+const themeToggle = document.querySelector("#themeToggle");
+const themeLabel = document.querySelector("#themeLabel");
 const toast = document.querySelector("#toast");
 
 let mode = "generate";
@@ -40,6 +42,7 @@ renderRatioOptions();
 renderReferences();
 renderHistory();
 syncRatioButton();
+syncThemeLabel();
 
 function loadHistory() {
   try {
@@ -101,6 +104,23 @@ function showToast(message) {
   toast.classList.remove("hidden");
   window.clearTimeout(showToast.timer);
   showToast.timer = window.setTimeout(() => toast.classList.add("hidden"), 2400);
+}
+
+function getTheme() {
+  return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+}
+
+function syncThemeLabel() {
+  const isDark = getTheme() === "dark";
+  themeLabel.textContent = isDark ? "浅色模式" : "深色模式";
+  themeToggle.setAttribute("aria-pressed", String(isDark));
+}
+
+function toggleTheme() {
+  const nextTheme = getTheme() === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = nextTheme;
+  localStorage.setItem("image2-theme", nextTheme);
+  syncThemeLabel();
 }
 
 async function fileToDataUrl(file) {
@@ -411,6 +431,8 @@ function fillFromTask(task) {
 modeTabs.forEach(tab => {
   tab.addEventListener("click", () => setMode(tab.dataset.mode));
 });
+
+themeToggle.addEventListener("click", toggleTheme);
 
 ratioButton.addEventListener("click", () => {
   ratioPanel.classList.toggle("hidden");

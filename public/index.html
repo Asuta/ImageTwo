@@ -4,6 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Image2 Studio</title>
+    <script>
+      (() => {
+        const theme = localStorage.getItem("image2-theme") || "light";
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -46,9 +52,15 @@
             <p class="eyebrow">Image2 Studio</p>
             <h1>生成历史</h1>
           </div>
-          <div class="status-pill">
-            <span class="status-dot"></span>
-            <span>本地服务已连接</span>
+          <div class="topbar-actions">
+            <button id="themeToggle" class="theme-toggle" type="button" aria-label="切换深色模式">
+              <span class="theme-orb" aria-hidden="true"></span>
+              <span id="themeLabel">深色模式</span>
+            </button>
+            <div class="status-pill">
+              <span class="status-dot"></span>
+              <span>本地服务已连接</span>
+            </div>
           </div>
         </header>
 
