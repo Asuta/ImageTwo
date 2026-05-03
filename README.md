@@ -38,3 +38,4 @@ http://localhost:5173
 - API key 从本地 `.env` 或环境变量 `NOWCODING_API_KEY` 读取，`.env` 不会提交到 Git。
 - 如果修改了 `server.js`，需要重启 `npm start` 才会生效。
 - 请求格式细节见 `docs/request-format.md`。
+- Ubuntu 公网部署和商业中转改造计划见 `docs/ubuntu-commercial-proxy-plan.md`。
