@@ -57,7 +57,7 @@ function loadLocalEnv() {
       continue;
     }
 
-    const key = trimmed.slice(0, separatorIndex).trim();
+    const key = trimmed.slice(0, separatorIndex).replace(/^\uFEFF/, "").trim();
     const value = trimmed.slice(separatorIndex + 1).trim();
     if (key && process.env[key] === undefined) {
       process.env[key] = value.replace(/^['"]|['"]$/g, "");
@@ -119,7 +119,7 @@ function ensureDataFile() {
 
 function readData() {
   try {
-    const data = JSON.parse(readFileSync(dataPath, "utf8"));
+    const data = JSON.parse(readFileSync(dataPath, "utf8").replace(/^\uFEFF/, ""));
     return {
       users: Array.isArray(data.users) ? data.users : [],
       sessions: Array.isArray(data.sessions) ? data.sessions : [],
@@ -550,7 +550,7 @@ async function handleAuth(req, res, url) {
       sendJson(res, 200, {
         ok: true,
         message: delivery.delivered ? "验证码已发送，请检查邮箱。" : "开发模式验证码已输出到服务器日志。",
-        devCode: process.env.NODE_ENV === "production" ? undefined : delivery.devCode
+        devCode: process.env.IMAGE2_SHOW_DEV_CODES === "true" ? delivery.devCode : undefined
       });
     } catch (error) {
       sendJson(res, 500, {

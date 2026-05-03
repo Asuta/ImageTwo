@@ -712,10 +712,12 @@ async function requestImage(task, imageId) {
       showToast("图片已生成，但本地历史保存失败");
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     updateImage(task.id, imageId, {
       status: "error",
-      error: error instanceof Error ? error.message : String(error)
+      error: message
     });
+    showToast(message);
   }
 }
 
