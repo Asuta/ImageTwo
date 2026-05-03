@@ -613,7 +613,9 @@ function listen(port) {
   });
 
   server.listen(port, HOST, () => {
-    console.log(`Image2 web generator is running at http://${HOST}:${port}`);
+    const localHost = HOST === "0.0.0.0" || HOST === "::" ? "localhost" : HOST;
+    console.log(`Image2 server is listening on ${HOST}:${port}`);
+    console.log(`Open locally at http://${localHost}:${port}`);
     console.log(`Image2 data will be saved in ${dataDir}`);
   });
 }
