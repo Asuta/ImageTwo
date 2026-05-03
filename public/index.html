@@ -57,12 +57,20 @@
               <span class="theme-orb" aria-hidden="true"></span>
               <span id="themeLabel">深色模式</span>
             </button>
+            <button id="clearHistoryButton" class="theme-toggle hidden" type="button">
+              <span aria-hidden="true">⌫</span>
+              <span>清空本地历史</span>
+            </button>
             <div class="status-pill">
               <span class="status-dot"></span>
-              <span>本地服务已连接</span>
+              <span>服务器中转已连接</span>
             </div>
           </div>
         </header>
+
+        <section class="local-notice" aria-label="本地保存说明">
+          生成图片仅保存在当前浏览器本地，不会云端保存。清除浏览器数据、更换设备或更换浏览器后历史可能丢失，请及时下载重要图片。
+        </section>
 
         <section id="historyFeed" class="history-feed" aria-label="生成历史"></section>
 
@@ -70,7 +78,7 @@
           <div class="empty-card">
             <span class="empty-icon">✦</span>
             <h2>开始一次新的图片生成</h2>
-            <p>生成后的图片、提示词、参数和参考图会保留在这里，方便你继续编辑和复用。</p>
+            <p>生成后的图片会保存在当前浏览器的本地历史中，方便你继续编辑和复用。</p>
           </div>
         </section>
       </main>
@@ -88,6 +96,17 @@
         </div>
 
         <form id="generateForm" class="composer-card">
+          <div class="key-row">
+            <label class="key-control">
+              <span>Image2 Key</span>
+              <input id="userKeyInput" type="password" autocomplete="off" placeholder="img2_..." />
+            </label>
+            <button id="saveKeyButton" class="soft-button" type="button">
+              <span aria-hidden="true">✓</span>
+              <span>保存 Key</span>
+            </button>
+          </div>
+
           <label id="uploadTile" class="upload-tile" title="上传参考图">
             <input id="referenceInput" type="file" accept="image/*" multiple />
             <span id="uploadIcon" aria-hidden="true">+</span>

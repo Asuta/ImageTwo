@@ -300,6 +300,20 @@ h1 {
   gap: 30px;
 }
 
+.local-notice {
+  max-width: 1530px;
+  min-height: 44px;
+  margin: -8px auto 24px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: var(--control-ink);
+  background: var(--surface-glass);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.55;
+}
+
 .history-task {
   padding: 10px;
   border: 1px solid transparent;
@@ -571,6 +585,43 @@ h1 {
   background: var(--surface-glass);
   box-shadow: var(--shadow);
   backdrop-filter: blur(18px);
+}
+
+.key-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.key-control {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 10px 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--control-ink);
+  background: var(--control-bg);
+  font-weight: 900;
+}
+
+.key-control span {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.key-control input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: 0;
+  color: var(--control-ink);
+  background: transparent;
+  font-weight: 800;
 }
 
 :root[data-theme="dark"] .composer-card,
@@ -964,6 +1015,10 @@ select {
 
   .composer-card {
     grid-template-columns: 72px minmax(0, 1fr);
+  }
+
+  .key-row {
+    grid-template-columns: 1fr;
   }
 
   .ratio-panel {

@@ -1,4 +1,10 @@
-const STORAGE_KEY = "image2-history-v3";
+const DB_NAME = "image2-local-history";
+const DB_VERSION = 1;
+const MAX_LOCAL_IMAGES = 300;
+const USER_KEY_STORAGE_KEY = "image2-user-key";
+const GENERATION_POLL_INTERVAL_MS = 2500;
+const GENERATION_POLL_TIMEOUT_MS = 5 * 60 * 1000;
+
 const ratioChoices = [
   { value: "auto", label: "智能", shape: "auto" },
   { value: "9:21", label: "9:21", shape: "r-9-21" },
@@ -18,7 +24,6 @@ const form = document.querySelector("#generateForm");
 const promptInput = document.querySelector("#prompt");
 const qualityInput = document.querySelector("#quality");
 const countInput = document.querySelector("#countInput");
-const button = document.querySelector("#generateButton");
 const modeTabs = document.querySelectorAll(".mode-tab");
 const referenceInput = document.querySelector("#referenceInput");
 const referenceStrip = document.querySelector("#referenceStrip");
@@ -30,31 +35,192 @@ const ratioIcon = document.querySelector("#ratioIcon");
 const ratioLabel = document.querySelector("#ratioLabel");
 const themeToggle = document.querySelector("#themeToggle");
 const themeLabel = document.querySelector("#themeLabel");
+const userKeyInput = document.querySelector("#userKeyInput");
+const saveKeyButton = document.querySelector("#saveKeyButton");
+const clearHistoryButton = document.querySelector("#clearHistoryButton");
 const toast = document.querySelector("#toast");
 
 let mode = "generate";
 let aspectRatio = "auto";
 let referenceImages = [];
 let selectedId = null;
-let history = loadHistory();
+let history = [];
+let dbPromise = null;
 
-renderRatioOptions();
-renderReferences();
-renderHistory();
-syncRatioButton();
-syncThemeLabel();
+window.addEventListener("error", event => {
+  showToast(`页面脚本错误：${event.message || "未知错误"}`);
+});
 
-function loadHistory() {
+window.addEventListener("unhandledrejection", event => {
+  const reason = event.reason instanceof Error ? event.reason.message : String(event.reason || "未知错误");
+  showToast(`页面异步错误：${reason}`);
+});
+
+init();
+
+async function init() {
+  userKeyInput.value = localStorage.getItem(USER_KEY_STORAGE_KEY) || "";
+  renderRatioOptions();
+  renderReferences();
+  syncRatioButton();
+  syncThemeLabel();
+
   try {
-    return JSON.parse(sessionStorage.getItem(STORAGE_KEY) || "[]");
-  } catch {
-    return [];
+    history = await loadHistory();
+  } catch (error) {
+    console.error(error);
+    showToast("读取本地历史失败");
   }
+
+  renderHistory();
 }
 
-function saveHistory() {
-  const storableHistory = history.map(({ referenceImages: _referenceImages, ...task }) => task);
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(storableHistory));
+function openHistoryDb() {
+  if (dbPromise) {
+    return dbPromise;
+  }
+
+  dbPromise = new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains("tasks")) {
+        db.createObjectStore("tasks", { keyPath: "id" });
+      }
+
+      if (!db.objectStoreNames.contains("images")) {
+        const imageStore = db.createObjectStore("images", { keyPath: "id" });
+        imageStore.createIndex("taskId", "taskId", { unique: false });
+        imageStore.createIndex("createdAt", "createdAt", { unique: false });
+      }
+    };
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+
+  return dbPromise;
+}
+
+function storeRequest(store, method, ...args) {
+  return new Promise((resolve, reject) => {
+    const request = store[method](...args);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function transactionDone(transaction) {
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = resolve;
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(transaction.error);
+  });
+}
+
+async function loadHistory() {
+  const db = await openHistoryDb();
+  const transaction = db.transaction(["tasks", "images"], "readonly");
+  const done = transactionDone(transaction);
+  const tasks = await storeRequest(transaction.objectStore("tasks"), "getAll");
+  const images = await storeRequest(transaction.objectStore("images"), "getAll");
+  const imagesByTask = new Map();
+
+  images.forEach(image => {
+    const url = image.blob ? URL.createObjectURL(image.blob) : "";
+    const imageRecord = { ...image, url };
+    imagesByTask.set(image.taskId, [...(imagesByTask.get(image.taskId) || []), imageRecord]);
+  });
+
+  await done;
+
+  return tasks
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .map(task => ({
+      ...task,
+      images: (imagesByTask.get(task.id) || []).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    }));
+}
+
+async function saveTask(task) {
+  const db = await openHistoryDb();
+  const transaction = db.transaction("tasks", "readwrite");
+  const done = transactionDone(transaction);
+  const { referenceImages: _referenceImages, images: _images, ...storableTask } = task;
+  transaction.objectStore("tasks").put(storableTask);
+  await done;
+}
+
+async function saveImage(taskId, image) {
+  const db = await openHistoryDb();
+  const transaction = db.transaction("images", "readwrite");
+  const done = transactionDone(transaction);
+  const { url: _url, ...storableImage } = image;
+  transaction.objectStore("images").put({ ...storableImage, taskId });
+  await done;
+  await trimLocalHistory();
+}
+
+async function deleteTaskFromDb(taskId) {
+  const db = await openHistoryDb();
+  const readTransaction = db.transaction("images", "readonly");
+  const readDone = transactionDone(readTransaction);
+  const images = await storeRequest(readTransaction.objectStore("images").index("taskId"), "getAll", taskId);
+  await readDone;
+
+  const transaction = db.transaction(["tasks", "images"], "readwrite");
+  const done = transactionDone(transaction);
+  transaction.objectStore("tasks").delete(taskId);
+  const imageStore = transaction.objectStore("images");
+  images.forEach(image => imageStore.delete(image.id));
+  await done;
+}
+
+async function clearHistoryDb() {
+  const db = await openHistoryDb();
+  const transaction = db.transaction(["tasks", "images"], "readwrite");
+  const done = transactionDone(transaction);
+  transaction.objectStore("tasks").clear();
+  transaction.objectStore("images").clear();
+  await done;
+}
+
+async function trimLocalHistory() {
+  const db = await openHistoryDb();
+  const readTransaction = db.transaction(["tasks", "images"], "readonly");
+  const readDone = transactionDone(readTransaction);
+  const images = await storeRequest(readTransaction.objectStore("images"), "getAll");
+  await readDone;
+
+  if (images.length <= MAX_LOCAL_IMAGES) {
+    return;
+  }
+
+  const removable = images
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+    .slice(0, images.length - MAX_LOCAL_IMAGES);
+  const removableTaskIds = new Set(removable.map(image => image.taskId));
+  const removableImageIds = new Set(removable.map(image => image.id));
+  const remainingTaskIds = new Set(
+    images
+      .filter(image => !removableImageIds.has(image.id))
+      .map(image => image.taskId)
+  );
+  const writeTransaction = db.transaction(["tasks", "images"], "readwrite");
+  const writeDone = transactionDone(writeTransaction);
+  const imageStore = writeTransaction.objectStore("images");
+  const taskStore = writeTransaction.objectStore("tasks");
+
+  removable.forEach(image => imageStore.delete(image.id));
+
+  for (const taskId of removableTaskIds) {
+    if (!remainingTaskIds.has(taskId)) {
+      taskStore.delete(taskId);
+    }
+  }
+
+  await writeDone;
 }
 
 function formatTime(date = new Date()) {
@@ -68,16 +234,15 @@ function getCount() {
 
 function createLoadingImages(count) {
   return Array.from({ length: count }, () => ({
-    id: crypto.randomUUID(),
+    id: createLocalId(),
     status: "loading",
     url: "",
-    absolutePath: "",
     createdAt: new Date().toISOString()
   }));
 }
 
 function createTask({ prompt, aspectRatio, quality, count, mode, referenceImages }) {
-  const id = crypto.randomUUID();
+  const id = createLocalId();
   return {
     id,
     prompt,
@@ -85,7 +250,10 @@ function createTask({ prompt, aspectRatio, quality, count, mode, referenceImages
     quality,
     count,
     mode,
+    model: "gpt-5.4-mini",
     createdAt: new Date().toISOString(),
+    costCredits: 0,
+    remainingCreditsSnapshot: null,
     referenceThumbs: referenceImages.map(image => image.dataUrl).filter(dataUrl => dataUrl.length < 600_000),
     referenceNames: referenceImages.map(image => image.name),
     referenceImages,
@@ -103,7 +271,7 @@ function showToast(message) {
   toast.textContent = message;
   toast.classList.remove("hidden");
   window.clearTimeout(showToast.timer);
-  showToast.timer = window.setTimeout(() => toast.classList.add("hidden"), 2400);
+  showToast.timer = window.setTimeout(() => toast.classList.add("hidden"), 2600);
 }
 
 function getTheme() {
@@ -140,7 +308,7 @@ async function addReferenceFiles(files) {
   }
 
   const additions = await Promise.all(imageFiles.map(async file => ({
-    id: crypto.randomUUID(),
+    id: createLocalId(),
     name: file.name,
     type: file.type,
     dataUrl: await fileToDataUrl(file)
@@ -173,7 +341,7 @@ function renderReferences() {
     item.className = "reference-thumb";
     item.innerHTML = `
       <img src="${escapeHtml(image.dataUrl)}" alt="${escapeHtml(image.name)}" />
-      <button type="button" data-remove-ref="${image.id}" aria-label="移除参考图">×</button>
+      <button type="button" data-remove-ref="${image.id}" aria-label="移除参考图">x</button>
     `;
     referenceStrip.append(item);
   });
@@ -214,6 +382,7 @@ function getRatioLabel(value) {
 function renderHistory() {
   historyFeed.innerHTML = "";
   emptyState.classList.toggle("hidden", history.length > 0);
+  clearHistoryButton.classList.toggle("hidden", history.length === 0);
 
   history.forEach(task => {
     const article = document.createElement("article");
@@ -225,11 +394,13 @@ function renderHistory() {
         <div>
           <h2>${escapeHtml(getTaskTitle(task.prompt))}</h2>
           <div class="tag-row">
-            <span>gpt-5.4-mini</span>
+            <span>${escapeHtml(task.model || "gpt-5.4-mini")}</span>
             <span>${task.mode === "edit" ? "多图参考" : "图片生成"}</span>
             <span>${escapeHtml(getRatioLabel(task.aspectRatio || "auto"))}</span>
             <span>${escapeHtml(task.quality || "medium")}</span>
             <span>${task.count || task.images.length} 张</span>
+            ${task.costCredits ? `<span>${task.costCredits} 点</span>` : ""}
+            ${Number.isFinite(task.remainingCreditsSnapshot) ? `<span>余额 ${task.remainingCreditsSnapshot}</span>` : ""}
             <span>${formatTime(new Date(task.createdAt))}</span>
           </div>
         </div>
@@ -290,7 +461,7 @@ function renderImageCard(image) {
       <a href="${escapeHtml(image.url)}" target="_blank" rel="noreferrer">
         <img src="${escapeHtml(image.url)}" alt="生成结果" />
       </a>
-      <figcaption title="${escapeHtml(image.absolutePath)}">${escapeHtml(image.absolutePath)}</figcaption>
+      <figcaption>已保存在当前浏览器本地</figcaption>
     </figure>
   `;
 }
@@ -304,11 +475,70 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function createLocalId() {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+
+  const bytes = new Uint8Array(16);
+  if (globalThis.crypto?.getRandomValues) {
+    globalThis.crypto.getRandomValues(bytes);
+  } else {
+    for (let index = 0; index < bytes.length; index += 1) {
+      bytes[index] = Math.floor(Math.random() * 256);
+    }
+  }
+
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = [...bytes].map(byte => byte.toString(16).padStart(2, "0"));
+  return [
+    hex.slice(0, 4).join(""),
+    hex.slice(4, 6).join(""),
+    hex.slice(6, 8).join(""),
+    hex.slice(8, 10).join(""),
+    hex.slice(10, 16).join("")
+  ].join("-");
+}
+
+function base64ToBlob(base64, mimeType) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return new Blob([bytes], { type: mimeType });
+}
+
+function getUserKey() {
+  return userKeyInput.value.trim();
+}
+
+function saveUserKey() {
+  const userKey = getUserKey();
+  if (!userKey) {
+    localStorage.removeItem(USER_KEY_STORAGE_KEY);
+    showToast("已清空用户 Key");
+    return;
+  }
+
+  localStorage.setItem(USER_KEY_STORAGE_KEY, userKey);
+  showToast("用户 Key 已保存在当前浏览器");
+}
+
 async function requestImage(task, imageId) {
   try {
+    const userKey = getUserKey();
+    if (!userKey) {
+      throw new Error("请先填写 Image2 用户 Key。");
+    }
+
+    localStorage.setItem(USER_KEY_STORAGE_KEY, userKey);
+
     const response = await fetch("/api/generate", {
       method: "POST",
       headers: {
+        "Authorization": `Bearer ${userKey}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -325,10 +555,35 @@ async function requestImage(task, imageId) {
       throw new Error(payload.detail || payload.error || "生成失败。");
     }
 
-    updateImage(task.id, imageId, {
+    const result = payload.status === "pending"
+      ? await pollGenerationResult(payload.requestId)
+      : payload;
+
+    if (result.status !== "succeeded" && result.status !== "completed") {
+      throw new Error(result.detail || result.error || "生成失败。");
+    }
+
+    const blob = base64ToBlob(result.imageBase64, result.mimeType || "image/png");
+    const url = URL.createObjectURL(blob);
+    const doneImage = {
+      id: imageId,
       status: "done",
-      url: payload.fileUrl,
-      absolutePath: payload.absolutePath
+      url,
+      blob,
+      mimeType: result.mimeType || "image/png",
+      outputFormat: result.outputFormat || "png",
+      requestId: result.requestId,
+      createdAt: new Date().toISOString()
+    };
+
+    updateTaskMeta(task.id, {
+      model: result.model || task.model,
+      remainingCreditsSnapshot: result.remainingCredits
+    }, result.costCredits || 0);
+    updateImage(task.id, imageId, doneImage);
+    saveImage(task.id, doneImage).catch(error => {
+      console.error(error);
+      showToast("图片已生成，但本地历史保存失败");
     });
   } catch (error) {
     updateImage(task.id, imageId, {
@@ -336,6 +591,52 @@ async function requestImage(task, imageId) {
       error: error instanceof Error ? error.message : String(error)
     });
   }
+}
+
+async function pollGenerationResult(requestId) {
+  if (!requestId) {
+    throw new Error("生成任务没有返回 requestId。");
+  }
+
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < GENERATION_POLL_TIMEOUT_MS) {
+    await wait(GENERATION_POLL_INTERVAL_MS);
+    const response = await fetch(`/api/generate/${encodeURIComponent(requestId)}`);
+    const payload = await response.json();
+
+    if (response.ok && payload.status === "succeeded") {
+      return payload;
+    }
+
+    if (!response.ok || payload.status === "failed") {
+      throw new Error(payload.detail || payload.error || "生成失败。");
+    }
+  }
+
+  throw new Error("生成超时，请稍后重试。");
+}
+
+function wait(ms) {
+  return new Promise(resolve => window.setTimeout(resolve, ms));
+}
+
+function updateTaskMeta(taskId, patch, creditDelta = 0) {
+  history = history.map(task => {
+    if (task.id !== taskId) {
+      return task;
+    }
+
+    const updatedTask = {
+      ...task,
+      ...patch,
+      costCredits: (task.costCredits || 0) + creditDelta
+    };
+    saveTask(updatedTask).catch(error => {
+      console.error(error);
+      showToast("保存任务信息失败");
+    });
+    return updatedTask;
+  });
 }
 
 function updateImage(taskId, imageId, patch) {
@@ -349,25 +650,35 @@ function updateImage(taskId, imageId, patch) {
       images: task.images.map(image => image.id === imageId ? { ...image, ...patch } : image)
     };
   });
-  saveHistory();
   renderHistory();
 }
 
 async function runTaskImages(task, images) {
-  const results = await Promise.allSettled(images.map(image => requestImage(task, image.id)));
+  await Promise.allSettled(images.map(image => requestImage(task, image.id)));
+  const updatedTask = history.find(item => item.id === task.id);
+  const generatedCount = updatedTask?.images.filter(image => image.status === "done").length || 0;
+  const failedCount = updatedTask?.images.filter(image => image.status === "error").length || 0;
 
-  const failedCount = results.filter(result => result.status === "rejected").length;
   if (failedCount > 0) {
-    showToast(`${failedCount} 张生成失败`);
+    showToast(`${failedCount} 张生成失败，${generatedCount} 张已保存到本地`);
   } else {
-    showToast(`${images.length} 张图片已生成`);
+    showToast(`${generatedCount} 张图片已保存到当前浏览器`);
   }
+
+  history = await loadHistory();
+  renderHistory();
 }
 
 async function generateNewTask() {
   const prompt = promptInput.value.trim();
   if (!prompt) {
     showToast("请先输入提示词");
+    return;
+  }
+
+  if (!getUserKey()) {
+    showToast("请先填写 Image2 用户 Key");
+    userKeyInput.focus();
     return;
   }
 
@@ -388,8 +699,12 @@ async function generateNewTask() {
 
   selectedId = task.id;
   history = [task, ...history];
-  saveHistory();
+  saveTask(task).catch(error => {
+    console.error(error);
+    showToast("本地历史暂时不可用，仍会继续生成");
+  });
   renderHistory();
+  showToast("已提交生成请求");
   runTaskImages(task, task.images);
 }
 
@@ -402,7 +717,6 @@ async function rerunTask(task) {
   selectedId = task.id;
   const images = createLoadingImages(task.count || 1);
   history = history.map(item => item.id === task.id ? { ...item, images: [...images, ...item.images] } : item);
-  saveHistory();
   renderHistory();
   runTaskImages(task, images);
 }
@@ -433,6 +747,19 @@ modeTabs.forEach(tab => {
 });
 
 themeToggle.addEventListener("click", toggleTheme);
+saveKeyButton.addEventListener("click", saveUserKey);
+clearHistoryButton.addEventListener("click", async () => {
+  await clearHistoryDb();
+  history.forEach(task => task.images.forEach(image => {
+    if (image.url) {
+      URL.revokeObjectURL(image.url);
+    }
+  }));
+  history = [];
+  selectedId = null;
+  renderHistory();
+  showToast("已清空当前浏览器的本地历史");
+});
 
 ratioButton.addEventListener("click", () => {
   ratioPanel.classList.toggle("hidden");
@@ -512,12 +839,17 @@ historyFeed.addEventListener("click", async event => {
   }
 
   if (buttonEl.dataset.action === "delete") {
+    await deleteTaskFromDb(task.id);
+    task.images.forEach(image => {
+      if (image.url) {
+        URL.revokeObjectURL(image.url);
+      }
+    });
     history = history.filter(item => item.id !== task.id);
     if (selectedId === task.id) {
       selectedId = history[0]?.id || null;
     }
-    saveHistory();
     renderHistory();
-    showToast("已删除历史记录");
+    showToast("已删除本地历史记录");
   }
 });
