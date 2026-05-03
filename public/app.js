@@ -1,7 +1,6 @@
 const DB_NAME = "image2-local-history";
 const DB_VERSION = 1;
 const MAX_LOCAL_IMAGES = 300;
-const USER_KEY_STORAGE_KEY = "image2-user-key";
 const GENERATION_POLL_INTERVAL_MS = 2500;
 const GENERATION_POLL_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -35,8 +34,16 @@ const ratioIcon = document.querySelector("#ratioIcon");
 const ratioLabel = document.querySelector("#ratioLabel");
 const themeToggle = document.querySelector("#themeToggle");
 const themeLabel = document.querySelector("#themeLabel");
-const userKeyInput = document.querySelector("#userKeyInput");
-const saveKeyButton = document.querySelector("#saveKeyButton");
+const accountStatus = document.querySelector("#accountStatus");
+const emailInput = document.querySelector("#emailInput");
+const codeControl = document.querySelector("#codeControl");
+const codeInput = document.querySelector("#codeInput");
+const sendCodeButton = document.querySelector("#sendCodeButton");
+const loginButton = document.querySelector("#loginButton");
+const logoutButton = document.querySelector("#logoutButton");
+const giftControl = document.querySelector("#giftControl");
+const giftKeyInput = document.querySelector("#giftKeyInput");
+const redeemButton = document.querySelector("#redeemButton");
 const clearHistoryButton = document.querySelector("#clearHistoryButton");
 const toast = document.querySelector("#toast");
 
@@ -46,6 +53,7 @@ let referenceImages = [];
 let selectedId = null;
 let history = [];
 let dbPromise = null;
+let currentUser = null;
 
 window.addEventListener("error", event => {
   showToast(`页面脚本错误：${event.message || "未知错误"}`);
@@ -59,11 +67,11 @@ window.addEventListener("unhandledrejection", event => {
 init();
 
 async function init() {
-  userKeyInput.value = localStorage.getItem(USER_KEY_STORAGE_KEY) || "";
   renderRatioOptions();
   renderReferences();
   syncRatioButton();
   syncThemeLabel();
+  await refreshCurrentUser();
 
   try {
     history = await loadHistory();
@@ -272,6 +280,141 @@ function showToast(message) {
   toast.classList.remove("hidden");
   window.clearTimeout(showToast.timer);
   showToast.timer = window.setTimeout(() => toast.classList.add("hidden"), 2600);
+}
+
+function setCurrentUser(user) {
+  currentUser = user;
+  const isLoggedIn = Boolean(currentUser);
+
+  accountStatus.innerHTML = `
+    <span class="status-dot"></span>
+    <span>${isLoggedIn ? `${escapeHtml(currentUser.email)} · ${currentUser.credits} 点` : "未登录"}</span>
+  `;
+
+  emailInput.disabled = isLoggedIn;
+  codeControl.classList.toggle("hidden", isLoggedIn);
+  sendCodeButton.classList.toggle("hidden", isLoggedIn);
+  loginButton.classList.toggle("hidden", isLoggedIn || codeControl.classList.contains("hidden"));
+  logoutButton.classList.toggle("hidden", !isLoggedIn);
+  giftControl.classList.toggle("hidden", !isLoggedIn);
+  redeemButton.classList.toggle("hidden", !isLoggedIn);
+
+  if (isLoggedIn) {
+    emailInput.value = currentUser.email;
+  }
+}
+
+async function refreshCurrentUser() {
+  try {
+    const response = await fetch("/api/auth/me");
+    const payload = await response.json();
+    setCurrentUser(payload.user || null);
+  } catch (error) {
+    console.error(error);
+    setCurrentUser(null);
+  }
+}
+
+async function sendLoginCode() {
+  const email = emailInput.value.trim();
+  if (!email) {
+    showToast("请先输入邮箱");
+    emailInput.focus();
+    return;
+  }
+
+  sendCodeButton.disabled = true;
+  try {
+    const response = await fetch("/api/auth/request-code", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email })
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.detail || payload.error || "验证码发送失败。");
+    }
+
+    codeControl.classList.remove("hidden");
+    loginButton.classList.remove("hidden");
+    codeInput.focus();
+    showToast(payload.devCode ? `开发验证码：${payload.devCode}` : "验证码已发送，请检查邮箱");
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : String(error));
+  } finally {
+    sendCodeButton.disabled = false;
+  }
+}
+
+async function loginWithCode() {
+  const email = emailInput.value.trim();
+  const code = codeInput.value.trim();
+  if (!email || !code) {
+    showToast("请输入邮箱和验证码");
+    return;
+  }
+
+  loginButton.disabled = true;
+  try {
+    const response = await fetch("/api/auth/verify-code", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, code })
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.detail || payload.error || "登录失败。");
+    }
+
+    codeInput.value = "";
+    setCurrentUser(payload.user);
+    showToast("登录成功");
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : String(error));
+  } finally {
+    loginButton.disabled = false;
+  }
+}
+
+async function logout() {
+  await fetch("/api/auth/logout", { method: "POST" });
+  currentUser = null;
+  emailInput.disabled = false;
+  emailInput.value = "";
+  codeInput.value = "";
+  giftKeyInput.value = "";
+  setCurrentUser(null);
+  showToast("已退出登录");
+}
+
+async function redeemGiftCard() {
+  const key = giftKeyInput.value.trim();
+  if (!key) {
+    showToast("请输入礼品卡 Key");
+    giftKeyInput.focus();
+    return;
+  }
+
+  redeemButton.disabled = true;
+  try {
+    const response = await fetch("/api/redeem", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key })
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.detail || payload.error || "兑换失败。");
+    }
+
+    giftKeyInput.value = "";
+    setCurrentUser(payload.user);
+    showToast(`已兑换 ${payload.creditsAdded} 点`);
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : String(error));
+  } finally {
+    redeemButton.disabled = false;
+  }
 }
 
 function getTheme() {
@@ -510,35 +653,15 @@ function base64ToBlob(base64, mimeType) {
   return new Blob([bytes], { type: mimeType });
 }
 
-function getUserKey() {
-  return userKeyInput.value.trim();
-}
-
-function saveUserKey() {
-  const userKey = getUserKey();
-  if (!userKey) {
-    localStorage.removeItem(USER_KEY_STORAGE_KEY);
-    showToast("已清空用户 Key");
-    return;
-  }
-
-  localStorage.setItem(USER_KEY_STORAGE_KEY, userKey);
-  showToast("用户 Key 已保存在当前浏览器");
-}
-
 async function requestImage(task, imageId) {
   try {
-    const userKey = getUserKey();
-    if (!userKey) {
-      throw new Error("请先填写 Image2 用户 Key。");
+    if (!currentUser) {
+      throw new Error("请先使用邮箱验证码登录。");
     }
-
-    localStorage.setItem(USER_KEY_STORAGE_KEY, userKey);
 
     const response = await fetch("/api/generate", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${userKey}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -580,6 +703,9 @@ async function requestImage(task, imageId) {
       model: result.model || task.model,
       remainingCreditsSnapshot: result.remainingCredits
     }, result.costCredits || 0);
+    if (Number.isFinite(result.remainingCredits) && currentUser) {
+      setCurrentUser({ ...currentUser, credits: result.remainingCredits });
+    }
     updateImage(task.id, imageId, doneImage);
     saveImage(task.id, doneImage).catch(error => {
       console.error(error);
@@ -676,9 +802,9 @@ async function generateNewTask() {
     return;
   }
 
-  if (!getUserKey()) {
-    showToast("请先填写 Image2 用户 Key");
-    userKeyInput.focus();
+  if (!currentUser) {
+    showToast("请先使用邮箱验证码登录");
+    emailInput.focus();
     return;
   }
 
@@ -747,7 +873,10 @@ modeTabs.forEach(tab => {
 });
 
 themeToggle.addEventListener("click", toggleTheme);
-saveKeyButton.addEventListener("click", saveUserKey);
+sendCodeButton.addEventListener("click", sendLoginCode);
+loginButton.addEventListener("click", loginWithCode);
+logoutButton.addEventListener("click", logout);
+redeemButton.addEventListener("click", redeemGiftCard);
 clearHistoryButton.addEventListener("click", async () => {
   await clearHistoryDb();
   history.forEach(task => task.images.forEach(image => {
@@ -806,6 +935,27 @@ promptInput.addEventListener("keydown", event => {
   if (event.key === "Enter" && !event.shiftKey) {
     event.preventDefault();
     generateNewTask();
+  }
+});
+
+emailInput.addEventListener("keydown", event => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    sendLoginCode();
+  }
+});
+
+codeInput.addEventListener("keydown", event => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    loginWithCode();
+  }
+});
+
+giftKeyInput.addEventListener("keydown", event => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    redeemGiftCard();
   }
 });
 

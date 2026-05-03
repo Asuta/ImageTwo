@@ -19,9 +19,10 @@ Image2 服务 -> nowcoding Responses API POST https://nowcoding.ai/v1/responses
 
 ```http
 POST /api/generate
-Authorization: Bearer <Image2 用户 Key>
 Content-Type: application/json
 ```
+
+身份认证不再使用 `Authorization: Bearer img2_...`。用户需要先通过邮箱验证码登录，浏览器会自动携带 `image2_session` HttpOnly cookie。
 
 请求体：
 
@@ -58,29 +59,76 @@ Content-Type: application/json
 
 ## 3. 额度校验
 
-Image2 服务收到 `/api/generate` 后会先读取 `Authorization` header 中的 Image2 用户 Key。
+Image2 服务收到 `/api/generate` 后会先读取 `image2_session` cookie，并找到当前登录账号。
 
 额度规则：
 
 ```text
-low = 1 点 / 张
-medium = 2 点 / 张
-high = 4 点 / 张
+每生成 1 张图片 = 1 点
 ```
 
 扣费流程：
 
 ```text
-1. 校验用户 Key
-2. 检查 key 是否 active
-3. 检查余额是否足够
-4. 预扣额度并记录 usage log
-5. 调用上游供应商
-6. 成功则确认消耗
-7. 失败则返还预扣额度
+1. 校验登录 session
+2. 检查账号余额是否足够
+3. 预扣额度并记录 usage log
+4. 调用上游供应商
+5. 成功则确认消耗
+6. 失败则返还预扣额度
 ```
 
-第一阶段参考图编辑不额外加价。
+如果用户一次生成多张图，前端仍会并行发送多次 `/api/generate`，每个请求扣 1 点。
+
+### 3.1 登录与礼品卡兑换
+
+请求邮箱验证码：
+
+```http
+POST /api/auth/request-code
+Content-Type: application/json
+```
+
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+验证登录：
+
+```http
+POST /api/auth/verify-code
+Content-Type: application/json
+```
+
+```json
+{
+  "email": "user@example.com",
+  "code": "123456"
+}
+```
+
+登录成功后，服务端写入 `image2_session` cookie。新账号默认获得 100 点额度，具体值可通过 `IMAGE2_SIGNUP_CREDITS` 配置。
+
+查询当前账号：
+
+```http
+GET /api/auth/me
+```
+
+兑换礼品卡：
+
+```http
+POST /api/redeem
+Content-Type: application/json
+```
+
+```json
+{
+  "key": "gift_xxx"
+}
+```
 
 ## 4. 后端默认上下文
 
@@ -244,8 +292,8 @@ Image2 服务不会把图片长期写入服务器磁盘，而是把图片 base64
   "outputFormat": "png",
   "mimeType": "image/png",
   "imageBase64": "iVBORw0KGgoAAAANSUhE...",
-  "costCredits": 2,
-  "remainingCredits": 98
+  "costCredits": 1,
+  "remainingCredits": 99
 }
 ```
 
@@ -265,59 +313,47 @@ imageBase64 -> Blob -> IndexedDB -> URL.createObjectURL -> 页面展示
 Authorization: Bearer <IMAGE2_ADMIN_KEY>
 ```
 
-创建用户 Key：
+查询用户：
 
 ```http
-POST /api/admin/keys
+GET /api/admin/users
+```
+
+调整账号额度：
+
+```http
+POST /api/admin/users/<user-id>/credits
 Content-Type: application/json
 ```
 
 ```json
 {
-  "label": "user-a",
-  "initialCredits": 100
+  "delta": 50,
+  "note": "manual top-up"
 }
 ```
 
-响应：
-
-```json
-{
-  "key": "img2_xxx",
-  "apiKey": {
-    "id": "uuid",
-    "label": "user-a",
-    "status": "active",
-    "remainingCredits": 100,
-    "createdAt": "2026-05-03T00:00:00.000Z",
-    "updatedAt": "2026-05-03T00:00:00.000Z"
-  }
-}
-```
-
-查询用户 Key：
+创建礼品卡：
 
 ```http
-GET /api/admin/keys
-```
-
-调整额度：
-
-```http
-POST /api/admin/keys/<id>/credits
+POST /api/admin/gift-cards
 Content-Type: application/json
 ```
 
 ```json
 {
-  "delta": 50
+  "label": "batch-a",
+  "credits": 10,
+  "count": 5
 }
 ```
 
-禁用用户 Key：
+响应会返回本批次创建的明文 `gift_...`，供你发到第三方发卡平台。礼品卡明文只在创建时返回。
+
+查询礼品卡：
 
 ```http
-POST /api/admin/keys/<id>/disable
+GET /api/admin/gift-cards
 ```
 
 ## 9. 错误响应
@@ -330,19 +366,11 @@ POST /api/admin/keys/<id>/disable
 }
 ```
 
-用户 Key 无效：
+用户未登录：
 
 ```json
 {
-  "error": "用户 key 无效，请检查 Image2 Key。"
-}
-```
-
-用户 Key 被禁用：
-
-```json
-{
-  "error": "用户 key 已被禁用。"
+  "error": "请先使用邮箱验证码登录。"
 }
 ```
 
@@ -350,8 +378,8 @@ POST /api/admin/keys/<id>/disable
 
 ```json
 {
-  "error": "额度不足，请联系服务提供方充值。",
-  "costCredits": 4,
+  "error": "额度不足，请兑换礼品卡后再生成。",
+  "costCredits": 1,
   "remainingCredits": 2
 }
 ```

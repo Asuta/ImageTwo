@@ -587,15 +587,15 @@ h1 {
   backdrop-filter: blur(18px);
 }
 
-.key-row {
+.account-row {
   grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   align-items: center;
 }
 
-.key-control {
+.account-control {
   min-height: 38px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -606,15 +606,16 @@ h1 {
   color: var(--control-ink);
   background: var(--control-bg);
   font-weight: 900;
+  flex: 1 1 180px;
 }
 
-.key-control span {
+.account-control span {
   flex: 0 0 auto;
   color: var(--muted);
   font-size: 13px;
 }
 
-.key-control input {
+.account-control input {
   min-width: 0;
   width: 100%;
   border: 0;
@@ -1017,7 +1018,7 @@ select {
     grid-template-columns: 72px minmax(0, 1fr);
   }
 
-  .key-row {
+  .account-row {
     grid-template-columns: 1fr;
   }
 

@@ -61,10 +61,10 @@
               <span aria-hidden="true">⌫</span>
               <span>清空本地历史</span>
             </button>
-            <div class="status-pill">
-              <span class="status-dot"></span>
-              <span>服务器中转已连接</span>
-            </div>
+          <div id="accountStatus" class="status-pill">
+            <span class="status-dot"></span>
+            <span>未登录</span>
+          </div>
           </div>
         </header>
 
@@ -96,14 +96,34 @@
         </div>
 
         <form id="generateForm" class="composer-card">
-          <div class="key-row">
-            <label class="key-control">
-              <span>Image2 Key</span>
-              <input id="userKeyInput" type="password" autocomplete="off" placeholder="img2_..." />
+          <div class="account-row">
+            <label class="account-control">
+              <span>邮箱</span>
+              <input id="emailInput" type="email" autocomplete="email" placeholder="you@example.com" />
             </label>
-            <button id="saveKeyButton" class="soft-button" type="button">
+            <label id="codeControl" class="account-control hidden">
+              <span>验证码</span>
+              <input id="codeInput" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6 位数字" />
+            </label>
+            <button id="sendCodeButton" class="soft-button" type="button">
+              <span aria-hidden="true">✉</span>
+              <span>发送验证码</span>
+            </button>
+            <button id="loginButton" class="soft-button hidden" type="button">
               <span aria-hidden="true">✓</span>
-              <span>保存 Key</span>
+              <span>登录</span>
+            </button>
+            <button id="logoutButton" class="soft-button hidden" type="button">
+              <span aria-hidden="true">↥</span>
+              <span>退出</span>
+            </button>
+            <label id="giftControl" class="account-control hidden">
+              <span>礼品卡</span>
+              <input id="giftKeyInput" type="text" autocomplete="off" placeholder="gift_..." />
+            </label>
+            <button id="redeemButton" class="soft-button hidden" type="button">
+              <span aria-hidden="true">＋</span>
+              <span>兑换</span>
             </button>
           </div>
 
