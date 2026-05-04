@@ -54,6 +54,7 @@ let selectedId = null;
 let history = [];
 let dbPromise = null;
 let currentUser = null;
+let loginCodeRequested = false;
 
 window.addEventListener("error", event => {
   showToast(`页面脚本错误：${event.message || "未知错误"}`);
@@ -292,9 +293,9 @@ function setCurrentUser(user) {
   `;
 
   emailInput.disabled = isLoggedIn;
-  codeControl.classList.toggle("hidden", isLoggedIn);
+  codeControl.classList.toggle("hidden", isLoggedIn || !loginCodeRequested);
   sendCodeButton.classList.toggle("hidden", isLoggedIn);
-  loginButton.classList.toggle("hidden", isLoggedIn || codeControl.classList.contains("hidden"));
+  loginButton.classList.toggle("hidden", isLoggedIn || !loginCodeRequested);
   logoutButton.classList.toggle("hidden", !isLoggedIn);
   giftControl.classList.toggle("hidden", !isLoggedIn);
   redeemButton.classList.toggle("hidden", !isLoggedIn);
@@ -337,6 +338,7 @@ async function sendLoginCode() {
 
     codeControl.classList.remove("hidden");
     loginButton.classList.remove("hidden");
+    loginCodeRequested = true;
     codeInput.focus();
     showToast(payload.devCode ? `开发验证码：${payload.devCode}` : "验证码已发送，请检查邮箱");
   } catch (error) {
@@ -367,6 +369,7 @@ async function loginWithCode() {
     }
 
     codeInput.value = "";
+    loginCodeRequested = false;
     setCurrentUser(payload.user);
     showToast("登录成功");
   } catch (error) {
@@ -379,6 +382,7 @@ async function loginWithCode() {
 async function logout() {
   await fetch("/api/auth/logout", { method: "POST" });
   currentUser = null;
+  loginCodeRequested = false;
   emailInput.disabled = false;
   emailInput.value = "";
   codeInput.value = "";

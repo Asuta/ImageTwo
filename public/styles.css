@@ -991,6 +991,10 @@ select {
 }
 
 @media (max-width: 680px) {
+  body {
+    min-height: 100svh;
+  }
+
   .app {
     display: block;
   }
@@ -1001,47 +1005,273 @@ select {
 
   .topbar {
     display: grid;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+
+  .topbar-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .theme-toggle,
+  .status-pill {
+    max-width: 100%;
+    min-height: 38px;
+    padding-inline: 10px;
+    white-space: nowrap;
+  }
+
+  .status-pill {
+    min-width: 0;
+    flex: 1 1 150px;
+  }
+
+  .status-pill span:last-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .main {
-    padding: 18px 14px 330px;
+    padding: 18px 14px 390px;
+  }
+
+  h1 {
+    font-size: 28px;
+  }
+
+  .local-notice {
+    margin-bottom: 18px;
+    padding: 11px 12px;
+    font-size: 12px;
+  }
+
+  .history-feed {
+    gap: 22px;
+  }
+
+  .history-task {
+    padding: 0;
+  }
+
+  .task-head {
+    display: grid;
+    align-items: start;
+  }
+
+  .task-head h2 {
+    font-size: 17px;
+  }
+
+  .tag-row {
+    gap: 6px;
+  }
+
+  .tag-row span {
+    min-height: 28px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  .task-actions {
+    gap: 7px;
+  }
+
+  .task-actions button {
+    flex: 1 1 calc(50% - 7px);
+    justify-content: center;
+    min-width: 0;
+    padding: 0 9px;
+  }
+
+  .task-actions button[data-action="delete"] {
+    flex: 0 0 44px;
   }
 
   .composer {
     left: 12px;
     right: 12px;
+    bottom: max(10px, env(safe-area-inset-bottom));
     width: auto;
     transform: none;
   }
 
+  .mode-tabs {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .mode-tab {
+    min-width: 0;
+    min-height: 44px;
+    padding: 0 10px;
+    font-size: 14px;
+  }
+
   .composer-card {
-    grid-template-columns: 72px minmax(0, 1fr);
+    max-height: min(66svh, 520px);
+    overflow-y: auto;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 12px;
+    overscroll-behavior: contain;
   }
 
   .account-row {
+    display: grid;
     grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .account-control,
+  .soft-button {
+    min-height: 40px;
+  }
+
+  .soft-button {
+    justify-content: center;
+  }
+
+  #sendCodeButton,
+  #loginButton,
+  #logoutButton,
+  #redeemButton {
+    width: 100%;
+  }
+
+  #logoutButton:not(.hidden),
+  #redeemButton:not(.hidden) {
+    width: auto;
+  }
+
+  .account-row:has(#giftControl:not(.hidden)) {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .account-row:has(#giftControl:not(.hidden)) .account-control:first-child,
+  .account-row:has(#giftControl:not(.hidden)) #giftControl {
+    grid-column: 1 / -1;
+  }
+
+  .account-row:has(#giftControl:not(.hidden)) #giftControl {
+    grid-column: 1 / 2;
+  }
+
+  .account-row:has(#giftControl:not(.hidden)) #redeemButton {
+    grid-column: 2 / 3;
+  }
+
+  .upload-tile {
+    min-height: 58px;
+    grid-column: 1;
+  }
+
+  .upload-tile span {
+    font-size: 28px;
+  }
+
+  .prompt-zone {
+    gap: 9px;
+  }
+
+  textarea {
+    min-height: 106px;
+    padding: 2px 0;
+  }
+
+  .control-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: stretch;
+  }
+
+  .ratio-control,
+  .ratio-button,
+  select,
+  .count-control,
+  #clearReference {
+    width: 100%;
+  }
+
+  .ratio-button,
+  .count-control,
+  select {
+    justify-content: center;
   }
 
   .ratio-panel {
-    left: -86px;
-    width: min(520px, calc(100vw - 24px));
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(max(10px, env(safe-area-inset-bottom)) + 246px);
+    width: auto;
+    max-height: 44svh;
+    overflow-y: auto;
   }
 
   .ratio-options {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .generate-button {
     grid-column: 1 / -1;
     width: 100%;
-  }
-
-  .mode-tab {
-    min-width: 138px;
-    padding: 0 14px;
+    min-height: 48px;
+    font-size: 16px;
   }
 
   .image-grid {
     grid-template-columns: 1fr;
+    gap: 3px;
+  }
+
+  .image-grid.count-1,
+  .image-grid.count-2,
+  .image-grid.count-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .image-card,
+  .image-card a,
+  .image-card img,
+  .image-skeleton,
+  .image-error {
+    min-height: 260px;
+  }
+
+  .toast {
+    left: 12px;
+    right: 12px;
+    bottom: calc(max(10px, env(safe-area-inset-bottom)) + 12px);
+    max-width: none;
+    text-align: center;
+  }
+}
+
+@media (max-width: 430px) {
+  .main {
+    padding-inline: 12px;
+    padding-bottom: 380px;
+  }
+
+  .composer {
+    left: 8px;
+    right: 8px;
+  }
+
+  .composer-card {
+    max-height: min(72svh, 500px);
+  }
+
+  .control-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .ratio-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
