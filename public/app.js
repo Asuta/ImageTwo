@@ -34,7 +34,15 @@ const ratioIcon = document.querySelector("#ratioIcon");
 const ratioLabel = document.querySelector("#ratioLabel");
 const themeToggle = document.querySelector("#themeToggle");
 const themeLabel = document.querySelector("#themeLabel");
-const accountStatus = document.querySelector("#accountStatus");
+const accountButton = document.querySelector("#accountButton");
+const accountButtonText = document.querySelector("#accountButtonText");
+const accountPanel = document.querySelector("#accountPanel");
+const closeAccountPanelButton = document.querySelector("#closeAccountPanel");
+const accountPanelTitle = document.querySelector("#accountPanelTitle");
+const loginFields = document.querySelector("#loginFields");
+const accountFields = document.querySelector("#accountFields");
+const accountEmail = document.querySelector("#accountEmail");
+const accountCredits = document.querySelector("#accountCredits");
 const emailInput = document.querySelector("#emailInput");
 const codeControl = document.querySelector("#codeControl");
 const codeInput = document.querySelector("#codeInput");
@@ -45,6 +53,8 @@ const giftControl = document.querySelector("#giftControl");
 const giftKeyInput = document.querySelector("#giftKeyInput");
 const redeemButton = document.querySelector("#redeemButton");
 const clearHistoryButton = document.querySelector("#clearHistoryButton");
+const generateButton = document.querySelector("#generateButton");
+const generationInputs = [promptInput, qualityInput, countInput, referenceInput, clearReferenceButton, ratioButton];
 const toast = document.querySelector("#toast");
 
 let mode = "generate";
@@ -287,22 +297,45 @@ function setCurrentUser(user) {
   currentUser = user;
   const isLoggedIn = Boolean(currentUser);
 
-  accountStatus.innerHTML = `
-    <span class="status-dot"></span>
-    <span>${isLoggedIn ? `${escapeHtml(currentUser.email)} · ${currentUser.credits} 点` : "未登录"}</span>
-  `;
+  accountButtonText.textContent = isLoggedIn ? `${currentUser.email} · ${currentUser.credits} 点` : "未登录";
+  accountPanelTitle.textContent = isLoggedIn ? "账号与额度" : "邮箱登录";
+  loginFields.classList.toggle("hidden", isLoggedIn);
+  accountFields.classList.toggle("hidden", !isLoggedIn);
 
   emailInput.disabled = isLoggedIn;
   codeControl.classList.toggle("hidden", isLoggedIn || !loginCodeRequested);
   sendCodeButton.classList.toggle("hidden", isLoggedIn);
   loginButton.classList.toggle("hidden", isLoggedIn || !loginCodeRequested);
-  logoutButton.classList.toggle("hidden", !isLoggedIn);
-  giftControl.classList.toggle("hidden", !isLoggedIn);
-  redeemButton.classList.toggle("hidden", !isLoggedIn);
+
+  form.classList.toggle("is-disabled", !isLoggedIn);
+  generationInputs.forEach(input => {
+    input.disabled = !isLoggedIn;
+  });
+  generateButton.disabled = false;
+  generateButton.dataset.locked = String(!isLoggedIn);
 
   if (isLoggedIn) {
     emailInput.value = currentUser.email;
+    accountEmail.textContent = currentUser.email;
+    accountCredits.textContent = `${currentUser.credits} 点`;
   }
+}
+
+function openAccountPanel() {
+  accountPanel.classList.remove("hidden");
+  accountButton.setAttribute("aria-expanded", "true");
+  window.setTimeout(() => {
+    if (currentUser) {
+      giftKeyInput.focus();
+    } else {
+      emailInput.focus();
+    }
+  }, 0);
+}
+
+function closeAccountPanel() {
+  accountPanel.classList.add("hidden");
+  accountButton.setAttribute("aria-expanded", "false");
 }
 
 async function refreshCurrentUser() {
@@ -371,6 +404,7 @@ async function loginWithCode() {
     codeInput.value = "";
     loginCodeRequested = false;
     setCurrentUser(payload.user);
+    closeAccountPanel();
     showToast("登录成功");
   } catch (error) {
     showToast(error instanceof Error ? error.message : String(error));
@@ -388,6 +422,7 @@ async function logout() {
   codeInput.value = "";
   giftKeyInput.value = "";
   setCurrentUser(null);
+  closeAccountPanel();
   showToast("已退出登录");
 }
 
@@ -802,15 +837,15 @@ async function runTaskImages(task, images) {
 }
 
 async function generateNewTask() {
-  const prompt = promptInput.value.trim();
-  if (!prompt) {
-    showToast("请先输入提示词");
+  if (!currentUser) {
+    showToast("请先登录后再生成");
+    openAccountPanel();
     return;
   }
 
-  if (!currentUser) {
-    showToast("请先使用邮箱验证码登录");
-    emailInput.focus();
+  const prompt = promptInput.value.trim();
+  if (!prompt) {
+    showToast("请先输入提示词");
     return;
   }
 
@@ -879,6 +914,19 @@ modeTabs.forEach(tab => {
 });
 
 themeToggle.addEventListener("click", toggleTheme);
+accountButton.addEventListener("click", () => {
+  if (accountPanel.classList.contains("hidden")) {
+    openAccountPanel();
+  } else {
+    closeAccountPanel();
+  }
+});
+closeAccountPanelButton.addEventListener("click", closeAccountPanel);
+accountPanel.addEventListener("click", event => {
+  if (event.target.closest("[data-close-account]")) {
+    closeAccountPanel();
+  }
+});
 sendCodeButton.addEventListener("click", sendLoginCode);
 loginButton.addEventListener("click", loginWithCode);
 logoutButton.addEventListener("click", logout);
@@ -916,6 +964,16 @@ document.addEventListener("click", event => {
   if (!event.target.closest(".ratio-control")) {
     ratioPanel.classList.add("hidden");
     ratioButton.setAttribute("aria-expanded", "false");
+  }
+
+  if (!event.target.closest(".account-popover") && !event.target.closest("#accountButton")) {
+    closeAccountPanel();
+  }
+});
+
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape") {
+    closeAccountPanel();
   }
 });
 
