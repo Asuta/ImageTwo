@@ -29,6 +29,28 @@ function showToast(message) {
   showToast.timer = window.setTimeout(() => toast.classList.add("hidden"), 2600);
 }
 
+async function copyText(text) {
+  if (navigator.clipboard?.writeText && window.isSecureContext) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  textarea.style.top = "0";
+  document.body.append(textarea);
+  textarea.select();
+  textarea.setSelectionRange(0, textarea.value.length);
+  const copied = document.execCommand("copy");
+  textarea.remove();
+  if (!copied) {
+    throw new Error("复制失败，请手动复制导出的 Key。");
+  }
+}
+
 async function adminFetch(path, options = {}) {
   const response = await fetch(path, {
     ...options,
@@ -270,7 +292,7 @@ async function exportBatchKeys(id) {
       return;
     }
 
-    await navigator.clipboard.writeText(text);
+    await copyText(text);
     showToast(`已复制 ${payload.keys.length} 个 Key`);
   } catch (error) {
     showToast(error instanceof Error ? error.message : String(error));
@@ -296,7 +318,7 @@ createdGiftCards.addEventListener("click", async event => {
     return;
   }
 
-  await navigator.clipboard.writeText(button.dataset.key || "");
+  await copyText(button.dataset.key || "");
   showToast("卡密已复制");
 });
 giftBatchList.addEventListener("click", event => {
