@@ -341,6 +341,10 @@ function addAdminLog(data, action, detail = {}) {
 }
 
 function isAdminRequest(req) {
+  if (process.env.IMAGE2_ADMIN_OPEN === "true") {
+    return true;
+  }
+
   const adminKey = process.env.IMAGE2_ADMIN_KEY || "";
   const token = getBearerToken(req);
   const cookieToken = getCookies(req)[ADMIN_COOKIE_NAME] || "";
