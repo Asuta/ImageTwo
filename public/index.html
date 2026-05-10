@@ -52,6 +52,10 @@
             <h1>生成历史</h1>
           </div>
           <div class="topbar-actions">
+            <a class="pay-button" href="https://pay.ldxp.cn/shop/2C8QL88T" target="_blank" rel="noreferrer">
+              <span aria-hidden="true">＋</span>
+              <span>购买点数</span>
+            </a>
             <button id="themeToggle" class="theme-toggle" type="button" aria-label="切换深色模式">
               <span class="theme-orb" aria-hidden="true"></span>
               <span id="themeLabel">深色模式</span>
@@ -207,9 +211,22 @@
         </div>
       </section>
 
+      <section id="imagePreview" class="image-preview hidden" aria-label="图片预览" aria-modal="true" role="dialog">
+        <div class="preview-backdrop" data-close-preview></div>
+        <div class="preview-stage" data-close-preview>
+          <img id="previewImage" src="" alt="放大的生成结果" draggable="false" />
+        </div>
+        <div class="preview-toolbar" aria-label="预览控制">
+          <button id="previewZoomOut" class="preview-tool" type="button" aria-label="缩小">−</button>
+          <button id="previewZoomReset" class="preview-tool preview-scale" type="button">100%</button>
+          <button id="previewZoomIn" class="preview-tool" type="button" aria-label="放大">＋</button>
+        </div>
+        <button id="closeImagePreview" class="preview-close" type="button" aria-label="关闭预览">×</button>
+      </section>
+
       <div id="toast" class="toast hidden" role="status"></div>
     </div>
 
-    <script type="module" src="/app.js?v=20260504-account-panel"></script>
+    <script type="module" src="/app.js?v=20260510-preview-pay"></script>
   </body>
 </html>

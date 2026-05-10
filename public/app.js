@@ -54,6 +54,12 @@ const giftKeyInput = document.querySelector("#giftKeyInput");
 const redeemButton = document.querySelector("#redeemButton");
 const clearHistoryButton = document.querySelector("#clearHistoryButton");
 const generateButton = document.querySelector("#generateButton");
+const imagePreview = document.querySelector("#imagePreview");
+const previewImage = document.querySelector("#previewImage");
+const closeImagePreviewButton = document.querySelector("#closeImagePreview");
+const previewZoomOutButton = document.querySelector("#previewZoomOut");
+const previewZoomResetButton = document.querySelector("#previewZoomReset");
+const previewZoomInButton = document.querySelector("#previewZoomIn");
 const generationInputs = [promptInput, qualityInput, countInput, referenceInput, clearReferenceButton, ratioButton];
 const toast = document.querySelector("#toast");
 
@@ -65,6 +71,17 @@ let history = [];
 let dbPromise = null;
 let currentUser = null;
 let loginCodeRequested = false;
+let previewState = {
+  isOpen: false,
+  scale: 1,
+  x: 0,
+  y: 0,
+  isDragging: false,
+  dragStartX: 0,
+  dragStartY: 0,
+  originX: 0,
+  originY: 0
+};
 
 window.addEventListener("error", event => {
   showToast(`页面脚本错误：${event.message || "未知错误"}`);
@@ -640,12 +657,69 @@ function renderImageCard(image) {
 
   return `
     <figure class="image-card">
-      <a href="${escapeHtml(image.url)}" target="_blank" rel="noreferrer">
+      <button class="image-preview-trigger" type="button" data-action="preview" data-image-url="${escapeHtml(image.url)}" aria-label="放大预览生成结果">
         <img src="${escapeHtml(image.url)}" alt="生成结果" />
-      </a>
+      </button>
       <figcaption>已保存在当前浏览器本地</figcaption>
     </figure>
   `;
+}
+
+function openImagePreview(src) {
+  if (!src) {
+    return;
+  }
+
+  previewImage.src = src;
+  previewState = {
+    ...previewState,
+    isOpen: true,
+    scale: 1,
+    x: 0,
+    y: 0,
+    isDragging: false
+  };
+  imagePreview.classList.remove("hidden");
+  document.body.classList.add("preview-open");
+  updatePreviewTransform();
+  closeImagePreviewButton.focus();
+}
+
+function closeImagePreview() {
+  if (!previewState.isOpen) {
+    return;
+  }
+
+  imagePreview.classList.add("hidden");
+  document.body.classList.remove("preview-open");
+  previewImage.src = "";
+  previewState.isOpen = false;
+  previewState.isDragging = false;
+}
+
+function clampPreviewScale(value) {
+  return Math.min(5, Math.max(0.4, value));
+}
+
+function updatePreviewTransform() {
+  previewImage.style.transform = `translate(${previewState.x}px, ${previewState.y}px) scale(${previewState.scale})`;
+  previewZoomResetButton.textContent = `${Math.round(previewState.scale * 100)}%`;
+}
+
+function zoomPreview(delta) {
+  previewState.scale = clampPreviewScale(previewState.scale + delta);
+  if (previewState.scale <= 1) {
+    previewState.x = 0;
+    previewState.y = 0;
+  }
+  updatePreviewTransform();
+}
+
+function resetPreviewZoom() {
+  previewState.scale = 1;
+  previewState.x = 0;
+  previewState.y = 0;
+  updatePreviewTransform();
 }
 
 function escapeHtml(value) {
@@ -973,8 +1047,67 @@ document.addEventListener("click", event => {
 
 document.addEventListener("keydown", event => {
   if (event.key === "Escape") {
+    closeImagePreview();
     closeAccountPanel();
   }
+});
+
+closeImagePreviewButton.addEventListener("click", closeImagePreview);
+previewZoomOutButton.addEventListener("click", () => zoomPreview(-0.2));
+previewZoomInButton.addEventListener("click", () => zoomPreview(0.2));
+previewZoomResetButton.addEventListener("click", resetPreviewZoom);
+
+imagePreview.addEventListener("click", event => {
+  if (event.target.closest("[data-close-preview]")) {
+    closeImagePreview();
+  }
+});
+
+imagePreview.addEventListener("wheel", event => {
+  if (!previewState.isOpen) {
+    return;
+  }
+
+  event.preventDefault();
+  zoomPreview(event.deltaY > 0 ? -0.16 : 0.16);
+}, { passive: false });
+
+previewImage.addEventListener("pointerdown", event => {
+  if (!previewState.isOpen) {
+    return;
+  }
+
+  event.preventDefault();
+  previewState.isDragging = true;
+  previewState.dragStartX = event.clientX;
+  previewState.dragStartY = event.clientY;
+  previewState.originX = previewState.x;
+  previewState.originY = previewState.y;
+  previewImage.setPointerCapture(event.pointerId);
+  previewImage.classList.add("is-dragging");
+});
+
+previewImage.addEventListener("pointermove", event => {
+  if (!previewState.isDragging) {
+    return;
+  }
+
+  previewState.x = previewState.originX + event.clientX - previewState.dragStartX;
+  previewState.y = previewState.originY + event.clientY - previewState.dragStartY;
+  updatePreviewTransform();
+});
+
+previewImage.addEventListener("pointerup", event => {
+  previewState.isDragging = false;
+  previewImage.classList.remove("is-dragging");
+  if (previewImage.hasPointerCapture(event.pointerId)) {
+    previewImage.releasePointerCapture(event.pointerId);
+  }
+});
+
+previewImage.addEventListener("pointercancel", () => {
+  previewState.isDragging = false;
+  previewImage.classList.remove("is-dragging");
 });
 
 referenceInput.addEventListener("change", async () => {
@@ -1031,6 +1164,11 @@ historyFeed.addEventListener("click", async event => {
       selectedId = taskEl.dataset.id;
       renderHistory();
     }
+    return;
+  }
+
+  if (buttonEl.dataset.action === "preview") {
+    openImagePreview(buttonEl.dataset.imageUrl);
     return;
   }
 
