@@ -20,6 +20,8 @@ const LOGIN_CODE_TTL_MS = 10 * 60 * 1000;
 const LOGIN_CODE_COOLDOWN_MS = 60 * 1000;
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const SESSION_COOKIE_NAME = "image2_session";
+const ADMIN_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+const ADMIN_COOKIE_NAME = "image2_admin";
 
 const qualityOptions = new Set(["low", "medium", "high"]);
 const aspectRatioOptions = new Set(["auto", "9:21", "9:16", "2:3", "3:4", "1:1", "4:3", "3:2", "16:9", "21:9"]);
@@ -235,8 +237,33 @@ function setSessionCookie(req, res, token, expiresAt) {
   res.setHeader("Set-Cookie", parts.join("; "));
 }
 
+function setAdminCookie(req, res, token, expiresAt) {
+  const secure = process.env.IMAGE2_SECURE_COOKIES === "true" || req.headers["x-forwarded-proto"] === "https";
+  const parts = [
+    `${ADMIN_COOKIE_NAME}=${encodeURIComponent(token)}`,
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Lax",
+    `Expires=${new Date(expiresAt).toUTCString()}`,
+    `Max-Age=${Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000)}`
+  ];
+
+  if (secure) {
+    parts.push("Secure");
+  }
+
+  res.setHeader("Set-Cookie", parts.join("; "));
+}
+
 function clearSessionCookie(res) {
   res.setHeader("Set-Cookie", `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
+}
+
+function clearAdminCookie(res) {
+  res.setHeader("Set-Cookie", [
+    `${ADMIN_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`,
+    `${ADMIN_COOKIE_NAME}=; Path=/admin; HttpOnly; SameSite=Lax; Max-Age=0`
+  ]);
 }
 
 function publicUser(user) {
@@ -316,7 +343,11 @@ function addAdminLog(data, action, detail = {}) {
 function isAdminRequest(req) {
   const adminKey = process.env.IMAGE2_ADMIN_KEY || "";
   const token = getBearerToken(req);
-  return Boolean(adminKey && token && safeEqual(hashSecret(token), hashSecret(adminKey)));
+  const cookieToken = getCookies(req)[ADMIN_COOKIE_NAME] || "";
+  return Boolean(adminKey && (
+    (token && safeEqual(hashSecret(token), hashSecret(adminKey))) ||
+    (cookieToken && safeEqual(hashSecret(cookieToken), hashSecret(adminKey)))
+  ));
 }
 
 function getSessionUser(req) {
@@ -500,6 +531,26 @@ function finishUsage(requestId, status, errorMessage = "") {
 }
 
 async function handleAdmin(req, res, url) {
+  if (req.method === "POST" && url.pathname === "/api/admin/login") {
+    const body = JSON.parse(await readBody(req) || "{}");
+    const adminKey = process.env.IMAGE2_ADMIN_KEY || "";
+    const key = String(body.key || "").trim();
+    if (!adminKey || !key || !safeEqual(hashSecret(key), hashSecret(adminKey))) {
+      sendJson(res, 401, { error: "管理 Key 无效或未配置。" });
+      return;
+    }
+
+    setAdminCookie(req, res, key, new Date(Date.now() + ADMIN_SESSION_TTL_MS).toISOString());
+    sendJson(res, 200, { ok: true });
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/admin/logout") {
+    clearAdminCookie(res);
+    sendJson(res, 200, { ok: true });
+    return;
+  }
+
   if (!isAdminRequest(req)) {
     sendJson(res, 401, { error: "管理 key 无效或未配置。" });
     return;
@@ -1210,6 +1261,11 @@ function serveFile(res, filePath) {
   res.end(readFileSync(filePath));
 }
 
+function serveAdmin(req, res) {
+  const fileName = isAdminRequest(req) ? "admin.html" : "admin-login.html";
+  serveFile(res, join(publicDir, fileName));
+}
+
 const server = createServer((req, res) => {
   const url = new URL(req.url || "/", `http://${req.headers.host}`);
 
@@ -1236,6 +1292,11 @@ const server = createServer((req, res) => {
 
   if (req.method === "POST" && url.pathname === "/api/generate") {
     handleGenerate(req, res);
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/admin") {
+    serveAdmin(req, res);
     return;
   }
 

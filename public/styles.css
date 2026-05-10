@@ -1062,6 +1062,72 @@ select {
   background: color-mix(in srgb, var(--bg) 94%, #000000);
 }
 
+.admin-panel.is-standalone {
+  position: static;
+  min-height: 100vh;
+}
+
+.admin-login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.admin-login-card {
+  width: min(430px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 24px;
+  background: var(--surface-glass);
+  box-shadow: var(--shadow);
+}
+
+.admin-login-card h1 {
+  margin-bottom: 10px;
+}
+
+.admin-login-card p:not(.eyebrow) {
+  margin-bottom: 18px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.admin-login-card form {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-login-control {
+  min-height: 58px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: grid;
+  gap: 4px;
+  background: var(--control-bg);
+}
+
+.admin-login-control span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.admin-login-control input {
+  border: 0;
+  outline: 0;
+  color: var(--control-ink);
+  background: transparent;
+  font-weight: 900;
+}
+
+.admin-login-toast {
+  margin-top: 12px;
+  color: var(--coral);
+  font-weight: 900;
+}
+
 .admin-shell {
   min-height: 100vh;
   padding: 28px 36px 46px 140px;
@@ -1082,17 +1148,17 @@ select {
   justify-content: space-between;
 }
 
-.admin-header h2,
-.admin-card h3 {
+.admin-header h1,
+.admin-card h2 {
   margin: 0;
   letter-spacing: 0;
 }
 
-.admin-header h2 {
+.admin-header h1 {
   font-size: 28px;
 }
 
-.admin-card h3 {
+.admin-card h2 {
   font-size: 17px;
 }
 

@@ -325,7 +325,15 @@ imageBase64 -> Blob -> IndexedDB -> URL.createObjectURL -> 页面展示
 
 ## 8. 管理接口
 
-管理接口使用 `IMAGE2_ADMIN_KEY`：
+管理员页面使用独立入口：
+
+```http
+GET /admin
+```
+
+未登录后台时返回管理员登录页；输入 `IMAGE2_ADMIN_KEY` 后，服务端写入 HttpOnly 的 `image2_admin` cookie，再返回卡密管理页面。普通用户首页不会展示后台入口，也不会加载后台管理脚本。
+
+管理接口可以使用后台 cookie，也可以继续使用 `IMAGE2_ADMIN_KEY` 的 Bearer 方式：
 
 ```http
 Authorization: Bearer <IMAGE2_ADMIN_KEY>
