@@ -1318,6 +1318,13 @@ select {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
+.batch-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .batch-title,
 .gift-main,
 .audit-main {
@@ -1386,6 +1393,7 @@ select {
   gap: 6px;
 }
 
+.batch-actions .soft-button,
 .gift-actions .soft-button,
 .created-card-row .soft-button,
 .batch-row .soft-button {
@@ -1746,6 +1754,11 @@ select {
     justify-content: stretch;
   }
 
+  .batch-actions {
+    justify-content: stretch;
+  }
+
+  .batch-actions .soft-button,
   .gift-actions .soft-button {
     flex: 1 1 auto;
     justify-content: center;

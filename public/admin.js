@@ -131,7 +131,10 @@ function renderGiftBatches() {
             <span>revoked ${counts.revoked || 0}</span>
           </div>
         </div>
-        <button class="soft-button" type="button" data-admin-action="disable-batch" data-id="${escapeHtml(batch.id)}">作废未用</button>
+        <div class="batch-actions">
+          <button class="soft-button" type="button" data-admin-action="export-batch" data-id="${escapeHtml(batch.id)}">导出</button>
+          <button class="soft-button" type="button" data-admin-action="disable-batch" data-id="${escapeHtml(batch.id)}">作废未用</button>
+        </div>
       </div>
     `;
   }).join("");
@@ -234,6 +237,11 @@ function renderCreatedGiftCards(cards) {
 }
 
 async function handleAdminAction(action, id) {
+  if (action === "export-batch") {
+    await exportBatchKeys(id);
+    return;
+  }
+
   const paths = {
     "disable-card": `/api/admin/gift-cards/${encodeURIComponent(id)}/disable`,
     "enable-card": `/api/admin/gift-cards/${encodeURIComponent(id)}/enable`,
@@ -248,6 +256,22 @@ async function handleAdminAction(action, id) {
     await adminFetch(paths[action], { method: "POST" });
     await loadAdminData();
     showToast("操作已完成");
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : String(error));
+  }
+}
+
+async function exportBatchKeys(id) {
+  try {
+    const payload = await adminFetch(`/api/admin/gift-card-batches/${encodeURIComponent(id)}/export`);
+    const text = (payload.keys || []).join("\n");
+    if (!text) {
+      showToast("这个批次没有可导出的 Key");
+      return;
+    }
+
+    await navigator.clipboard.writeText(text);
+    showToast(`已复制 ${payload.keys.length} 个 Key`);
   } catch (error) {
     showToast(error instanceof Error ? error.message : String(error));
   }

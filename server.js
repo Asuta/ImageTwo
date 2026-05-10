@@ -172,6 +172,7 @@ function normalizeGiftCards(cards) {
     const status = giftCardStatuses.has(card.status) ? card.status : "active";
     return {
       id: card.id || randomUUID(),
+      key,
       keyHash,
       keyPreview: card.keyPreview || (key ? `${key.slice(0, 9)}...${key.slice(-4)}` : ""),
       batchId: card.batchId || "",
@@ -676,7 +677,7 @@ async function handleAdmin(req, res, url) {
     });
 
     data.giftCardBatches.unshift(batch);
-    data.giftCards.unshift(...createdCards.map(({ plainKey, ...card }) => card));
+    data.giftCards.unshift(...createdCards.map(({ plainKey, ...card }) => ({ ...card, key: plainKey })));
     addAdminLog(data, "gift-card-batch-created", {
       batchId,
       label,
@@ -706,6 +707,34 @@ async function handleAdmin(req, res, url) {
     const data = readData();
     sendJson(res, 200, {
       batches: data.giftCardBatches.map(batch => publicGiftCardBatch(batch, data.giftCards))
+    });
+    return;
+  }
+
+  const batchExportMatch = /^\/api\/admin\/gift-card-batches\/([^/]+)\/export$/.exec(url.pathname);
+  if (req.method === "GET" && batchExportMatch) {
+    const data = readData();
+    const batch = data.giftCardBatches.find(item => item.id === batchExportMatch[1]);
+    if (!batch) {
+      sendJson(res, 404, { error: "没有找到礼品卡批次。" });
+      return;
+    }
+
+    const cards = data.giftCards.filter(card => card.batchId === batch.id);
+    const keys = cards.map(card => card.key).filter(Boolean);
+    const missingCount = cards.length - keys.length;
+    if (missingCount > 0) {
+      sendJson(res, 409, {
+        error: "这个批次里有卡密缺少明文 Key，无法完整导出。旧版本创建的卡只保存了 hash，不能反推出原始 Key。",
+        exportedCount: keys.length,
+        missingCount
+      });
+      return;
+    }
+
+    sendJson(res, 200, {
+      batch: publicGiftCardBatch(batch, data.giftCards),
+      keys
     });
     return;
   }
