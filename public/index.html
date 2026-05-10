@@ -40,7 +40,7 @@
         </nav>
 
         <div class="nav-footer">
-          <button class="icon-button" type="button" title="API">API</button>
+          <button id="openAdminButton" class="icon-button" type="button" title="卡密管理">API</button>
           <button class="icon-button" type="button" title="通知">◌</button>
           <button class="icon-button" type="button" title="菜单">☰</button>
         </div>
@@ -204,6 +204,110 @@
                 <span>退出</span>
               </button>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="adminPanel" class="admin-panel hidden" aria-label="卡密管理">
+        <div class="admin-shell">
+          <header class="admin-header">
+            <div>
+              <p class="eyebrow">运营后台</p>
+              <h2>卡密管理</h2>
+            </div>
+            <div class="admin-header-actions">
+              <label class="admin-key-control">
+                <span>管理 Key</span>
+                <input id="adminKeyInput" type="password" autocomplete="off" placeholder="IMAGE2_ADMIN_KEY" />
+              </label>
+              <button id="loadAdminButton" class="soft-button" type="button">
+                <span aria-hidden="true">↻</span>
+                <span>载入</span>
+              </button>
+              <button id="closeAdminButton" class="icon-button" type="button" aria-label="关闭">×</button>
+            </div>
+          </header>
+
+          <div class="admin-layout">
+            <section class="admin-card">
+              <div class="admin-card-head">
+                <div>
+                  <h3>创建卡密批次</h3>
+                  <p>明文 Key 只会在创建后显示一次，请及时复制或导出。</p>
+                </div>
+              </div>
+
+              <form id="giftBatchForm" class="admin-form">
+                <label>
+                  <span>批次名</span>
+                  <input id="giftBatchLabel" type="text" placeholder="例如：五月推广批次" required />
+                </label>
+                <label>
+                  <span>单张额度</span>
+                  <input id="giftBatchCredits" type="number" min="1" step="1" value="10" required />
+                </label>
+                <label>
+                  <span>数量</span>
+                  <input id="giftBatchCount" type="number" min="1" max="200" step="1" value="5" required />
+                </label>
+                <label>
+                  <span>过期时间</span>
+                  <input id="giftBatchExpiresAt" type="date" />
+                </label>
+                <label class="admin-form-wide">
+                  <span>备注</span>
+                  <input id="giftBatchNote" type="text" placeholder="渠道、订单或售后说明" />
+                </label>
+                <button id="createGiftBatchButton" class="generate-button admin-submit" type="submit">
+                  <span aria-hidden="true">＋</span>
+                  <span>生成批次</span>
+                </button>
+              </form>
+
+              <div id="createdGiftCards" class="created-cards hidden" aria-label="刚创建的卡密"></div>
+            </section>
+
+            <section class="admin-card">
+              <div class="admin-card-head">
+                <div>
+                  <h3>批次概览</h3>
+                  <p>按批次查看 active、redeemed、expired、disabled、revoked 状态。</p>
+                </div>
+                <button id="refreshAdminButton" class="soft-button" type="button">刷新</button>
+              </div>
+              <div id="giftBatchList" class="batch-list"></div>
+            </section>
+
+            <section class="admin-card admin-card-wide">
+              <div class="admin-card-head">
+                <div>
+                  <h3>卡密列表</h3>
+                  <p>可搜索卡密尾号、批次名或兑换用户 ID。</p>
+                </div>
+                <div class="admin-filters">
+                  <input id="giftSearchInput" type="search" placeholder="搜索" />
+                  <select id="giftStatusFilter">
+                    <option value="">全部状态</option>
+                    <option value="active">active</option>
+                    <option value="redeemed">redeemed</option>
+                    <option value="expired">expired</option>
+                    <option value="disabled">disabled</option>
+                    <option value="revoked">revoked</option>
+                  </select>
+                </div>
+              </div>
+              <div id="giftCardTable" class="gift-card-table"></div>
+            </section>
+
+            <section class="admin-card admin-card-wide">
+              <div class="admin-card-head">
+                <div>
+                  <h3>最近审计</h3>
+                  <p>记录卡密创建、兑换、作废、撤销和额度变化。</p>
+                </div>
+              </div>
+              <div id="auditLogList" class="audit-list"></div>
+            </section>
           </div>
         </div>
       </section>

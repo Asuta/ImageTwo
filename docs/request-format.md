@@ -130,6 +130,24 @@ Content-Type: application/json
 }
 ```
 
+兑换成功会返回增加额度、当前用户和礼品卡状态：
+
+```json
+{
+  "creditsAdded": 10,
+  "giftCard": {
+    "id": "uuid",
+    "keyPreview": "gift_xxx...abcd",
+    "status": "redeemed"
+  },
+  "user": {
+    "id": "uuid",
+    "email": "user@example.com",
+    "credits": 110
+  }
+}
+```
+
 ## 4. 后端默认上下文
 
 Image2 服务会把用户提示词包装成 `imagePrompt`。
@@ -344,16 +362,50 @@ Content-Type: application/json
 {
   "label": "batch-a",
   "credits": 10,
-  "count": 5
+  "count": 5,
+  "expiresAt": "2026-06-30T15:59:59.000Z",
+  "note": "渠道备注"
 }
 ```
 
-响应会返回本批次创建的明文 `gift_...`，供你发到第三方发卡平台。礼品卡明文只在创建时返回。
+响应会返回本批次创建的明文 `gift_...`，供你发到第三方发卡平台。礼品卡明文只在创建时返回，长期数据只保存 `keyHash` 和 `keyPreview`。
 
 查询礼品卡：
 
 ```http
 GET /api/admin/gift-cards
+```
+
+可选查询参数：
+
+```http
+GET /api/admin/gift-cards?status=active&q=abcd
+```
+
+查询批次：
+
+```http
+GET /api/admin/gift-card-batches
+```
+
+卡密状态操作：
+
+```http
+POST /api/admin/gift-cards/<card-id>/disable
+POST /api/admin/gift-cards/<card-id>/enable
+POST /api/admin/gift-cards/<card-id>/revoke
+POST /api/admin/gift-card-batches/<batch-id>/disable
+```
+
+- `disable`：作废未兑换的 active 卡。
+- `enable`：重新启用 disabled 卡。
+- `revoke`：撤销已兑换卡，并从用户账号扣回对应额度，最低扣到 0。
+- 批次 `disable`：批量作废该批次里仍为 active 的卡。
+
+查询审计日志：
+
+```http
+GET /api/admin/audit-logs
 ```
 
 ## 9. 错误响应

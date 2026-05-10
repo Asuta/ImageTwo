@@ -7,6 +7,7 @@
 - 邮箱验证码登录：不使用密码，验证码通过后写入 HttpOnly session cookie。
 - 账号额度：新账号默认获得 100 点，生成 1 张图片扣 1 点，上游失败时返还额度。
 - 礼品卡兑换：管理员批量生成 `gift_...` 礼品卡，用户登录后输入 Key 兑换额度。
+- 卡密管理：侧边栏 `API` 入口可打开管理面板，支持批次创建、状态查询、复制新卡密、作废、启用、撤销已兑换卡和审计日志。
 - 本地历史：生成图片仅保存在当前浏览器 IndexedDB，不会长期保存在服务器。
 - 提示词复用：历史卡片支持重新编辑、再次生成、复制提示词、删除。
 - 多图生成：可以设置一次生成的图片数量，前端会并行提交多次生成请求。
@@ -46,11 +47,28 @@ http://localhost:5173
 
 ```powershell
 $headers = @{ Authorization = "Bearer change_this_admin_key"; "Content-Type" = "application/json" }
-$body = @{ label = "test-batch"; credits = 10; count = 5 } | ConvertTo-Json
+$body = @{ label = "test-batch"; credits = 10; count = 5; expiresAt = "2026-06-30T23:59:59+08:00"; note = "渠道备注" } | ConvertTo-Json
 Invoke-RestMethod -Method Post -Uri http://localhost:5173/api/admin/gift-cards -Headers $headers -Body $body
 ```
 
-把返回的 `gift_...` 发给用户，用户登录后在网页里输入礼品卡 Key 兑换额度。
+把返回的 `gift_...` 发给用户，用户登录后在网页里输入礼品卡 Key 兑换额度。礼品卡明文只在创建时返回一次，长期数据只保存 hash 和预览尾号。
+
+查看礼品卡和批次：
+
+```powershell
+$headers = @{ Authorization = "Bearer change_this_admin_key" }
+Invoke-RestMethod -Method Get -Uri http://localhost:5173/api/admin/gift-cards -Headers $headers
+Invoke-RestMethod -Method Get -Uri http://localhost:5173/api/admin/gift-card-batches -Headers $headers
+```
+
+作废、启用、撤销：
+
+```powershell
+$headers = @{ Authorization = "Bearer change_this_admin_key" }
+Invoke-RestMethod -Method Post -Uri http://localhost:5173/api/admin/gift-cards/<card-id>/disable -Headers $headers
+Invoke-RestMethod -Method Post -Uri http://localhost:5173/api/admin/gift-cards/<card-id>/enable -Headers $headers
+Invoke-RestMethod -Method Post -Uri http://localhost:5173/api/admin/gift-cards/<card-id>/revoke -Headers $headers
+```
 
 查看用户：
 

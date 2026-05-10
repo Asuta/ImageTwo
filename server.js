@@ -23,6 +23,7 @@ const SESSION_COOKIE_NAME = "image2_session";
 
 const qualityOptions = new Set(["low", "medium", "high"]);
 const aspectRatioOptions = new Set(["auto", "9:21", "9:16", "2:3", "3:4", "1:1", "4:3", "3:2", "16:9", "21:9"]);
+const giftCardStatuses = new Set(["active", "disabled", "redeemed", "revoked"]);
 const generationJobs = new Map();
 const JOB_TTL_MS = 15 * 60 * 1000;
 
@@ -111,8 +112,10 @@ function ensureDataFile() {
     users: [],
     sessions: [],
     emailCodes: [],
+    giftCardBatches: [],
     giftCards: [],
     creditLogs: [],
+    adminLogs: [],
     usageLogs: []
   });
 }
@@ -124,8 +127,10 @@ function readData() {
       users: Array.isArray(data.users) ? data.users : [],
       sessions: Array.isArray(data.sessions) ? data.sessions : [],
       emailCodes: Array.isArray(data.emailCodes) ? data.emailCodes : [],
-      giftCards: Array.isArray(data.giftCards) ? data.giftCards : [],
+      giftCardBatches: Array.isArray(data.giftCardBatches) ? data.giftCardBatches : [],
+      giftCards: normalizeGiftCards(Array.isArray(data.giftCards) ? data.giftCards : []),
       creditLogs: Array.isArray(data.creditLogs) ? data.creditLogs : [],
+      adminLogs: Array.isArray(data.adminLogs) ? data.adminLogs : [],
       usageLogs: Array.isArray(data.usageLogs) ? data.usageLogs : []
     };
   } catch {
@@ -133,8 +138,10 @@ function readData() {
       users: [],
       sessions: [],
       emailCodes: [],
+      giftCardBatches: [],
       giftCards: [],
       creditLogs: [],
+      adminLogs: [],
       usageLogs: []
     };
   }
@@ -142,8 +149,45 @@ function readData() {
 
 function writeData(data) {
   const tmpPath = `${dataPath}.tmp`;
-  writeFileSync(tmpPath, JSON.stringify(data, null, 2));
+  const storableData = {
+    users: Array.isArray(data.users) ? data.users : [],
+    sessions: Array.isArray(data.sessions) ? data.sessions : [],
+    emailCodes: Array.isArray(data.emailCodes) ? data.emailCodes : [],
+    giftCardBatches: Array.isArray(data.giftCardBatches) ? data.giftCardBatches : [],
+    giftCards: normalizeGiftCards(Array.isArray(data.giftCards) ? data.giftCards : []),
+    creditLogs: Array.isArray(data.creditLogs) ? data.creditLogs : [],
+    adminLogs: Array.isArray(data.adminLogs) ? data.adminLogs : [],
+    usageLogs: Array.isArray(data.usageLogs) ? data.usageLogs : []
+  };
+  writeFileSync(tmpPath, JSON.stringify(storableData, null, 2));
   renameSync(tmpPath, dataPath);
+}
+
+function normalizeGiftCards(cards) {
+  return cards.map(card => {
+    const key = typeof card.key === "string" ? card.key : "";
+    const keyHash = card.keyHash || (key ? hashSecret(key) : "");
+    const status = giftCardStatuses.has(card.status) ? card.status : "active";
+    return {
+      id: card.id || randomUUID(),
+      keyHash,
+      keyPreview: card.keyPreview || (key ? `${key.slice(0, 9)}...${key.slice(-4)}` : ""),
+      batchId: card.batchId || "",
+      batchLabel: card.batchLabel || card.label || "",
+      label: card.label || card.batchLabel || "",
+      credits: Number.isFinite(Number(card.credits)) ? Number(card.credits) : 0,
+      status,
+      expiresAt: card.expiresAt || "",
+      redeemLimit: Math.max(1, Number.parseInt(card.redeemLimit, 10) || 1),
+      redeemedByUserId: card.redeemedByUserId || "",
+      redeemedAt: card.redeemedAt || "",
+      revokedAt: card.revokedAt || "",
+      revokedBy: card.revokedBy || "",
+      disabledAt: card.disabledAt || "",
+      createdAt: card.createdAt || new Date().toISOString(),
+      updatedAt: card.updatedAt || card.createdAt || new Date().toISOString()
+    };
+  });
 }
 
 function getBearerToken(req) {
@@ -203,6 +247,70 @@ function publicUser(user) {
     createdAt: user.createdAt,
     updatedAt: user.updatedAt
   };
+}
+
+function publicGiftCard(card) {
+  const expired = isGiftCardExpired(card);
+  return {
+    id: card.id,
+    keyPreview: card.keyPreview,
+    batchId: card.batchId,
+    batchLabel: card.batchLabel || card.label,
+    label: card.label,
+    credits: card.credits,
+    status: expired && card.status === "active" ? "expired" : card.status,
+    expiresAt: card.expiresAt || null,
+    redeemedByUserId: card.redeemedByUserId || null,
+    redeemedAt: card.redeemedAt || null,
+    disabledAt: card.disabledAt || null,
+    revokedAt: card.revokedAt || null,
+    createdAt: card.createdAt,
+    updatedAt: card.updatedAt
+  };
+}
+
+function publicGiftCardBatch(batch, cards) {
+  const batchCards = cards.filter(card => card.batchId === batch.id);
+  const counts = batchCards.reduce((acc, card) => {
+    const status = isGiftCardExpired(card) && card.status === "active" ? "expired" : card.status;
+    acc[status] = (acc[status] || 0) + 1;
+    return acc;
+  }, {});
+
+  return {
+    id: batch.id,
+    label: batch.label,
+    credits: batch.credits,
+    count: batch.count,
+    expiresAt: batch.expiresAt || null,
+    note: batch.note || "",
+    createdAt: batch.createdAt,
+    counts
+  };
+}
+
+function isGiftCardExpired(card) {
+  return Boolean(card.expiresAt && new Date(card.expiresAt).getTime() <= Date.now());
+}
+
+function parseOptionalDate(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return "";
+  }
+
+  const timestamp = Date.parse(raw);
+  return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : null;
+}
+
+function addAdminLog(data, action, detail = {}) {
+  data.adminLogs.unshift({
+    id: randomUUID(),
+    action,
+    detail,
+    createdAt: new Date().toISOString()
+  });
+  data.adminLogs = data.adminLogs.slice(0, 1000);
 }
 
 function isAdminRequest(req) {
@@ -440,16 +548,24 @@ async function handleAdmin(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/admin/gift-cards") {
     const data = readData();
+    const batchId = url.searchParams.get("batchId") || "";
+    const status = url.searchParams.get("status") || "";
+    const query = (url.searchParams.get("q") || "").trim().toLowerCase();
+    const giftCards = data.giftCards
+      .filter(card => !batchId || card.batchId === batchId)
+      .filter(card => !status || publicGiftCard(card).status === status)
+      .filter(card => !query || [
+        card.id,
+        card.keyPreview,
+        card.batchLabel,
+        card.label,
+        card.redeemedByUserId
+      ].some(value => String(value || "").toLowerCase().includes(query)))
+      .slice(0, 500);
+
     sendJson(res, 200, {
-      giftCards: data.giftCards.map(card => ({
-        id: card.id,
-        label: card.label,
-        credits: card.credits,
-        status: card.status,
-        redeemedByUserId: card.redeemedByUserId || null,
-        redeemedAt: card.redeemedAt || null,
-        createdAt: card.createdAt
-      }))
+      giftCards: giftCards.map(publicGiftCard),
+      batches: data.giftCardBatches.map(batch => publicGiftCardBatch(batch, data.giftCards))
     });
     return;
   }
@@ -458,40 +574,191 @@ async function handleAdmin(req, res, url) {
     const body = JSON.parse(await readBody(req) || "{}");
     const credits = Number.parseInt(body.credits, 10);
     const count = Math.max(1, Math.min(200, Number.parseInt(body.count, 10) || 1));
+    const expiresAt = parseOptionalDate(body.expiresAt);
     if (!Number.isFinite(credits) || credits <= 0) {
       sendJson(res, 400, { error: "credits 必须是大于 0 的数字。" });
       return;
     }
 
+    if (expiresAt === null) {
+      sendJson(res, 400, { error: "expiresAt 不是有效日期。" });
+      return;
+    }
+
     const now = new Date().toISOString();
     const data = readData();
+    const batchId = randomUUID();
+    const label = String(body.label || "").trim().slice(0, 80) || `batch-${now.slice(0, 10)}`;
+    const batch = {
+      id: batchId,
+      label,
+      credits,
+      count,
+      expiresAt,
+      note: String(body.note || "").trim().slice(0, 200),
+      createdAt: now,
+      updatedAt: now
+    };
     const createdCards = Array.from({ length: count }, () => {
       const key = createGiftCardKey();
       return {
         id: randomUUID(),
-        key,
         keyHash: hashSecret(key),
-        label: String(body.label || "").trim().slice(0, 80),
+        keyPreview: `${key.slice(0, 9)}...${key.slice(-4)}`,
+        batchId,
+        batchLabel: label,
+        label,
         credits,
         status: "active",
+        expiresAt,
+        redeemLimit: 1,
         redeemedByUserId: "",
         redeemedAt: "",
         createdAt: now,
-        updatedAt: now
+        updatedAt: now,
+        plainKey: key
       };
     });
 
-    data.giftCards.unshift(...createdCards);
+    data.giftCardBatches.unshift(batch);
+    data.giftCards.unshift(...createdCards.map(({ plainKey, ...card }) => card));
+    addAdminLog(data, "gift-card-batch-created", {
+      batchId,
+      label,
+      credits,
+      count,
+      expiresAt
+    });
     writeData(data);
     sendJson(res, 201, {
+      batch: publicGiftCardBatch(batch, data.giftCards),
       giftCards: createdCards.map(card => ({
         id: card.id,
-        key: card.key,
+        key: card.plainKey,
+        keyPreview: card.keyPreview,
+        batchId: card.batchId,
         label: card.label,
         credits: card.credits,
         status: card.status,
+        expiresAt: card.expiresAt || null,
         createdAt: card.createdAt
       }))
+    });
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/admin/gift-card-batches") {
+    const data = readData();
+    sendJson(res, 200, {
+      batches: data.giftCardBatches.map(batch => publicGiftCardBatch(batch, data.giftCards))
+    });
+    return;
+  }
+
+  const giftCardActionMatch = /^\/api\/admin\/gift-cards\/([^/]+)\/(disable|enable|revoke)$/.exec(url.pathname);
+  if (req.method === "POST" && giftCardActionMatch) {
+    const [, cardId, action] = giftCardActionMatch;
+    const data = readData();
+    const card = data.giftCards.find(item => item.id === cardId);
+    if (!card) {
+      sendJson(res, 404, { error: "没有找到礼品卡。" });
+      return;
+    }
+
+    const now = new Date().toISOString();
+    if (action === "disable") {
+      if (card.status !== "active") {
+        sendJson(res, 409, { error: "只有 active 礼品卡可以作废。" });
+        return;
+      }
+      card.status = "disabled";
+      card.disabledAt = now;
+    }
+
+    if (action === "enable") {
+      if (card.status !== "disabled") {
+        sendJson(res, 409, { error: "只有 disabled 礼品卡可以重新启用。" });
+        return;
+      }
+      card.status = "active";
+      card.disabledAt = "";
+    }
+
+    if (action === "revoke") {
+      if (card.status !== "redeemed") {
+        sendJson(res, 409, { error: "只有已兑换礼品卡可以撤销。" });
+        return;
+      }
+
+      const user = data.users.find(item => item.id === card.redeemedByUserId);
+      if (user) {
+        user.credits = Math.max(0, user.credits - card.credits);
+        user.updatedAt = now;
+        data.creditLogs.unshift({
+          id: randomUUID(),
+          userId: user.id,
+          delta: -card.credits,
+          source: "gift-card-revoke",
+          giftCardId: card.id,
+          note: card.label || "",
+          createdAt: now
+        });
+      }
+
+      card.status = "revoked";
+      card.revokedAt = now;
+      card.revokedBy = "admin";
+    }
+
+    card.updatedAt = now;
+    addAdminLog(data, `gift-card-${action}`, {
+      cardId: card.id,
+      batchId: card.batchId,
+      credits: card.credits
+    });
+    writeData(data);
+    sendJson(res, 200, { giftCard: publicGiftCard(card) });
+    return;
+  }
+
+  const batchDisableMatch = /^\/api\/admin\/gift-card-batches\/([^/]+)\/disable$/.exec(url.pathname);
+  if (req.method === "POST" && batchDisableMatch) {
+    const data = readData();
+    const batch = data.giftCardBatches.find(item => item.id === batchDisableMatch[1]);
+    if (!batch) {
+      sendJson(res, 404, { error: "没有找到礼品卡批次。" });
+      return;
+    }
+
+    const now = new Date().toISOString();
+    let changedCount = 0;
+    data.giftCards.forEach(card => {
+      if (card.batchId === batch.id && card.status === "active") {
+        card.status = "disabled";
+        card.disabledAt = now;
+        card.updatedAt = now;
+        changedCount += 1;
+      }
+    });
+    batch.updatedAt = now;
+    addAdminLog(data, "gift-card-batch-disabled", {
+      batchId: batch.id,
+      changedCount
+    });
+    writeData(data);
+    sendJson(res, 200, {
+      batch: publicGiftCardBatch(batch, data.giftCards),
+      changedCount
+    });
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/admin/audit-logs") {
+    const data = readData();
+    sendJson(res, 200, {
+      adminLogs: data.adminLogs.slice(0, 200),
+      creditLogs: data.creditLogs.slice(0, 200),
+      usageLogs: data.usageLogs.slice(0, 200)
     });
     return;
   }
@@ -665,12 +932,37 @@ async function handleRedeem(req, res) {
     return;
   }
 
+  if (!/^gift_[A-Za-z0-9_-]{16,}$/.test(key)) {
+    sendJson(res, 400, { error: "礼品卡 Key 格式不正确，请检查是否完整复制。" });
+    return;
+  }
+
   const data = readData();
   const user = data.users.find(item => item.id === sessionUser.user.id);
   const keyHash = hashSecret(key);
   const card = data.giftCards.find(item => safeEqual(item.keyHash, keyHash));
-  if (!card || card.status !== "active") {
-    sendJson(res, 404, { error: "礼品卡不存在或不可用。" });
+  if (!card) {
+    sendJson(res, 404, { error: "礼品卡不存在，请检查 Key 是否正确。" });
+    return;
+  }
+
+  if (card.status === "redeemed") {
+    sendJson(res, 409, { error: "这张礼品卡已经被兑换过。", giftCard: publicGiftCard(card) });
+    return;
+  }
+
+  if (card.status === "disabled") {
+    sendJson(res, 409, { error: "这张礼品卡已被管理员作废。", giftCard: publicGiftCard(card) });
+    return;
+  }
+
+  if (card.status === "revoked") {
+    sendJson(res, 409, { error: "这张礼品卡已被撤销，无法再次兑换。", giftCard: publicGiftCard(card) });
+    return;
+  }
+
+  if (isGiftCardExpired(card)) {
+    sendJson(res, 410, { error: "这张礼品卡已过期。", giftCard: publicGiftCard(card) });
     return;
   }
 
@@ -690,9 +982,16 @@ async function handleRedeem(req, res) {
     note: card.label || "",
     createdAt: now
   });
+  addAdminLog(data, "gift-card-redeemed", {
+    cardId: card.id,
+    batchId: card.batchId,
+    userId: user.id,
+    credits: card.credits
+  });
   writeData(data);
   sendJson(res, 200, {
     creditsAdded: card.credits,
+    giftCard: publicGiftCard(card),
     user: publicUser(user)
   });
 }
