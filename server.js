@@ -11,8 +11,8 @@ loadLocalEnv();
 
 const START_PORT = Number(process.env.PORT || 5173);
 const HOST = process.env.HOST || "0.0.0.0";
-const API_URL = "https://nowcoding.ai/v1/responses";
-const MODEL = "gpt-5.4-mini";
+const API_URL = process.env.IMAGE2_API_URL || "https://api.bltcy.ai/v1/chat/completions";
+const MODEL = process.env.IMAGE2_MODEL || "gpt-image-2";
 const dataDir = process.env.IMAGE2_DATA_DIR || join(__dirname, "data");
 const dataPath = join(dataDir, "image2-data.json");
 const DEFAULT_SIGNUP_CREDITS = Number.parseInt(process.env.IMAGE2_SIGNUP_CREDITS || "100", 10);
@@ -71,6 +71,10 @@ function loadLocalEnv() {
 function sendJson(res, status, payload) {
   res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
   res.end(JSON.stringify(payload));
+}
+
+function getImageApiKey() {
+  return process.env.IMAGE2_API_KEY || process.env.NOWCODING_API_KEY || "";
 }
 
 function hashSecret(secret) {
@@ -1102,8 +1106,8 @@ async function handleGenerate(req, res) {
       return;
     }
 
-    if (!process.env.NOWCODING_API_KEY) {
-      sendJson(res, 500, { error: "缺少 NOWCODING_API_KEY，请在本地 .env 中配置。" });
+    if (!getImageApiKey()) {
+      sendJson(res, 500, { error: "缺少 IMAGE2_API_KEY，请在本地 .env 中配置。" });
       return;
     }
 
@@ -1122,8 +1126,8 @@ async function handleGenerate(req, res) {
 
     const imagePrompt = [
       mode === "edit" && referenceImages.length > 0
-        ? `请参考用户上传的 ${referenceImages.length} 张图片并调用图片生成工具生成一张新图片，不要只回复文字。`
-        : "请直接调用图片生成工具生成一张图片，不要只回复文字。",
+        ? `Generate exactly one image based on the ${referenceImages.length} reference image(s). Do not ask follow-up questions. Return only the generated image.`
+        : "Generate exactly one image from the prompt. Do not ask follow-up questions. Return only the generated image.",
       aspectRatio === "auto" ? "" : `图片比例：${aspectRatio}`,
       "",
       "用户提示词：",
@@ -1135,8 +1139,8 @@ async function handleGenerate(req, res) {
           {
             role: "user",
             content: [
-              { type: "input_text", text: imagePrompt },
-              ...referenceImages.map(image => ({ type: "input_image", image_url: image.dataUrl }))
+              { type: "text", text: imagePrompt },
+              ...referenceImages.map(image => ({ type: "image_url", image_url: { url: image.dataUrl } }))
             ]
           }
         ]
@@ -1188,21 +1192,20 @@ async function runGenerationJob({ requestId, input, quality, costCredits, remain
   try {
     updateJob(requestId, { status: "running" });
 
+    const messages = Array.isArray(input)
+      ? input
+      : [{ role: "user", content: input }];
+
     const upstream = await fetch(API_URL, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${process.env.NOWCODING_API_KEY}`,
+        "Authorization": `Bearer ${getImageApiKey()}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
         model: MODEL,
-        input,
-        tools: [
-          {
-            type: "image_generation",
-            quality
-          }
-        ]
+        messages,
+        quality
       })
     });
 
@@ -1226,8 +1229,8 @@ async function runGenerationJob({ requestId, input, quality, costCredits, remain
       return;
     }
 
-    const imageCall = payload?.output?.find(item => item.type === "image_generation_call");
-    const base64 = imageCall?.result;
+    const imageResult = await extractImageResult(payload);
+    const base64 = imageResult?.base64;
 
     if (!base64) {
       const detail = "接口返回成功，但没有找到图片结果。";
@@ -1242,13 +1245,13 @@ async function runGenerationJob({ requestId, input, quality, costCredits, remain
     }
 
     const usage = finishUsage(requestId, "succeeded");
-    const outputFormat = imageCall.output_format || "png";
+    const outputFormat = imageResult.outputFormat || "png";
     updateJob(requestId, {
       status: "succeeded",
       id: payload.id,
       requestId,
       model: payload.model || MODEL,
-      imageStatus: imageCall.status,
+      imageStatus: imageResult.status,
       outputFormat,
       mimeType: `image/${outputFormat}`,
       imageBase64: base64,
@@ -1265,6 +1268,115 @@ async function runGenerationJob({ requestId, input, quality, costCredits, remain
       remainingCredits: usage?.remainingCredits ?? remainingCredits
     });
   }
+}
+
+async function extractImageResult(payload) {
+  const responseItem = payload?.output?.find?.(item => item.type === "image_generation_call");
+  if (responseItem?.result) {
+    return {
+      base64: responseItem.result,
+      outputFormat: responseItem.output_format || "png",
+      status: responseItem.status || ""
+    };
+  }
+
+  const imageItem = payload?.data?.find?.(item => item?.b64_json || item?.url);
+  if (imageItem?.b64_json) {
+    return {
+      base64: stripDataUrlPrefix(imageItem.b64_json),
+      outputFormat: guessImageFormat(imageItem.b64_json),
+      status: "succeeded"
+    };
+  }
+
+  if (imageItem?.url) {
+    const parsed = parseDataImageUrl(imageItem.url);
+    if (parsed) {
+      return {
+        base64: parsed.base64,
+        outputFormat: parsed.outputFormat,
+        status: "succeeded"
+      };
+    }
+  }
+
+  const choiceContent = payload?.choices?.[0]?.message?.content;
+  const contentItems = Array.isArray(choiceContent) ? choiceContent : [];
+  const choiceImage = contentItems.find(item => item?.image_url?.url || item?.image_url || item?.b64_json);
+  const choiceUrl = typeof choiceImage?.image_url === "string" ? choiceImage.image_url : choiceImage?.image_url?.url;
+  if (choiceImage?.b64_json || choiceUrl) {
+    const rawImage = choiceImage.b64_json || choiceUrl;
+    const parsed = parseDataImageUrl(rawImage);
+    return {
+      base64: parsed?.base64 || stripDataUrlPrefix(rawImage),
+      outputFormat: parsed?.outputFormat || guessImageFormat(rawImage),
+      status: "succeeded"
+    };
+  }
+
+  if (typeof choiceContent === "string") {
+    const markdownUrl = extractMarkdownImageUrl(choiceContent);
+    if (markdownUrl) {
+      const parsed = parseDataImageUrl(markdownUrl);
+      if (parsed) {
+        return {
+          base64: parsed.base64,
+          outputFormat: parsed.outputFormat,
+          status: "succeeded"
+        };
+      }
+
+      return fetchImageAsBase64(markdownUrl);
+    }
+  }
+
+  return null;
+}
+
+function extractMarkdownImageUrl(content) {
+  const match = /!\[[^\]]*]\(([^)\s]+)\)/.exec(content);
+  return match?.[1] || "";
+}
+
+async function fetchImageAsBase64(url) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`下载生成图片失败：${response.status} ${response.statusText}`);
+  }
+
+  const contentType = response.headers.get("content-type") || "image/png";
+  const arrayBuffer = await response.arrayBuffer();
+  const base64 = Buffer.from(arrayBuffer).toString("base64");
+  return {
+    base64,
+    outputFormat: getImageFormatFromContentType(contentType),
+    status: "succeeded"
+  };
+}
+
+function getImageFormatFromContentType(contentType) {
+  const match = /^image\/([^;\s]+)/i.exec(contentType);
+  return match?.[1]?.toLowerCase() || "png";
+}
+
+function parseDataImageUrl(value) {
+  const match = /^data:image\/([^;]+);base64,(.+)$/i.exec(String(value || ""));
+  if (!match) {
+    return null;
+  }
+
+  return {
+    outputFormat: match[1].toLowerCase(),
+    base64: match[2]
+  };
+}
+
+function stripDataUrlPrefix(value) {
+  return String(value || "").replace(/^data:image\/[^;]+;base64,/i, "");
+}
+
+function guessImageFormat(value) {
+  return parseDataImageUrl(value)?.outputFormat || "png";
 }
 
 function handleGenerateStatus(req, res, requestId) {

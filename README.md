@@ -1,6 +1,6 @@
 # Image2 Web Generator
 
-一个可部署的网页版生图中转工具。用户通过邮箱验证码登录，Node 服务校验账号额度后调用 `https://nowcoding.ai/v1/responses`，生成结果返回浏览器并保存在 IndexedDB 本地历史中。
+一个可部署的网页版生图中转工具。用户通过邮箱验证码登录，Node 服务校验账号额度后调用配置的图片生成接口，生成结果返回浏览器并保存在 IndexedDB 本地历史中。
 
 ## 功能
 
@@ -11,7 +11,7 @@
 - 本地历史：生成图片仅保存在当前浏览器 IndexedDB，不会长期保存在服务器。
 - 提示词复用：历史卡片支持重新编辑、再次生成、复制提示词、删除。
 - 多图生成：可以设置一次生成的图片数量，前端会并行提交多次生成请求。
-- 多图参考：底部上传入口支持同时添加多张本地图片，参考图编辑模式会把它们作为多个 `input_image` 传给接口。
+- 多图参考：底部上传入口支持同时添加多张本地图片，参考图编辑模式会把它们作为多个 `image_url` 内容块传给接口。
 - 图片比例：支持智能比例以及 `9:21`、`9:16`、`2:3`、`3:4`、`1:1`、`4:3`、`3:2`、`16:9`、`21:9`。智能比例不会传入比例文本；其他比例会写入 prompt，不再发送分辨率参数。
 - 深色模式：右上角支持浅色 / 深色主题切换，并会保存在本地浏览器。
 
@@ -20,7 +20,9 @@
 先在本地 `.env` 里配置：
 
 ```text
-NOWCODING_API_KEY=your_api_key_here
+IMAGE2_API_URL=https://api.bltcy.ai/v1/chat/completions
+IMAGE2_API_KEY=your_api_key_here
+IMAGE2_MODEL=gpt-image-2
 IMAGE2_ADMIN_KEY=change_this_admin_key
 IMAGE2_DATA_DIR=./data
 IMAGE2_SIGNUP_CREDITS=100
@@ -87,10 +89,10 @@ Invoke-RestMethod -Method Post -Uri http://localhost:5173/api/admin/users/<user-
 
 ## 说明
 
-- 模型：`gpt-5.4-mini`
-- 图片接口：`https://nowcoding.ai/v1/responses`
+- 模型：`gpt-image-2`
+- 图片接口：`https://api.bltcy.ai/v1/chat/completions`
 - 图片不会长期保存在服务器；浏览器会把生成结果保存到当前浏览器的 IndexedDB。
-- API key 从本地 `.env` 或环境变量 `NOWCODING_API_KEY` 读取，`.env` 不会提交到 Git。
+- API key 从本地 `.env` 或环境变量 `IMAGE2_API_KEY` 读取，`.env` 不会提交到 Git。
 - 用户、session、礼品卡和额度数据默认保存在 `IMAGE2_DATA_DIR` 下的 `image2-data.json`。
 - 如果修改了 `server.js`，需要重启 `npm start` 才会生效。
 - 请求格式细节见 `docs/request-format.md`。

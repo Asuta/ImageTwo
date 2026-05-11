@@ -286,7 +286,7 @@ function createTask({ prompt, aspectRatio, quality, count, mode, referenceImages
     quality,
     count,
     mode,
-    model: "gpt-5.4-mini",
+    model: "gpt-image-2",
     createdAt: new Date().toISOString(),
     costCredits: 0,
     remainingCreditsSnapshot: null,
@@ -593,7 +593,7 @@ function renderHistory() {
         <div>
           <h2>${escapeHtml(getTaskTitle(task.prompt))}</h2>
           <div class="tag-row">
-            <span>${escapeHtml(task.model || "gpt-5.4-mini")}</span>
+            <span>${escapeHtml(task.model || "gpt-image-2")}</span>
             <span>${task.mode === "edit" ? "多图参考" : "图片生成"}</span>
             <span>${escapeHtml(getRatioLabel(task.aspectRatio || "auto"))}</span>
             <span>${escapeHtml(task.quality || "medium")}</span>
