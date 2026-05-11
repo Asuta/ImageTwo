@@ -28,6 +28,7 @@ const aspectRatioOptions = new Set(["auto", "9:21", "9:16", "2:3", "3:4", "1:1",
 const giftCardStatuses = new Set(["active", "disabled", "redeemed", "revoked"]);
 const generationJobs = new Map();
 const JOB_TTL_MS = 15 * 60 * 1000;
+const PARTIAL_IMAGE_MIN_BASE64_CHARS = 1600;
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -428,6 +429,26 @@ function updateJob(requestId, patch) {
     ...patch,
     updatedAt: new Date().toISOString()
   });
+}
+
+function updatePartialImageJob(requestId, patch) {
+  const imageBase64 = normalizePartialBase64(stripDataUrlPrefix(patch.imageBase64));
+  if (imageBase64.length < PARTIAL_IMAGE_MIN_BASE64_CHARS) {
+    return;
+  }
+
+  updateJob(requestId, {
+    status: "streaming",
+    partial: true,
+    ...patch,
+    imageBase64
+  });
+}
+
+function normalizePartialBase64(base64) {
+  const cleanBase64 = String(base64 || "").replace(/\s/g, "");
+  const alignedLength = cleanBase64.length - (cleanBase64.length % 4);
+  return alignedLength > 0 ? cleanBase64.slice(0, alignedLength) : "";
 }
 
 async function sendLoginCodeEmail(email, code) {
@@ -1209,13 +1230,7 @@ async function runGenerationJob({ requestId, input, quality, costCredits, remain
       })
     });
 
-    const text = await upstream.text();
-    let payload;
-    try {
-      payload = JSON.parse(text);
-    } catch {
-      payload = null;
-    }
+    const { text, payload } = await readUpstreamImageResponse(upstream, requestId);
 
     if (!upstream.ok) {
       const detail = payload?.error?.message || text;
@@ -1331,6 +1346,94 @@ async function extractImageResult(payload) {
   }
 
   return null;
+}
+
+async function readUpstreamImageResponse(upstream, requestId) {
+  if (!upstream.body?.getReader) {
+    const text = await upstream.text();
+    return { text, payload: parseJsonSafely(text) };
+  }
+
+  const reader = upstream.body.getReader();
+  const decoder = new TextDecoder();
+  let text = "";
+  let lastPartialBase64 = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) {
+      break;
+    }
+
+    text += decoder.decode(value, { stream: true });
+    const partial = extractPartialImageResult(text);
+    if (partial?.base64 && partial.base64.length > lastPartialBase64.length) {
+      lastPartialBase64 = partial.base64;
+      updatePartialImageJob(requestId, {
+        imageBase64: partial.base64,
+        mimeType: `image/${partial.outputFormat || "png"}`,
+        outputFormat: partial.outputFormat || "png",
+        imageStatus: "streaming"
+      });
+    }
+  }
+
+  text += decoder.decode();
+  return { text, payload: parseJsonSafely(text) };
+}
+
+function parseJsonSafely(text) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+function extractPartialImageResult(text) {
+  const resultMatch = /"result"\s*:\s*"((?:\\.|[^"\\])*)/.exec(text);
+  if (resultMatch?.[1]) {
+    return {
+      base64: decodeJsonStringFragment(resultMatch[1]),
+      outputFormat: extractJsonStringField(text, "output_format") || "png"
+    };
+  }
+
+  const b64Match = /"b64_json"\s*:\s*"((?:\\.|[^"\\])*)/.exec(text);
+  if (b64Match?.[1]) {
+    return {
+      base64: decodeJsonStringFragment(b64Match[1]),
+      outputFormat: "png"
+    };
+  }
+
+  const dataUrlMatch = /data:image\/([^;"]+);base64,([A-Za-z0-9+/=_-]{1600,})/.exec(text);
+  if (dataUrlMatch) {
+    return {
+      base64: dataUrlMatch[2],
+      outputFormat: dataUrlMatch[1].toLowerCase()
+    };
+  }
+
+  return null;
+}
+
+function extractJsonStringField(text, fieldName) {
+  const pattern = new RegExp(`"${fieldName}"\\s*:\\s*"((?:\\\\.|[^"\\\\])*)"`);
+  const match = pattern.exec(text);
+  return match?.[1] ? decodeJsonStringFragment(match[1]) : "";
+}
+
+function decodeJsonStringFragment(value) {
+  const closedFragment = value.replace(/\\$/, "");
+  try {
+    return JSON.parse(`"${closedFragment}"`);
+  } catch {
+    return closedFragment
+      .replace(/\\"/g, '"')
+      .replace(/\\\\/g, "\\")
+      .replace(/\\\//g, "/");
+  }
 }
 
 function extractMarkdownImageUrl(content) {

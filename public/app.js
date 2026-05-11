@@ -23,7 +23,6 @@ const form = document.querySelector("#generateForm");
 const promptInput = document.querySelector("#prompt");
 const qualityInput = document.querySelector("#quality");
 const countInput = document.querySelector("#countInput");
-const modeTabs = document.querySelectorAll(".mode-tab");
 const referenceInput = document.querySelector("#referenceInput");
 const referenceStrip = document.querySelector("#referenceStrip");
 const clearReferenceButton = document.querySelector("#clearReference");
@@ -63,7 +62,6 @@ const previewZoomInButton = document.querySelector("#previewZoomIn");
 const generationInputs = [promptInput, qualityInput, countInput, referenceInput, clearReferenceButton, ratioButton];
 const toast = document.querySelector("#toast");
 
-let mode = "generate";
 let aspectRatio = "auto";
 let referenceImages = [];
 let selectedId = null;
@@ -297,10 +295,12 @@ function createTask({ prompt, aspectRatio, quality, count, mode, referenceImages
   };
 }
 
-function setMode(nextMode) {
-  mode = nextMode;
-  modeTabs.forEach(tab => tab.classList.toggle("active", tab.dataset.mode === mode));
-  referenceInput.closest(".upload-tile").classList.toggle("is-emphasized", mode === "edit");
+function getActiveGenerationMode() {
+  return referenceImages.length > 0 ? "edit" : "generate";
+}
+
+function syncReferenceModeState() {
+  referenceInput.closest(".upload-tile").classList.toggle("is-emphasized", referenceImages.length > 0);
 }
 
 function showToast(message) {
@@ -515,7 +515,6 @@ async function addReferenceFiles(files) {
 
   referenceImages = [...referenceImages, ...additions];
   referenceInput.value = "";
-  setMode("edit");
   renderReferences();
 }
 
@@ -534,10 +533,16 @@ function renderReferences() {
   referenceStrip.innerHTML = "";
   referenceStrip.classList.toggle("hidden", referenceImages.length === 0);
   clearReferenceButton.classList.toggle("hidden", referenceImages.length === 0);
+  syncReferenceModeState();
+  referenceStrip.style.setProperty("--reference-count", String(referenceImages.length));
+  referenceStrip.style.setProperty("--reference-collapsed-width", `${88 + Math.max(0, referenceImages.length - 1) * 24}px`);
+  referenceStrip.style.setProperty("--reference-expanded-width", `${88 + Math.max(0, referenceImages.length - 1) * 98}px`);
 
-  referenceImages.forEach(image => {
+  referenceImages.forEach((image, index) => {
     const item = document.createElement("div");
     item.className = "reference-thumb";
+    item.style.setProperty("--reference-index", String(index));
+    item.style.zIndex = String(referenceImages.length - index);
     item.innerHTML = `
       <img src="${escapeHtml(image.dataUrl)}" alt="${escapeHtml(image.name)}" />
       <button type="button" data-remove-ref="${image.id}" aria-label="移除参考图">x</button>
@@ -637,11 +642,22 @@ function renderReferenceChips(task) {
 }
 
 function renderImageCard(image) {
-  if (image.status === "loading") {
+  if (image.status === "streaming" && image.url) {
+    return `
+      <figure class="image-card is-streaming">
+        <button class="image-preview-trigger" type="button" data-action="preview" data-image-url="${escapeHtml(image.url)}" aria-label="放大预览生成结果">
+          <img src="${escapeHtml(image.url)}" alt="正在加载的生成结果" />
+        </button>
+        <figcaption>正在接收图片...</figcaption>
+      </figure>
+    `;
+  }
+
+  if (image.status === "loading" || image.status === "streaming") {
     return `
       <figure class="image-card is-loading">
         <div class="image-skeleton"><span></span></div>
-        <figcaption>正在生成...</figcaption>
+        <figcaption>${image.status === "streaming" ? "正在接收图片..." : "正在生成..."}</figcaption>
       </figure>
     `;
   }
@@ -766,6 +782,58 @@ function base64ToBlob(base64, mimeType) {
   return new Blob([bytes], { type: mimeType });
 }
 
+function revokeImageUrl(url) {
+  if (url?.startsWith("blob:")) {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function createImageObjectUrl(base64, mimeType) {
+  const normalizedBase64 = normalizeRenderableBase64(base64);
+  if (!normalizedBase64) {
+    return "";
+  }
+
+  try {
+    return URL.createObjectURL(base64ToBlob(normalizedBase64, mimeType));
+  } catch {
+    return "";
+  }
+}
+
+function normalizeRenderableBase64(base64) {
+  const cleanBase64 = String(base64 || "").replace(/\s/g, "");
+  const renderableLength = cleanBase64.length - (cleanBase64.length % 4);
+  return renderableLength > 0 ? cleanBase64.slice(0, renderableLength) : "";
+}
+
+function updateStreamingImage(taskId, imageId, result) {
+  if (!result?.imageBase64) {
+    return;
+  }
+
+  const task = history.find(item => item.id === taskId);
+  const image = task?.images.find(item => item.id === imageId);
+  if (image?.streamedLength && image.streamedLength >= result.imageBase64.length) {
+    return;
+  }
+
+  const url = createImageObjectUrl(result.imageBase64, result.mimeType || "image/png");
+  if (!url) {
+    return;
+  }
+
+  revokeImageUrl(image?.url);
+  updateImage(taskId, imageId, {
+    status: "streaming",
+    url,
+    mimeType: result.mimeType || "image/png",
+    outputFormat: result.outputFormat || "png",
+    requestId: result.requestId,
+    streamedLength: result.imageBase64.length
+  });
+}
+
 async function requestImage(task, imageId) {
   try {
     if (!currentUser) {
@@ -792,13 +860,15 @@ async function requestImage(task, imageId) {
     }
 
     const result = payload.status === "pending"
-      ? await pollGenerationResult(payload.requestId)
+      ? await pollGenerationResult(payload.requestId, task.id, imageId)
       : payload;
 
     if (result.status !== "succeeded" && result.status !== "completed") {
       throw new Error(result.detail || result.error || "生成失败。");
     }
 
+    const previousImage = history.find(item => item.id === task.id)?.images.find(image => image.id === imageId);
+    revokeImageUrl(previousImage?.url);
     const blob = base64ToBlob(result.imageBase64, result.mimeType || "image/png");
     const url = URL.createObjectURL(blob);
     const doneImage = {
@@ -834,7 +904,7 @@ async function requestImage(task, imageId) {
   }
 }
 
-async function pollGenerationResult(requestId) {
+async function pollGenerationResult(requestId, taskId, imageId) {
   if (!requestId) {
     throw new Error("生成任务没有返回 requestId。");
   }
@@ -844,6 +914,11 @@ async function pollGenerationResult(requestId) {
     await wait(GENERATION_POLL_INTERVAL_MS);
     const response = await fetch(`/api/generate/${encodeURIComponent(requestId)}`);
     const payload = await response.json();
+
+    if (response.ok && payload.status === "streaming") {
+      updateStreamingImage(taskId, imageId, payload);
+      continue;
+    }
 
     if (response.ok && payload.status === "succeeded") {
       return payload;
@@ -923,12 +998,8 @@ async function generateNewTask() {
     return;
   }
 
-  if (mode === "edit" && referenceImages.length === 0) {
-    showToast("参考图编辑需要先上传图片");
-    return;
-  }
-
   const count = getCount();
+  const mode = getActiveGenerationMode();
   const task = createTask({
     prompt,
     aspectRatio,
@@ -968,24 +1039,18 @@ function fillFromTask(task) {
   setAspectRatio(task.aspectRatio || "auto");
   qualityInput.value = task.quality || "medium";
   countInput.value = task.count || 1;
-  setMode(task.mode);
 
   if (task.referenceImages?.length) {
     referenceImages = task.referenceImages;
     renderReferences();
-  } else if (task.mode === "edit") {
+  } else {
     clearReferences();
-    showToast("请重新上传参考图后再编辑");
   }
 
   renderHistory();
   promptInput.focus();
   showToast("已复用提示词和参数");
 }
-
-modeTabs.forEach(tab => {
-  tab.addEventListener("click", () => setMode(tab.dataset.mode));
-});
 
 themeToggle.addEventListener("click", toggleTheme);
 accountButton.addEventListener("click", () => {
@@ -1058,7 +1123,11 @@ previewZoomInButton.addEventListener("click", () => zoomPreview(0.2));
 previewZoomResetButton.addEventListener("click", resetPreviewZoom);
 
 imagePreview.addEventListener("click", event => {
-  if (event.target.closest("[data-close-preview]")) {
+  if (event.target === previewImage || event.target.closest(".preview-toolbar")) {
+    return;
+  }
+
+  if (event.target === imagePreview || event.target.closest(".preview-stage") || event.target.closest("[data-close-preview]")) {
     closeImagePreview();
   }
 });
