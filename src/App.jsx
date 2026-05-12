@@ -1,4 +1,34 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ChevronUp,
+  Copy,
+  CreditCard,
+  Download,
+  Eraser,
+  History,
+  Image,
+  LogOut,
+  Menu,
+  Moon,
+  Plus,
+  RotateCcw,
+  Search,
+  Send,
+  Sparkles,
+  Sun,
+  Trash2,
+  Upload,
+  WandSparkles,
+  X,
+  ZoomIn,
+  ZoomOut
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 
 const DB_NAME = "image2-local-history";
 const DB_VERSION = 1;
@@ -180,6 +210,7 @@ function getThemeFromStorage() {
 
 function setTheme(theme) {
   document.documentElement.dataset.theme = theme;
+  document.documentElement.classList.toggle("dark", theme === "dark");
   localStorage.setItem("image2-theme", theme);
 }
 
@@ -942,7 +973,7 @@ function App() {
   const referenceModeActive = syncReferenceModeState();
 
   return (
-    <div className="app">
+    <div className="studio-shell">
       <aside className="sidebar" aria-label="主导航">
         <div className="logo">
           <span className="logo-mark">I2</span>
@@ -951,26 +982,26 @@ function App() {
 
         <nav className="nav-stack">
           <button className="nav-item" type="button" title="发现">
-            <span aria-hidden="true">⌕</span>
+            <span aria-hidden="true"><Search /></span>
             <span>发现</span>
           </button>
           <button className="nav-item active" type="button" title="生成">
-            <span aria-hidden="true">✦</span>
+            <span aria-hidden="true"><WandSparkles /></span>
             <span>生成</span>
           </button>
           <button className="nav-item" type="button" title="资产">
-            <span aria-hidden="true">▣</span>
+            <span aria-hidden="true"><Image /></span>
             <span>资产</span>
           </button>
           <button className="nav-item" type="button" title="历史">
-            <span aria-hidden="true">◷</span>
+            <span aria-hidden="true"><History /></span>
             <span>历史</span>
           </button>
         </nav>
 
         <div className="nav-footer">
-          <button className="icon-button" type="button" title="通知">◌</button>
-          <button className="icon-button" type="button" title="菜单">☰</button>
+          <Button className="icon-button" variant="ghost" size="icon" type="button" title="通知"><Sparkles /></Button>
+          <Button className="icon-button" variant="ghost" size="icon" type="button" title="菜单"><Menu /></Button>
         </div>
       </aside>
 
@@ -981,18 +1012,20 @@ function App() {
             <h1>生成历史</h1>
           </div>
           <div className="topbar-actions">
-            <a className="pay-button" href="https://pay.ldxp.cn/shop/2C8QL88T" target="_blank" rel="noreferrer">
-              <span aria-hidden="true">＋</span>
-              <span>购买点数</span>
-            </a>
-            <button className="theme-toggle" type="button" aria-label="切换深色模式" onClick={() => {
+            <Button className="premium-button" asChild>
+              <a href="https://pay.ldxp.cn/shop/2C8QL88T" target="_blank" rel="noreferrer">
+                <Plus data-icon="inline-start" />
+                购买点数
+              </a>
+            </Button>
+            <Button className="glass-button" variant="outline" type="button" aria-label="切换深色模式" onClick={() => {
               const nextTheme = theme === "dark" ? "light" : "dark";
               setThemeState(nextTheme);
             }}>
-              <span className="theme-orb" aria-hidden="true" />
+              {theme === "dark" ? <Sun data-icon="inline-start" /> : <Moon data-icon="inline-start" />}
               <span>{theme === "dark" ? "浅色模式" : "深色模式"}</span>
-            </button>
-            <button className={`theme-toggle${history.length === 0 ? " hidden" : ""}`} type="button" onClick={async () => {
+            </Button>
+            <Button className={`glass-button${history.length === 0 ? " hidden" : ""}`} variant="outline" type="button" onClick={async () => {
               await clearHistoryDb();
               history.forEach(task => task.images.forEach(image => {
                 if (image.url?.startsWith("blob:")) {
@@ -1003,13 +1036,13 @@ function App() {
               setSelectedId(null);
               showToast("已清空当前浏览器的本地历史");
             }}>
-              <span aria-hidden="true">⌫</span>
+              <Eraser data-icon="inline-start" />
               <span>清空本地历史</span>
-            </button>
-            <button id="accountButton" className="status-pill account-button" type="button" aria-expanded={accountOpen} aria-controls="accountPanel" onClick={() => setAccountOpen(prev => !prev)}>
+            </Button>
+            <Button id="accountButton" className="account-button" variant="outline" type="button" aria-expanded={accountOpen} aria-controls="accountPanel" onClick={() => setAccountOpen(prev => !prev)}>
               <span className="status-dot" />
               <span>{isLoggedIn ? `${currentUser.email} · ${currentUser.credits} 点` : "未登录"}</span>
-            </button>
+            </Button>
           </div>
         </header>
 
@@ -1018,7 +1051,7 @@ function App() {
         </section>
 
         <section className="history-feed" aria-label="生成历史">
-          {historyLoading ? <div className="empty-inline">正在读取本地历史...</div> : null}
+          {historyLoading ? <Card className="loading-card"><CardContent><Skeleton className="h-32 w-full" /></CardContent></Card> : null}
           {historyError ? <div className="empty-inline">{historyError}</div> : null}
           {!historyLoading && history.length === 0 ? (
             <section className="empty-state">
@@ -1030,52 +1063,54 @@ function App() {
             </section>
           ) : null}
           {visibleHistory.map(task => (
-            <article key={task.id} className={`history-task${task.id === selectedId ? " selected" : ""}`} data-id={task.id} onClick={() => {
+            <Card key={task.id} className={`history-task${task.id === selectedId ? " selected" : ""}`} data-id={task.id} onClick={() => {
               setSelectedId(task.id);
             }}>
-              <div className="task-head">
+              <CardHeader className="task-head">
                 <div>
-                  <h2>{getTaskTitle(task.prompt)}</h2>
+                  <CardTitle>{getTaskTitle(task.prompt)}</CardTitle>
                   <div className="tag-row">
-                    <span>{task.model || "gpt-image-2"}</span>
-                    <span>{task.mode === "edit" ? "多图参考" : "图片生成"}</span>
-                    <span>{getRatioLabel(task.aspectRatio || "auto")}</span>
-                    <span>{task.quality || "medium"}</span>
-                    <span>{task.count || task.images.length} 张</span>
-                    {task.costCredits ? <span>{task.costCredits} 点</span> : null}
-                    {Number.isFinite(task.remainingCreditsSnapshot) ? <span>余额 {task.remainingCreditsSnapshot}</span> : null}
-                    <span>{formatTime(new Date(task.createdAt))}</span>
+                    <Badge variant="secondary">{task.model || "gpt-image-2"}</Badge>
+                    <Badge variant="secondary">{task.mode === "edit" ? "多图参考" : "图片生成"}</Badge>
+                    <Badge variant="outline">{getRatioLabel(task.aspectRatio || "auto")}</Badge>
+                    <Badge variant="outline">{task.quality || "medium"}</Badge>
+                    <Badge variant="outline">{task.count || task.images.length} 张</Badge>
+                    {task.costCredits ? <Badge variant="secondary">{task.costCredits} 点</Badge> : null}
+                    {Number.isFinite(task.remainingCreditsSnapshot) ? <Badge variant="secondary">余额 {task.remainingCreditsSnapshot}</Badge> : null}
+                    <Badge variant="outline">{formatTime(new Date(task.createdAt))}</Badge>
                   </div>
                 </div>
                 {renderReferenceChips(task)}
-              </div>
+              </CardHeader>
 
-              <div className={`image-grid count-${Math.min(task.images.length, 4)}`}>
-                {task.images.map(renderImageCard)}
-              </div>
+              <CardContent>
+                <div className={`image-grid count-${Math.min(task.images.length, 4)}`}>
+                  {task.images.map(renderImageCard)}
+                </div>
+              </CardContent>
 
-              <div className="task-actions">
-                <button type="button" onClick={e => { e.stopPropagation(); fillFromTask(task); }}>
-                  <span aria-hidden="true">↩</span>重新编辑
-                </button>
-                <button type="button" onClick={e => { e.stopPropagation(); rerunTask(task); }}>
-                  <span aria-hidden="true">↻</span>再次生成
-                </button>
-                <button type="button" onClick={async e => {
+              <CardFooter className="task-actions">
+                <Button variant="secondary" type="button" onClick={e => { e.stopPropagation(); fillFromTask(task); }}>
+                  <WandSparkles data-icon="inline-start" />重新编辑
+                </Button>
+                <Button variant="outline" type="button" onClick={e => { e.stopPropagation(); rerunTask(task); }}>
+                  <RotateCcw data-icon="inline-start" />再次生成
+                </Button>
+                <Button variant="outline" type="button" onClick={async e => {
                   e.stopPropagation();
                   await navigator.clipboard.writeText(task.prompt);
                   showToast("提示词已复制");
                 }}>
-                  <span aria-hidden="true">⧉</span>复制提示词
-                </button>
-                <button type="button" onClick={async e => {
+                  <Copy data-icon="inline-start" />复制提示词
+                </Button>
+                <Button variant="destructive" type="button" onClick={async e => {
                   e.stopPropagation();
                   await deleteTask(task);
                 }} aria-label="删除">
-                  <span aria-hidden="true">⌫</span>
-                </button>
-              </div>
-            </article>
+                  <Trash2 />
+                </Button>
+              </CardFooter>
+            </Card>
           ))}
         </section>
       </main>
@@ -1090,7 +1125,7 @@ function App() {
               await addReferenceFiles(event.target.files || []);
               event.target.value = "";
             }} />
-            <span aria-hidden="true">+</span>
+            <span aria-hidden="true"><Upload /></span>
           </label>
 
           <div className="prompt-zone">
@@ -1107,7 +1142,7 @@ function App() {
                   </div>
                 ))}
               </div>
-              <textarea
+              <Textarea
                 value={prompt}
                 onChange={event => setPrompt(event.target.value)}
                 rows={3}
@@ -1118,11 +1153,11 @@ function App() {
 
             <div className="control-row">
               <div className="ratio-control">
-                <button className="ratio-button" type="button" aria-expanded={ratioOpen} onClick={() => setRatioOpen(prev => !prev)}>
+                <Button className="ratio-button" variant="outline" type="button" aria-expanded={ratioOpen} onClick={() => setRatioOpen(prev => !prev)}>
                   <span className={`ratio-icon ${ratioChoices.find(item => item.value === aspectRatio)?.shape || "auto"}`} aria-hidden="true" />
                   <span>{aspectRatio === "auto" ? "智能比例" : aspectRatio}</span>
-                  <span aria-hidden="true">⌃</span>
-                </button>
+                  <ChevronUp />
+                </Button>
                 <div className={`ratio-panel${ratioOpen ? "" : " hidden"}`}>
                   <p>图片比例</p>
                   <div className="ratio-options" aria-label="图片比例">
@@ -1139,20 +1174,20 @@ function App() {
 
               <label className="count-control">
                 <span>数量</span>
-                <input type="number" min="1" step="1" value={count} onChange={event => setCount(event.target.value)} />
+                <Input type="number" min="1" step="1" value={count} onChange={event => setCount(event.target.value)} />
               </label>
 
-              <button className={`soft-button${referenceImages.length === 0 ? " hidden" : ""}`} type="button" onClick={clearReferences}>
-                <span aria-hidden="true">×</span>
+              <Button className={`soft-button${referenceImages.length === 0 ? " hidden" : ""}`} variant="outline" type="button" onClick={clearReferences}>
+                <X data-icon="inline-start" />
                 <span>清空参考图</span>
-              </button>
+              </Button>
             </div>
           </div>
 
-          <button className="generate-button" type="submit" disabled={isGenerating}>
-            <span aria-hidden="true">✦</span>
+          <Button className="generate-button" type="submit" disabled={isGenerating}>
+            <Sparkles data-icon="inline-start" />
             <span>{referenceModeActive ? "编辑" : "生成"}</span>
-          </button>
+          </Button>
         </form>
       </section>
 
@@ -1164,7 +1199,7 @@ function App() {
               <p className="eyebrow">账号</p>
               <h2>{isLoggedIn ? "账号与额度" : "邮箱登录"}</h2>
             </div>
-            <button className="icon-button" type="button" aria-label="关闭" onClick={() => setAccountOpen(false)}>×</button>
+            <Button className="icon-button" variant="ghost" size="icon" type="button" aria-label="关闭" onClick={() => setAccountOpen(false)}><X /></Button>
           </div>
 
           {isLoggedIn ? (
@@ -1178,38 +1213,38 @@ function App() {
               </div>
               <label className="account-control">
                 <span>礼品卡</span>
-                <input value={giftKey} onChange={event => setGiftKey(event.target.value)} type="text" autoComplete="off" placeholder="gift_..." />
+                <Input value={giftKey} onChange={event => setGiftKey(event.target.value)} type="text" autoComplete="off" placeholder="gift_..." />
               </label>
               <div className="panel-actions">
-                <button className="soft-button" type="button" onClick={redeemGiftCard}>
-                  <span aria-hidden="true">＋</span>
+                <Button className="soft-button" variant="secondary" type="button" onClick={redeemGiftCard}>
+                  <CreditCard data-icon="inline-start" />
                   <span>兑换</span>
-                </button>
-                <button className="soft-button" type="button" onClick={logout}>
-                  <span aria-hidden="true">↥</span>
+                </Button>
+                <Button className="soft-button" variant="outline" type="button" onClick={logout}>
+                  <LogOut data-icon="inline-start" />
                   <span>退出</span>
-                </button>
+                </Button>
               </div>
             </div>
           ) : (
             <div className="account-panel-body">
               <label className="account-control">
                 <span>邮箱</span>
-                <input value={email} onChange={event => setEmail(event.target.value)} type="email" autoComplete="email" placeholder="you@example.com" />
+                <Input value={email} onChange={event => setEmail(event.target.value)} type="email" autoComplete="email" placeholder="you@example.com" />
               </label>
               <label className={`account-control${loginCodeRequested ? "" : " hidden"}`}>
                 <span>验证码</span>
-                <input value={code} onChange={event => setCode(event.target.value)} type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="6 位数字" />
+                <Input value={code} onChange={event => setCode(event.target.value)} type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="6 位数字" />
               </label>
               <div className="panel-actions">
-                <button className={`soft-button${loginCodeRequested ? " hidden" : ""}`} type="button" onClick={sendLoginCode}>
-                  <span aria-hidden="true">✉</span>
+                <Button className={`soft-button${loginCodeRequested ? " hidden" : ""}`} variant="secondary" type="button" onClick={sendLoginCode}>
+                  <Send data-icon="inline-start" />
                   <span>发送验证码</span>
-                </button>
-                <button className={`soft-button${loginCodeRequested ? "" : " hidden"}`} type="button" onClick={loginWithCode}>
-                  <span aria-hidden="true">✓</span>
+                </Button>
+                <Button className={`soft-button${loginCodeRequested ? "" : " hidden"}`} type="button" onClick={loginWithCode}>
+                  <Sparkles data-icon="inline-start" />
                   <span>登录</span>
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -1271,11 +1306,11 @@ function App() {
           />
         </div>
         <div className="preview-toolbar" aria-label="预览控制" onClick={event => event.stopPropagation()}>
-          <button className="preview-tool" type="button" aria-label="缩小" onClick={() => zoomPreview(-0.2)}>−</button>
+          <Button className="preview-tool" variant="secondary" size="icon" type="button" aria-label="缩小" onClick={() => zoomPreview(-0.2)}><ZoomOut /></Button>
           <button className="preview-tool preview-scale" type="button" onClick={resetPreviewZoom}>{previewScaleLabel}</button>
-          <button className="preview-tool" type="button" aria-label="放大" onClick={() => zoomPreview(0.2)}>＋</button>
+          <Button className="preview-tool" variant="secondary" size="icon" type="button" aria-label="放大" onClick={() => zoomPreview(0.2)}><ZoomIn /></Button>
         </div>
-        <button className="preview-close" type="button" aria-label="关闭预览" onClick={closeImagePreview}>×</button>
+        <Button className="preview-close" variant="secondary" size="icon" type="button" aria-label="关闭预览" onClick={closeImagePreview}><X /></Button>
       </section>
 
       <div className={`toast${toast ? "" : " hidden"}`} role="status">{toast}</div>

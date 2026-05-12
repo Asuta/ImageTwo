@@ -1,3 +1,10 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+
+@custom-variant dark (&:is(.dark *));
+
 :root {
   color-scheme: light;
   --bg: #fbfcf8;
@@ -6,10 +13,10 @@
   --surface-soft: #f7faf7;
   --surface-glass: rgba(255, 255, 255, 0.94);
   --ink: #17211d;
-  --muted: #6f7c75;
+  --muted: oklch(0.97 0 0);
   --line: #e4ebe6;
   --line-strong: #c8ddd3;
-  --accent: #11876f;
+  --accent: oklch(0.97 0 0);
   --accent-soft: #e4f4ef;
   --accent-deep: #075f4d;
   --coral: #e15f4f;
@@ -24,6 +31,36 @@
     linear-gradient(135deg, #e5f0eb, #d9e5e6);
   --selected-bg: linear-gradient(180deg, rgba(228, 244, 239, 0.72), rgba(255, 255, 255, 0));
   --shadow: 0 18px 46px rgba(21, 51, 42, 0.11);
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
 }
 
 :root[data-theme="dark"] {
@@ -2054,5 +2091,521 @@ select {
   .generate-button {
     grid-column: 1;
     grid-row: auto;
+  }
+}
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: 'Geist Variable', sans-serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+@layer components {
+  .studio-shell {
+    @apply grid min-h-svh grid-cols-[88px_minmax(0,1fr)] bg-[radial-gradient(circle_at_18%_12%,color-mix(in_oklab,var(--primary)_12%,transparent),transparent_28%),radial-gradient(circle_at_86%_82%,color-mix(in_oklab,var(--accent)_18%,transparent),transparent_30%),var(--background)] text-foreground;
+  }
+
+  .studio-shell .sidebar {
+    @apply fixed inset-y-0 left-0 z-20 grid w-[88px] grid-rows-[auto_1fr_auto] border-r bg-sidebar/90 px-3 py-5 backdrop-blur-xl;
+  }
+
+  .studio-shell .logo {
+    @apply flex flex-col items-center gap-2 text-xs font-semibold text-sidebar-foreground no-underline;
+  }
+
+  .studio-shell .logo-mark {
+    @apply grid size-11 place-items-center rounded-2xl border bg-background text-sm font-black shadow-sm;
+  }
+
+  .studio-shell .nav-stack {
+    @apply flex flex-col items-center gap-3 pt-12;
+  }
+
+  .studio-shell .nav-footer {
+    @apply flex flex-col items-center gap-3;
+  }
+
+  .studio-shell .nav-item {
+    @apply grid min-h-16 w-16 place-items-center gap-1 rounded-2xl border border-transparent bg-transparent text-xs font-medium text-muted-foreground transition hover:bg-sidebar-accent hover:text-sidebar-accent-foreground;
+  }
+
+  .studio-shell .nav-item span:first-child {
+    @apply grid size-8 place-items-center rounded-xl bg-muted text-muted-foreground;
+  }
+
+  .studio-shell .nav-item svg,
+  .studio-shell .icon-button svg {
+    @apply size-4;
+  }
+
+  .studio-shell .nav-item.active {
+    @apply border-border bg-background text-foreground shadow-sm;
+  }
+
+  .studio-shell .nav-item.active span:first-child {
+    @apply bg-primary text-primary-foreground;
+  }
+
+  .studio-shell .icon-button {
+    @apply rounded-xl text-muted-foreground hover:text-foreground;
+  }
+
+  .studio-shell .main {
+    @apply col-start-2 min-h-svh px-8 pb-72 pt-8;
+  }
+
+  .studio-shell .topbar {
+    @apply mx-auto mb-6 flex max-w-[1500px] items-center justify-between gap-4;
+  }
+
+  .studio-shell .eyebrow {
+    @apply mb-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground;
+  }
+
+  .studio-shell h1 {
+    @apply text-3xl font-semibold tracking-tight text-foreground;
+  }
+
+  .studio-shell .topbar-actions {
+    @apply flex flex-wrap items-center justify-end gap-2;
+  }
+
+  .studio-shell .premium-button {
+    @apply rounded-full bg-primary px-4 text-primary-foreground shadow-sm hover:bg-primary/90;
+  }
+
+  .studio-shell .glass-button,
+  .studio-shell .account-button {
+    @apply rounded-full bg-background/70 px-4 shadow-sm backdrop-blur;
+  }
+
+  .studio-shell .status-dot {
+    @apply size-2 rounded-full bg-primary;
+  }
+
+  .studio-shell .local-notice {
+    @apply mx-auto mb-6 max-w-[1500px] rounded-2xl border bg-card/80 px-4 py-3 text-sm text-muted-foreground shadow-sm backdrop-blur;
+  }
+
+  .studio-shell .history-feed {
+    @apply mx-auto flex max-w-[1500px] flex-col gap-5;
+  }
+
+  .studio-shell .loading-card {
+    @apply rounded-3xl bg-card/80 shadow-sm;
+  }
+
+  .studio-shell .empty-inline {
+    @apply rounded-2xl border bg-card/80 p-5 text-center text-sm text-muted-foreground shadow-sm;
+  }
+
+  .studio-shell .empty-state {
+    @apply mx-auto grid min-h-[42vh] place-items-center;
+  }
+
+  .studio-shell .empty-card {
+    @apply max-w-md text-center;
+  }
+
+  .studio-shell .empty-icon {
+    @apply mx-auto mb-5 grid size-14 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-sm;
+  }
+
+  .studio-shell .empty-card h2 {
+    @apply mb-2 text-xl font-semibold text-foreground;
+  }
+
+  .studio-shell .empty-card p {
+    @apply text-sm leading-6 text-muted-foreground;
+  }
+
+  .studio-shell .history-task {
+    @apply overflow-hidden rounded-3xl border bg-card/90 text-card-foreground shadow-sm transition hover:shadow-md;
+  }
+
+  .studio-shell .history-task.selected {
+    @apply border-primary/50 ring-4 ring-primary/10;
+  }
+
+  .studio-shell .task-head {
+    @apply flex flex-row items-start justify-between gap-4 p-5;
+  }
+
+  .studio-shell .task-head h2 {
+    @apply text-lg font-semibold tracking-tight;
+  }
+
+  .studio-shell .tag-row {
+    @apply mt-3 flex flex-wrap gap-2;
+  }
+
+  .studio-shell .reference-chip-stack {
+    @apply flex shrink-0 items-center;
+  }
+
+  .studio-shell .reference-chip {
+    @apply -ml-2 size-11 rounded-xl border-2 border-background object-cover shadow-sm first:ml-0;
+  }
+
+  .studio-shell .image-grid {
+    @apply grid gap-3;
+  }
+
+  .studio-shell .image-grid.count-1 {
+    @apply grid-cols-1;
+  }
+
+  .studio-shell .image-grid.count-2 {
+    @apply grid-cols-2;
+  }
+
+  .studio-shell .image-grid.count-3,
+  .studio-shell .image-grid.count-4 {
+    @apply grid-cols-2;
+  }
+
+  .studio-shell .image-card {
+    @apply relative overflow-hidden rounded-2xl border bg-muted/40;
+  }
+
+  .studio-shell .image-preview-trigger {
+    @apply block w-full border-0 bg-transparent p-0;
+  }
+
+  .studio-shell .image-card img,
+  .studio-shell .image-skeleton,
+  .studio-shell .image-error {
+    @apply min-h-[320px] w-full object-cover;
+  }
+
+  .studio-shell .image-skeleton {
+    @apply grid place-items-center bg-muted;
+  }
+
+  .studio-shell .image-skeleton span {
+    @apply size-8 rounded-full border-2 border-primary/30 border-t-primary;
+  }
+
+  .studio-shell .image-error {
+    @apply grid place-items-center text-destructive;
+  }
+
+  .studio-shell .image-card figcaption {
+    @apply absolute bottom-3 left-3 rounded-full bg-background/80 px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm backdrop-blur;
+  }
+
+  .studio-shell .task-actions {
+    @apply flex flex-wrap gap-2 border-t bg-muted/20 p-4;
+  }
+
+  .studio-shell .composer {
+    @apply fixed bottom-5 z-10;
+    left: 128px !important;
+    right: 32px !important;
+    width: auto !important;
+    transform: none !important;
+  }
+
+  .studio-shell .composer-card {
+    @apply grid grid-cols-[72px_minmax(0,1fr)_120px] gap-3 rounded-3xl border bg-background/90 p-3 shadow-2xl shadow-foreground/10 backdrop-blur-xl;
+  }
+
+  .studio-shell .composer-card.is-disabled {
+    @apply opacity-95;
+  }
+
+  .studio-shell .upload-tile {
+    @apply grid min-h-24 cursor-pointer place-items-center rounded-2xl border border-dashed bg-muted/40 text-muted-foreground transition hover:bg-muted;
+  }
+
+  .studio-shell .upload-tile input {
+    @apply hidden;
+  }
+
+  .studio-shell .upload-tile svg {
+    @apply size-5;
+  }
+
+  .studio-shell .prompt-zone {
+    @apply flex min-w-0 flex-col gap-3;
+  }
+
+  .studio-shell .prompt-top {
+    @apply flex min-h-24 items-stretch gap-3;
+  }
+
+  .studio-shell textarea {
+    @apply min-h-24 flex-1 resize-none rounded-2xl border-0 bg-transparent px-1 py-2 text-base leading-7 shadow-none focus-visible:ring-0;
+  }
+
+  .studio-shell .reference-strip {
+    @apply relative flex h-24 shrink-0 items-center transition-all;
+    width: var(--reference-collapsed-width);
+  }
+
+  .studio-shell .reference-strip:hover {
+    width: var(--reference-expanded-width);
+  }
+
+  .studio-shell .reference-thumb {
+    @apply absolute top-1/2 size-20 -translate-y-1/2 overflow-hidden rounded-2xl border bg-muted shadow-sm transition-all;
+    left: calc(var(--reference-index) * 24px);
+  }
+
+  .studio-shell .reference-strip:hover .reference-thumb {
+    left: calc(var(--reference-index) * 98px);
+  }
+
+  .studio-shell .reference-thumb img {
+    @apply size-full object-cover;
+  }
+
+  .studio-shell .reference-thumb button {
+    @apply absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-background/80 text-xs backdrop-blur;
+  }
+
+  .studio-shell .control-row {
+    @apply flex flex-wrap items-center gap-2;
+  }
+
+  .studio-shell .ratio-control {
+    @apply relative;
+  }
+
+  .studio-shell .ratio-button,
+  .studio-shell .soft-button,
+  .studio-shell select,
+  .studio-shell .count-control {
+    @apply h-9 rounded-full;
+  }
+
+  .studio-shell select {
+    @apply border bg-background px-3 text-sm;
+  }
+
+  .studio-shell .count-control {
+    @apply flex items-center gap-2 border bg-background px-3 text-sm text-muted-foreground;
+  }
+
+  .studio-shell .count-control input {
+    @apply h-7 w-14 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0;
+  }
+
+  .studio-shell .ratio-panel {
+    @apply absolute bottom-11 left-0 z-30 w-80 rounded-2xl border bg-popover p-3 text-popover-foreground shadow-xl;
+  }
+
+  .studio-shell .ratio-panel p {
+    @apply mb-2 text-xs font-medium text-muted-foreground;
+  }
+
+  .studio-shell .ratio-options {
+    @apply grid grid-cols-5 gap-2;
+  }
+
+  .studio-shell .ratio-option {
+    @apply grid min-h-14 place-items-center gap-1 rounded-xl border bg-background text-xs transition hover:bg-muted;
+  }
+
+  .studio-shell .ratio-option.selected {
+    @apply border-primary bg-primary text-primary-foreground;
+  }
+
+  .studio-shell .generate-button {
+    @apply h-full rounded-2xl text-base font-semibold;
+  }
+
+  .studio-shell .account-panel,
+  .studio-shell .image-preview {
+    @apply fixed inset-0 z-50;
+  }
+
+  .studio-shell .panel-backdrop,
+  .studio-shell .preview-backdrop {
+    @apply absolute inset-0 bg-background/65 backdrop-blur-sm;
+  }
+
+  .studio-shell .account-popover {
+    @apply absolute right-8 top-24 w-[min(420px,calc(100vw-32px))] rounded-3xl border bg-popover p-5 text-popover-foreground shadow-2xl;
+  }
+
+  .studio-shell .account-panel-head {
+    @apply mb-4 flex items-start justify-between gap-3;
+  }
+
+  .studio-shell .account-panel-head h2 {
+    @apply text-xl font-semibold;
+  }
+
+  .studio-shell .account-panel-body {
+    @apply flex flex-col gap-3;
+  }
+
+  .studio-shell .account-control {
+    @apply flex flex-col gap-2 text-sm font-medium text-muted-foreground;
+  }
+
+  .studio-shell .panel-actions {
+    @apply grid grid-cols-2 gap-2;
+  }
+
+  .studio-shell .account-summary {
+    @apply flex items-center gap-3 rounded-2xl border bg-muted/40 p-3;
+  }
+
+  .studio-shell .account-summary div {
+    @apply flex flex-col;
+  }
+
+  .studio-shell .account-summary span:last-child {
+    @apply text-sm text-muted-foreground;
+  }
+
+  .studio-shell .preview-stage {
+    @apply relative grid size-full place-items-center p-12;
+  }
+
+  .studio-shell .preview-stage img {
+    @apply max-h-[calc(100svh-150px)] max-w-[92vw] cursor-grab rounded-2xl object-contain shadow-2xl transition-transform;
+  }
+
+  .studio-shell .preview-stage img.is-dragging {
+    @apply cursor-grabbing;
+  }
+
+  .studio-shell .preview-toolbar {
+    @apply fixed bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full border bg-background/85 p-2 shadow-xl backdrop-blur;
+  }
+
+  .studio-shell .preview-scale {
+    @apply h-8 min-w-16 rounded-full border bg-muted px-3 text-sm font-medium;
+  }
+
+  .studio-shell .preview-close {
+    @apply fixed right-6 top-6 rounded-full;
+  }
+
+  .studio-shell .toast {
+    @apply fixed bottom-32 left-1/2 z-[60] -translate-x-1/2 rounded-full border bg-foreground px-4 py-2 text-sm font-medium text-background shadow-xl;
+  }
+
+  .studio-shell .hidden {
+    @apply hidden;
+  }
+}
+
+@media (max-width: 980px) {
+  .studio-shell {
+    @apply block;
+  }
+
+  .studio-shell .sidebar {
+    @apply hidden;
+  }
+
+  .studio-shell .main {
+    @apply px-4 pb-[390px] pt-5;
+  }
+
+  .studio-shell .topbar {
+    @apply grid items-start;
+  }
+
+  .studio-shell .composer {
+    @apply left-3 right-3 bottom-3 w-auto translate-x-0;
+  }
+
+  .studio-shell .composer-card {
+    @apply grid-cols-1;
+  }
+
+  .studio-shell .image-grid,
+  .studio-shell .image-grid.count-2,
+  .studio-shell .image-grid.count-3,
+  .studio-shell .image-grid.count-4 {
+    @apply grid-cols-1;
   }
 }
