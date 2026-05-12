@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const publicDir = join(__dirname, "public");
+const distDir = join(__dirname, "dist");
 
 loadLocalEnv();
 
@@ -1514,6 +1515,30 @@ function serveAdmin(req, res) {
   serveFile(res, join(publicDir, fileName));
 }
 
+function serveClient(req, res, url) {
+  const hasReactBuild = existsSync(join(distDir, "index.html"));
+  const clientDir = hasReactBuild ? distDir : publicDir;
+  const clientPath = safeStaticPath(clientDir, url.pathname);
+
+  if (clientPath && existsSync(clientPath)) {
+    serveFile(res, clientPath);
+    return;
+  }
+
+  const publicPath = safeStaticPath(publicDir, url.pathname);
+  if (publicPath && existsSync(publicPath)) {
+    serveFile(res, publicPath);
+    return;
+  }
+
+  if (hasReactBuild && !extname(url.pathname)) {
+    serveFile(res, join(distDir, "index.html"));
+    return;
+  }
+
+  serveFile(res, clientPath);
+}
+
 const server = createServer((req, res) => {
   const url = new URL(req.url || "/", `http://${req.headers.host}`);
 
@@ -1554,7 +1579,7 @@ const server = createServer((req, res) => {
     return;
   }
 
-  serveFile(res, safeStaticPath(publicDir, url.pathname));
+  serveClient(req, res, url);
 });
 
 function listen(port) {

@@ -4,7 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node server.js"
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "start": "npm run build && node server.js"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^5.1.1",
+    "vite": "^7.2.7",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1"
   },
   "engines": {
     "node": ">=18"
