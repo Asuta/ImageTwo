@@ -3,18 +3,23 @@ import {
   ChevronUp,
   Copy,
   CreditCard,
-  Download,
   Eraser,
+  Bell,
+  Folder,
+  Grid2X2,
   History,
+  Home,
   Image,
   LogOut,
   Menu,
   Moon,
   Plus,
   RotateCcw,
-  Search,
   Send,
+  Settings2,
+  Share2,
   Sparkles,
+  Star,
   Sun,
   Trash2,
   Upload,
@@ -35,6 +40,7 @@ const DB_VERSION = 1;
 const MAX_LOCAL_IMAGES = 300;
 const GENERATION_POLL_INTERVAL_MS = 2500;
 const GENERATION_POLL_TIMEOUT_MS = 5 * 60 * 1000;
+const HISTORY_LOAD_TIMEOUT_MS = 3500;
 
 const ratioChoices = [
   { value: "auto", label: "智能", shape: "auto" },
@@ -74,6 +80,14 @@ function storeRequest(store, method, ...args) {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
+}
+
+function withTimeout(promise, timeoutMs, message) {
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timeoutId));
 }
 
 function transactionDone(transaction) {
@@ -172,7 +186,7 @@ function getRatioLabel(value) {
 
 function getTaskTitle(prompt) {
   const firstLine = String(prompt || "").split(/\n/).find(Boolean) || String(prompt || "");
-  return firstLine.length > 34 ? `${firstLine.slice(0, 34)}...` : firstLine;
+  return firstLine.length > 82 ? `${firstLine.slice(0, 82)}...` : firstLine;
 }
 
 function createLoadingImages(count) {
@@ -183,6 +197,34 @@ function createLoadingImages(count) {
     createdAt: new Date().toISOString()
   }));
 }
+
+const previewRows = [
+  {
+    title: "Cinematic mountain retreat above the clouds at sunrise, minimalist architecture, warm light, ultra realistic",
+    refs: ["/demo/ref-1.png", "/demo/ref-2.png"],
+    images: ["/demo/mountain-1.png", "/demo/mountain-2.png", "/demo/mountain-3.png", "/demo/mountain-4.png"],
+    ratio: "16:9",
+    time: "2 minutes ago",
+    theme: "warm"
+  },
+  {
+    title: "Cyberpunk city street at night, rain reflections, neon lights, moody atmosphere",
+    refs: ["/demo/ref-3.png", "/demo/ref-4.png", "/demo/ref-5.png"],
+    images: ["/demo/cyber-1.png", "/demo/cyber-2.png", "/demo/cyber-3.png"],
+    ratio: "21:9",
+    time: "1 hour ago",
+    theme: "neon",
+    loading: true
+  },
+  {
+    title: "Ethereal portrait of a woman, soft lighting, floral elements, dreamy and elegant",
+    refs: ["/demo/ref-1.png"],
+    ratio: "4:5",
+    time: "3 hours ago",
+    images: ["/demo/portrait-1.png", "/demo/portrait-2.png", "/demo/portrait-3.png", "/demo/portrait-4.png"],
+    theme: "portrait"
+  }
+];
 
 function createTask({ prompt, aspectRatio, quality, count, mode, referenceImages }) {
   const id = createLocalId();
@@ -341,11 +383,13 @@ function App() {
     setHistoryLoading(true);
     setHistoryError("");
     try {
-      const db = await openHistoryDb();
+      const db = await withTimeout(openHistoryDb(), HISTORY_LOAD_TIMEOUT_MS, "本地历史数据库响应超时");
       const transaction = db.transaction(["tasks", "images"], "readonly");
       const done = transactionDone(transaction);
-      const tasks = await storeRequest(transaction.objectStore("tasks"), "getAll");
-      const images = await storeRequest(transaction.objectStore("images"), "getAll");
+      const [tasks, images] = await withTimeout(Promise.all([
+        storeRequest(transaction.objectStore("tasks"), "getAll"),
+        storeRequest(transaction.objectStore("images"), "getAll")
+      ]), HISTORY_LOAD_TIMEOUT_MS, "本地历史读取超时");
       const imagesByTask = new Map();
 
       images.forEach(image => {
@@ -354,7 +398,7 @@ function App() {
         imagesByTask.set(image.taskId, [...(imagesByTask.get(image.taskId) || []), imageRecord]);
       });
 
-      await done;
+      await withTimeout(done, HISTORY_LOAD_TIMEOUT_MS, "本地历史事务超时");
 
       const loadedHistory = tasks
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
@@ -367,8 +411,10 @@ function App() {
       setSelectedId(prev => prev || loadedHistory[0]?.id || null);
     } catch (error) {
       console.error(error);
-      setHistoryError("读取本地历史失败");
-      showToast("读取本地历史失败");
+      setHistory([]);
+      setSelectedId(null);
+      setHistoryError("");
+      showToast("本地历史暂不可用，已进入空白创作状态");
     } finally {
       setHistoryLoading(false);
     }
@@ -917,17 +963,76 @@ function App() {
 
   function renderReferenceChips(task) {
     const thumbs = task.referenceThumbs || [];
-    if (thumbs.length === 0) {
-      return null;
-    }
 
     return (
-      <div className="reference-chip-stack" title={`${thumbs.length} 张参考图`}>
-        {thumbs.slice(0, 4).map((src, index) => (
-          <img key={`${task.id}-${index}`} className="reference-chip" src={src} alt="参考图" />
-        ))}
-        {thumbs.length > 4 ? <span>+{thumbs.length - 4}</span> : null}
+      <div className="task-reference-block" title={`${thumbs.length} 张参考图`}>
+        <p>References ({thumbs.length})</p>
+        <div className="reference-chip-stack">
+          {thumbs.length > 0 ? thumbs.slice(0, 4).map((src, index) => (
+            <img key={`${task.id}-${index}`} className="reference-chip" src={src} alt="参考图" />
+          )) : (
+            <span className="reference-empty">No refs</span>
+          )}
+          {thumbs.length > 4 ? <span className="reference-more">+{thumbs.length - 4}</span> : null}
+        </div>
       </div>
+    );
+  }
+
+  function renderPreviewRow(row, rowIndex) {
+    const refs = row.refs || [];
+    const images = row.images || [];
+
+    return (
+      <Card key={row.title} className={`history-task concept-task ${row.loading ? "is-preview-loading" : ""}`}>
+        <CardHeader className="task-head">
+          <div className="task-title-area">
+            <Input type="checkbox" aria-label="选择示例生成记录" readOnly />
+            <ChevronUp />
+          </div>
+          <div className="task-copy-area">
+            <CardTitle>{row.title}</CardTitle>
+            <div className="tag-row">
+              <Badge variant="secondary">Flux Pro</Badge>
+              <Badge variant="outline">{row.ratio}</Badge>
+              <Badge variant="outline">High Quality</Badge>
+              <Badge variant="outline">{row.time}</Badge>
+            </div>
+          </div>
+          <div className="task-more-actions">
+            <Button className="icon-button" variant="ghost" size="icon" type="button" aria-label="收藏示例"><Star /></Button>
+            <Button className="icon-button" variant="ghost" size="icon" type="button" aria-label="分享示例"><Share2 /></Button>
+            <Button className="icon-button" variant="ghost" size="icon" type="button" aria-label="更多示例"><Menu /></Button>
+          </div>
+        </CardHeader>
+
+        <CardContent className="task-content">
+          <div className="task-reference-block">
+            <p>References ({refs.length})</p>
+            <div className="reference-chip-stack">
+              {refs.map((src, index) => (
+                <img key={`${row.title}-ref-${index}`} className={`reference-sample ${row.theme}`} src={src} alt="示例参考图" />
+              ))}
+            </div>
+          </div>
+          <div className={`image-grid concept-grid count-${Math.min(images.length, 4)}`}>
+            {images.map((src, index) => (
+              <figure key={`${row.title}-image-${index}`} className={`image-card concept-image ${row.theme}${row.loading && index === 0 ? " concept-loading-image" : ""}`}>
+                <img src={src} alt="示例生成图" />
+                {row.loading && index === 0 ? (
+                  <div className="concept-progress">
+                    <span>45%</span>
+                    <strong>Generating your image...</strong>
+                    <em>This may take a few moments.</em>
+                  </div>
+                ) : null}
+                {!row.loading && rowIndex === 0 && index === images.length - 1 ? <div className="concept-more">+2</div> : null}
+                <figcaption>{rowIndex === 0 ? "Saved locally" : "Preview"}</figcaption>
+              </figure>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -983,47 +1088,82 @@ function App() {
     <div className="studio-shell">
       <aside className="sidebar" aria-label="主导航">
         <div className="logo">
-          <span className="logo-mark">I2</span>
-          <span>Image2</span>
+          <span className="logo-mark"><Sparkles /></span>
+          <span>Image2 Studio</span>
         </div>
 
+        <Button className="new-generation-button" type="button" onClick={() => {
+          setSelectedId(null);
+          setPrompt("");
+        }}>
+          <Plus data-icon="inline-start" />
+          New Generation
+        </Button>
+
         <nav className="nav-stack">
-          <button className="nav-item" type="button" title="发现">
-            <span aria-hidden="true"><Search /></span>
-            <span>发现</span>
+          <button className="nav-item active" type="button" title="Home">
+            <span aria-hidden="true"><Home /></span>
+            <span>Home</span>
           </button>
-          <button className="nav-item active" type="button" title="生成">
+          <button className="nav-item" type="button" title="Creations">
             <span aria-hidden="true"><WandSparkles /></span>
-            <span>生成</span>
+            <span>Creations</span>
           </button>
-          <button className="nav-item" type="button" title="资产">
+          <button className="nav-item" type="button" title="Models">
             <span aria-hidden="true"><Image /></span>
-            <span>资产</span>
+            <span>Models</span>
           </button>
-          <button className="nav-item" type="button" title="历史">
+          <button className="nav-item" type="button" title="Styles">
+            <span aria-hidden="true"><Settings2 /></span>
+            <span>Styles</span>
+          </button>
+          <button className="nav-item" type="button" title="Inspiration">
             <span aria-hidden="true"><History /></span>
-            <span>历史</span>
+            <span>Inspiration</span>
+          </button>
+          <button className="nav-item" type="button" title="Assets">
+            <span aria-hidden="true"><Folder /></span>
+            <span>Assets</span>
           </button>
         </nav>
 
+        <div className="collection-stack">
+          <div className="collection-head">
+            <span>Collections</span>
+            <Plus />
+          </div>
+          <button type="button"><span>Moodboard - Spring</span><em>24</em></button>
+          <button type="button"><span>Brand Visuals</span><em>18</em></button>
+          <button type="button"><span>Concept - Sci-Fi</span><em>32</em></button>
+          <button type="button"><span>Architecture</span><em>27</em></button>
+        </div>
+
         <div className="nav-footer">
-          <Button className="icon-button" variant="ghost" size="icon" type="button" title="通知"><Sparkles /></Button>
-          <Button className="icon-button" variant="ghost" size="icon" type="button" title="菜单"><Menu /></Button>
+          <div className="upgrade-card">
+            <Sparkles />
+            <strong>Upgrade to Pro</strong>
+            <span>Unlock premium models, faster generation and more credits.</span>
+            <Button type="button" size="sm">Upgrade Now</Button>
+          </div>
         </div>
       </aside>
 
       <main className="main">
         <header className="topbar">
-          <div>
-            <p className="eyebrow">Image2 Studio</p>
-            <h1>生成历史</h1>
-          </div>
           <div className="topbar-actions">
+            <Button className="credit-pill" variant="outline" type="button">
+              <CreditCard data-icon="inline-start" />
+              <span>Credits {isLoggedIn ? currentUser.credits : "0"}</span>
+              <Plus data-icon="inline-end" />
+            </Button>
             <Button className="premium-button" asChild>
               <a href="https://pay.ldxp.cn/shop/2C8QL88T" target="_blank" rel="noreferrer">
-                <Plus data-icon="inline-start" />
-                购买点数
+                <Sparkles data-icon="inline-start" />
+                Pro
               </a>
+            </Button>
+            <Button className="icon-button top-icon-button" variant="outline" size="icon" type="button" aria-label="通知">
+              <Bell />
             </Button>
             <Button className="glass-button" variant="outline" type="button" aria-label="切换深色模式" onClick={() => {
               const nextTheme = theme === "dark" ? "light" : "dark";
@@ -1048,25 +1188,45 @@ function App() {
             </Button>
             <Button id="accountButton" className="account-button" variant="outline" type="button" aria-expanded={accountOpen} aria-controls="accountPanel" onClick={() => setAccountOpen(prev => !prev)}>
               <span className="status-dot" />
-              <span>{isLoggedIn ? `${currentUser.email} · ${currentUser.credits} 点` : "未登录"}</span>
+              <span>{isLoggedIn ? currentUser.email : "Ava Chen"}</span>
             </Button>
           </div>
         </header>
 
-        <section className="local-notice" aria-label="本地保存说明">
-          生成图片仅保存在当前浏览器本地，不会云端保存。清除浏览器数据、更换设备或更换浏览器后历史可能丢失，请及时下载重要图片。
-        </section>
-
         <section className="history-feed" aria-label="生成历史">
-          {historyLoading ? <Card className="loading-card"><CardContent><Skeleton className="h-32 w-full" /></CardContent></Card> : null}
-          {historyError ? <div className="empty-inline">{historyError}</div> : null}
-          {!historyLoading && history.length === 0 ? (
-            <section className="empty-state">
+          <div className="history-toolbar">
+            <div>
+              <p className="eyebrow">Creative archive</p>
+              <h1>Recent Generations</h1>
+            </div>
+            <div className="history-tools">
+              <Button className="view-button active" variant="secondary" size="icon" type="button" aria-label="网格视图"><Grid2X2 /></Button>
+              <Button className="view-button" variant="ghost" size="icon" type="button" aria-label="列表视图"><Menu /></Button>
+              <select aria-label="筛选模型">
+                <option>All Models</option>
+                <option>gpt-image-2</option>
+              </select>
+            </div>
+          </div>
+          <div className="filter-tabs" aria-label="历史筛选">
+            <button className="active" type="button"><Home />All</button>
+            <button type="button"><Folder />Drafts</button>
+            <button type="button"><Image />Upscaled</button>
+            <button type="button"><Star />Favorites</button>
+          </div>
+          {historyLoading ? (
+            <section className="empty-state is-loading">
               <div className="empty-card">
                 <span className="empty-icon">✦</span>
-                <h2>开始一次新的图片生成</h2>
-                <p>生成后的图片会保存在当前浏览器的本地历史中，方便你继续编辑和复用。</p>
+                <h2>正在整理创作空间</h2>
+                <p>正在读取当前浏览器里的本地生成记录。</p>
               </div>
+            </section>
+          ) : null}
+          {historyError ? <div className="empty-inline">{historyError}</div> : null}
+          {!historyLoading && history.length === 0 ? (
+            <section className="concept-preview-list" aria-label="示例生成记录">
+              {previewRows.map(renderPreviewRow)}
             </section>
           ) : null}
           {visibleHistory.map(task => (
@@ -1074,7 +1234,11 @@ function App() {
               setSelectedId(task.id);
             }}>
               <CardHeader className="task-head">
-                <div>
+                <div className="task-title-area">
+                  <Input type="checkbox" aria-label="选择生成记录" onClick={event => event.stopPropagation()} />
+                  <ChevronUp />
+                </div>
+                <div className="task-copy-area">
                   <CardTitle>{getTaskTitle(task.prompt)}</CardTitle>
                   <div className="tag-row">
                     <Badge variant="secondary">{task.model || "gpt-image-2"}</Badge>
@@ -1087,12 +1251,17 @@ function App() {
                     <Badge variant="outline">{formatTime(new Date(task.createdAt))}</Badge>
                   </div>
                 </div>
-                {renderReferenceChips(task)}
+                <div className="task-more-actions">
+                  <Button className="icon-button" variant="ghost" size="icon" type="button" aria-label="收藏" onClick={event => event.stopPropagation()}><Star /></Button>
+                  <Button className="icon-button" variant="ghost" size="icon" type="button" aria-label="分享" onClick={event => event.stopPropagation()}><Share2 /></Button>
+                  <Button className="icon-button" variant="ghost" size="icon" type="button" aria-label="更多" onClick={event => event.stopPropagation()}><Menu /></Button>
+                </div>
               </CardHeader>
 
-              <CardContent>
+              <CardContent className="task-content">
+                {renderReferenceChips(task)}
                 <div className={`image-grid count-${Math.min(task.images.length, 4)}`}>
-                  {task.images.map(renderImageCard)}
+                  {task.images.slice(0, 4).map(renderImageCard)}
                 </div>
               </CardContent>
 
@@ -1195,6 +1364,10 @@ function App() {
             <Sparkles data-icon="inline-start" />
             <span>{referenceModeActive ? "编辑" : "生成"}</span>
           </Button>
+          <label className="advanced-toggle">
+            <span>Advanced</span>
+            <input type="checkbox" />
+          </label>
         </form>
       </section>
 
