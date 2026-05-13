@@ -822,6 +822,7 @@ function App() {
       console.error(error);
       showToast("本地历史暂时不可用，仍会继续生成");
     });
+    setPrompt("");
     showToast("已提交生成请求");
     await runTaskImages(task, task.images);
   }
@@ -945,7 +946,13 @@ function App() {
     if (image.status === "loading" || image.status === "streaming") {
       return (
         <figure key={image.id} className="image-card is-loading">
-          <div className="image-skeleton"><span /></div>
+          <div className="image-skeleton" role="status" aria-label="图片生成中">
+            <div className="generation-loader" aria-hidden="true">
+              <span className="loader-orbit" />
+              <span className="loader-core" />
+              <span className="loader-sheen" />
+            </div>
+          </div>
           <figcaption>{image.status === "streaming" ? "正在接收图片..." : "正在生成..."}</figcaption>
         </figure>
       );
