@@ -10,8 +10,8 @@
   #root,
   .studio-shell {
     width: 100vw !important;
-    height: max(100vh, 941px) !important;
-    min-height: max(100vh, 941px) !important;
+    height: 100vh !important;
+    min-height: 100vh !important;
     max-height: none !important;
     overflow: hidden !important;
     background:
@@ -25,18 +25,42 @@
     background-color: #d7d9ef !important;
   }
 
+  body::before {
+    content: "" !important;
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 0 !important;
+    pointer-events: none !important;
+    background:
+      radial-gradient(ellipse at 27% 20%, rgba(255, 255, 255, 0.72), transparent 28%),
+      radial-gradient(ellipse at 74% 8%, rgba(184, 161, 255, 0.22), transparent 32%),
+      radial-gradient(ellipse at 84% 42%, rgba(238, 229, 255, 0.38), transparent 34%),
+      radial-gradient(ellipse at 20% 78%, rgba(213, 216, 244, 0.34), transparent 38%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(211, 214, 239, 0.12)) !important;
+    filter: blur(18px) saturate(115%) !important;
+  }
+
+  body {
+    background:
+      radial-gradient(circle at 80% 14%, rgba(190, 171, 255, 0.25), transparent 28%),
+      radial-gradient(circle at 48% 0%, rgba(255, 255, 255, 0.9), transparent 36%),
+      linear-gradient(135deg, #f6f2ff 0%, #edebfb 46%, #d7d9ef 100%) !important;
+  }
+
   body::after {
     content: "" !important;
     position: fixed !important;
     inset: auto 0 0 240px !important;
-    height: 285px !important;
+    height: 330px !important;
     z-index: 1 !important;
     pointer-events: none !important;
     background:
-      radial-gradient(ellipse at 20% 100%, rgba(107, 117, 166, 0.3), transparent 34%),
-      radial-gradient(ellipse at 72% 92%, rgba(151, 139, 196, 0.24), transparent 36%),
-      linear-gradient(0deg, rgba(205, 209, 236, 0.72), rgba(232, 231, 249, 0)) !important;
-    filter: blur(20px) !important;
+      radial-gradient(ellipse at 6% 94%, rgba(97, 108, 166, 0.28), transparent 27%),
+      radial-gradient(ellipse at 28% 104%, rgba(122, 128, 184, 0.22), transparent 34%),
+      radial-gradient(ellipse at 67% 96%, rgba(160, 145, 203, 0.18), transparent 36%),
+      radial-gradient(ellipse at 96% 104%, rgba(91, 98, 154, 0.2), transparent 30%),
+      linear-gradient(0deg, rgba(190, 197, 230, 0.48), rgba(221, 223, 244, 0.2) 48%, rgba(232, 231, 249, 0)) !important;
+    filter: blur(26px) saturate(118%) !important;
   }
 
   .studio-shell .main::after {
@@ -45,31 +69,35 @@
     left: 240px !important;
     right: 0 !important;
     bottom: 0 !important;
-    height: 160px !important;
+    height: 150px !important;
     z-index: 70 !important;
     pointer-events: none !important;
     background:
-      linear-gradient(0deg, rgba(196, 201, 231, 0.82), rgba(218, 221, 243, 0.4) 48%, rgba(235, 233, 249, 0)) !important;
-    backdrop-filter: blur(3px) !important;
-    mask-image: linear-gradient(0deg, #000 0%, #000 45%, transparent 100%) !important;
+      radial-gradient(ellipse at 21% 86%, rgba(116, 127, 185, 0.18), transparent 34%),
+      radial-gradient(ellipse at 77% 92%, rgba(160, 147, 204, 0.16), transparent 36%),
+      linear-gradient(0deg, rgba(181, 190, 224, 0.46), rgba(211, 216, 241, 0.19) 48%, rgba(235, 233, 249, 0)) !important;
+    backdrop-filter: blur(2px) saturate(115%) !important;
+    mask-image: linear-gradient(0deg, #000 0%, rgba(0, 0, 0, 0.72) 42%, transparent 100%) !important;
   }
 
   .studio-shell {
     grid-template-columns: 240px minmax(0, 1fr) !important;
     color: #17172f !important;
+    position: relative !important;
   }
 
   .studio-shell::before {
     inset: 0 !important;
     height: auto !important;
     opacity: 1 !important;
-    filter: blur(16px) !important;
+    filter: blur(22px) saturate(118%) !important;
     mask-image: none !important;
     background:
-      radial-gradient(ellipse at 8% 93%, rgba(115, 124, 171, 0.36), transparent 27%),
-      radial-gradient(ellipse at 50% 103%, rgba(132, 130, 180, 0.28), transparent 34%),
-      radial-gradient(ellipse at 90% 98%, rgba(109, 112, 165, 0.2), transparent 28%),
-      linear-gradient(0deg, rgba(176, 180, 214, 0.18), transparent 42%) !important;
+      radial-gradient(ellipse at 8% 91%, rgba(101, 113, 174, 0.42), transparent 27%),
+      radial-gradient(ellipse at 34% 101%, rgba(123, 130, 185, 0.28), transparent 32%),
+      radial-gradient(ellipse at 58% 105%, rgba(148, 140, 195, 0.26), transparent 33%),
+      radial-gradient(ellipse at 91% 96%, rgba(98, 105, 164, 0.24), transparent 28%),
+      linear-gradient(0deg, rgba(170, 177, 214, 0.2), transparent 48%) !important;
   }
 
   .studio-shell::after {
@@ -189,17 +217,101 @@
 
   .studio-shell .upgrade-card {
     display: grid !important;
-    min-height: 186px !important;
-    padding: 20px 16px !important;
-    border-radius: 12px !important;
+    position: relative !important;
+    min-height: 200px !important;
+    padding: 22px 18px 18px !important;
+    grid-template-rows: auto auto auto 1fr auto !important;
+    overflow: hidden !important;
+    isolation: isolate !important;
+    border-radius: 14px !important;
     color: #2a2446 !important;
+    border: 1px solid rgba(255, 255, 255, 0.56) !important;
     background:
-      radial-gradient(circle at 88% 86%, rgba(159, 114, 255, 0.52), transparent 25%),
-      linear-gradient(145deg, rgba(255, 255, 255, 0.8), rgba(223, 196, 255, 0.78)) !important;
+      radial-gradient(circle at 76% 82%, rgba(190, 154, 255, 0.5), transparent 28%),
+      radial-gradient(circle at 12% 8%, rgba(255, 255, 255, 0.82), transparent 34%),
+      linear-gradient(150deg, rgba(255, 255, 255, 0.78), rgba(234, 220, 255, 0.68) 54%, rgba(210, 184, 255, 0.68)) !important;
+    box-shadow:
+      0 24px 64px rgba(111, 100, 166, 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, 0.72),
+      inset 0 -1px 0 rgba(153, 128, 213, 0.16) !important;
+  }
+
+  .studio-shell .upgrade-card::before {
+    content: "" !important;
+    position: absolute !important;
+    right: 8px !important;
+    bottom: 4px !important;
+    z-index: -1 !important;
+    width: 86px !important;
+    height: 92px !important;
+    clip-path: polygon(50% 0, 82% 18%, 100% 57%, 69% 100%, 29% 100%, 0 57%, 18% 18%) !important;
+    background:
+      linear-gradient(143deg, transparent 0 35%, rgba(255, 255, 255, 0.74) 36% 38%, transparent 39%),
+      linear-gradient(28deg, transparent 0 48%, rgba(112, 71, 220, 0.22) 49% 51%, transparent 52%),
+      linear-gradient(90deg, transparent 0 50%, rgba(255, 255, 255, 0.3) 51% 52%, transparent 53%),
+      conic-gradient(from 218deg at 50% 46%,
+        rgba(245, 241, 255, 0.96),
+        rgba(208, 192, 255, 0.9),
+        rgba(142, 95, 236, 0.78),
+        rgba(235, 226, 255, 0.94),
+        rgba(167, 126, 248, 0.78),
+        rgba(255, 255, 255, 0.92)) !important;
+    box-shadow:
+      0 20px 42px rgba(132, 91, 231, 0.34),
+      inset 8px 8px 16px rgba(255, 255, 255, 0.5),
+      inset -12px -14px 24px rgba(113, 68, 214, 0.2) !important;
+    opacity: 0.94 !important;
+    transform: rotate(-8deg) !important;
+  }
+
+  .studio-shell .upgrade-card::after {
+    content: "" !important;
+    position: absolute !important;
+    right: -24px !important;
+    bottom: -28px !important;
+    z-index: -2 !important;
+    width: 136px !important;
+    height: 136px !important;
+    border-radius: 999px !important;
+    background:
+      radial-gradient(circle, rgba(189, 142, 255, 0.54), rgba(206, 182, 255, 0.24) 38%, transparent 66%) !important;
+    filter: blur(10px) !important;
+  }
+
+  .studio-shell .upgrade-card svg {
+    justify-self: end !important;
+    width: 18px !important;
+    height: 18px !important;
+    color: rgba(177, 127, 255, 0.5) !important;
+  }
+
+  .studio-shell .upgrade-card strong {
+    position: relative !important;
+    z-index: 1 !important;
+    font-size: 15px !important;
+    letter-spacing: 0 !important;
   }
 
   .studio-shell .upgrade-card span {
+    position: relative !important;
+    z-index: 1 !important;
     color: #77729b !important;
+    font-size: 13px !important;
+    line-height: 1.58 !important;
+    max-width: 136px !important;
+  }
+
+  .studio-shell .upgrade-card button {
+    position: relative !important;
+    z-index: 1 !important;
+    width: 106px !important;
+    height: 34px !important;
+    border-radius: 8px !important;
+    color: #6653a7 !important;
+    border: 1px solid rgba(255, 255, 255, 0.72) !important;
+    background: rgba(255, 255, 255, 0.86) !important;
+    box-shadow: 0 12px 24px rgba(116, 91, 176, 0.12) !important;
+    align-self: end !important;
   }
 
   .studio-shell .main {
@@ -211,7 +323,7 @@
   .studio-shell .topbar {
     position: fixed !important;
     top: 14px !important;
-    right: 24px !important;
+    right: 32px !important;
     z-index: 9 !important;
     padding: 0 !important;
     background: transparent !important;
@@ -219,7 +331,7 @@
 
   .studio-shell .topbar-actions {
     display: flex !important;
-    gap: 10px !important;
+    gap: 9px !important;
   }
 
   .studio-shell .credit-pill,
@@ -227,32 +339,42 @@
   .studio-shell .account-button,
   .studio-shell .top-icon-button,
   .studio-shell .premium-button {
-    height: 38px !important;
-    min-height: 38px !important;
-    border-radius: 12px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    border-radius: 13px !important;
     color: #4f4c75 !important;
     border: 1px solid rgba(255, 255, 255, 0.72) !important;
-    background: rgba(255, 255, 255, 0.64) !important;
-    box-shadow: 0 12px 28px rgba(137, 128, 178, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.88) !important;
+    background: rgba(255, 255, 255, 0.68) !important;
+    box-shadow: 0 14px 30px rgba(137, 128, 178, 0.11), inset 0 1px 0 rgba(255, 255, 255, 0.92) !important;
   }
 
   .studio-shell .credit-pill {
-    width: 132px !important;
-    padding: 0 10px !important;
-    justify-content: center !important;
+    width: 150px !important;
+    padding: 0 8px 0 13px !important;
+    justify-content: space-between !important;
     font-size: 13px !important;
   }
 
+  .studio-shell .credit-pill [data-icon="inline-end"] {
+    width: 28px !important;
+    height: 28px !important;
+    margin-left: 2px !important;
+    padding: 6px !important;
+    border-radius: 9px !important;
+    color: #5f46d9 !important;
+    background: rgba(205, 193, 255, 0.7) !important;
+  }
+
   .studio-shell .premium-button {
-    width: 72px !important;
+    width: 74px !important;
     justify-content: center !important;
     padding: 0 12px !important;
   }
 
   .studio-shell .top-icon-button,
   .studio-shell .glass-button[aria-label="切换深色模式"] {
-    width: 44px !important;
-    min-width: 44px !important;
+    width: 42px !important;
+    min-width: 42px !important;
   }
 
   .studio-shell .glass-button[aria-label="切换深色模式"] {
@@ -269,16 +391,54 @@
     background: rgba(223, 216, 255, 0.78) !important;
   }
 
+  .studio-shell .top-icon-button {
+    position: relative !important;
+  }
+
+  .studio-shell .top-icon-button::after {
+    content: "" !important;
+    position: absolute !important;
+    top: 8px !important;
+    right: 10px !important;
+    width: 7px !important;
+    height: 7px !important;
+    border: 1.5px solid rgba(255, 255, 255, 0.92) !important;
+    border-radius: 999px !important;
+    background: #ff4d75 !important;
+  }
+
   .studio-shell .account-button {
-    width: 118px !important;
-    max-width: 118px !important;
-    padding: 0 10px !important;
+    width: 126px !important;
+    max-width: 126px !important;
+    padding: 0 10px 0 8px !important;
+    gap: 7px !important;
     overflow: hidden !important;
     white-space: nowrap !important;
   }
 
+  .studio-shell .account-button::after {
+    content: "" !important;
+    width: 6px !important;
+    height: 6px !important;
+    border-right: 1.5px solid #6a668c !important;
+    border-bottom: 1.5px solid #6a668c !important;
+    transform: rotate(45deg) translateY(-2px) !important;
+  }
+
+  .studio-shell .account-button .status-dot {
+    width: 28px !important;
+    height: 28px !important;
+    flex: 0 0 28px !important;
+    border-radius: 999px !important;
+    background:
+      radial-gradient(circle at 50% 30%, #ffe5d7 0 18%, transparent 19%),
+      radial-gradient(circle at 50% 58%, #2e2432 0 22%, transparent 23%),
+      linear-gradient(145deg, #a88972, #f1d4c8) !important;
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.82), 0 7px 16px rgba(82, 73, 116, 0.16) !important;
+  }
+
   .studio-shell .account-button span {
-    max-width: 78px !important;
+    max-width: 64px !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
   }
@@ -286,16 +446,16 @@
   .studio-shell .history-feed {
     width: 100% !important;
     max-width: none !important;
-    height: calc(max(100vh, 941px) - 68px) !important;
+    height: calc(100vh - 68px) !important;
     min-height: 0 !important;
-    padding: 20px 0 104px !important;
-    gap: 14px !important;
+    padding: 20px 0 72px !important;
+    gap: 13px !important;
     overflow: hidden !important;
     border-radius: 15px 15px 0 0 !important;
     border: 1px solid rgba(255, 255, 255, 0.56) !important;
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.57), rgba(236, 233, 251, 0.36)),
-      rgba(246, 244, 255, 0.36) !important;
+      linear-gradient(180deg, rgba(255, 255, 255, 0.49), rgba(238, 235, 252, 0.26)),
+      rgba(246, 244, 255, 0.24) !important;
     box-shadow:
       0 28px 84px rgba(133, 126, 176, 0.17),
       inset 0 1px 0 rgba(255, 255, 255, 0.78),
@@ -372,22 +532,22 @@
   }
 
   .studio-shell .history-task {
-    height: 228px !important;
-    min-height: 228px !important;
+    height: 224px !important;
+    min-height: 224px !important;
     border-radius: 14px !important;
     color: #15152d !important;
     border: 1px solid rgba(255, 255, 255, 0.56) !important;
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.58), rgba(248, 247, 255, 0.42)),
-      rgba(255, 255, 255, 0.46) !important;
+      linear-gradient(180deg, rgba(255, 255, 255, 0.48), rgba(248, 247, 255, 0.32)),
+      rgba(255, 255, 255, 0.36) !important;
     box-shadow:
       0 14px 34px rgba(128, 122, 168, 0.08),
       inset 0 1px 0 rgba(255, 255, 255, 0.74) !important;
   }
 
   .studio-shell .concept-preview-list .concept-task:nth-child(2) {
-    height: 244px !important;
-    min-height: 244px !important;
+    height: 242px !important;
+    min-height: 242px !important;
   }
 
   .studio-shell .concept-preview-list .concept-task:nth-child(2) .task-content {
@@ -422,15 +582,15 @@
 
   .studio-shell .task-content,
   .studio-shell .concept-task .task-content {
-    grid-template-columns: 270px minmax(0, 1fr) !important;
-    gap: 24px !important;
+    grid-template-columns: 250px minmax(0, 1fr) !important;
+    gap: 16px !important;
     padding: 0 20px 14px !important;
     transform: translateY(-8px) !important;
   }
 
   .studio-shell .task-reference-block {
     min-height: 112px !important;
-    padding: 0 0 0 52px !important;
+    padding: 0 0 0 34px !important;
     grid-template-columns: 1fr !important;
     align-content: center !important;
     gap: 10px !important;
@@ -444,8 +604,8 @@
 
   .studio-shell .reference-sample,
   .studio-shell .reference-chip {
-    width: 61px !important;
-    height: 61px !important;
+    width: 60px !important;
+    height: 60px !important;
     border-radius: 7px !important;
     object-fit: cover !important;
   }
@@ -457,13 +617,13 @@
 
   .studio-shell .image-grid.count-3,
   .studio-shell .concept-grid.count-3 {
-    grid-template-columns: 2.05fr 0.9fr 0.9fr !important;
+    grid-template-columns: 2.28fr 1fr 1fr !important;
   }
 
   .studio-shell .image-card,
   .studio-shell .concept-image {
-    height: 126px !important;
-    min-height: 126px !important;
+    height: 132px !important;
+    min-height: 132px !important;
     border-radius: 7px !important;
     border: 1px solid rgba(255, 255, 255, 0.78) !important;
     background: linear-gradient(135deg, rgba(200, 202, 223, 0.56), rgba(184, 188, 215, 0.42)) !important;
@@ -476,8 +636,8 @@
   .studio-shell .image-skeleton,
   .studio-shell .image-error {
     width: 100% !important;
-    height: 126px !important;
-    min-height: 126px !important;
+    height: 132px !important;
+    min-height: 132px !important;
     object-fit: cover !important;
   }
 
@@ -503,16 +663,16 @@
     inset: 0 !important;
     width: auto !important;
     height: auto !important;
-    gap: 6px !important;
+    gap: 5px !important;
     color: rgba(255, 255, 255, 0.94) !important;
-    background: rgba(38, 35, 62, 0.18) !important;
-    backdrop-filter: blur(7px) saturate(132%) !important;
+    background: rgba(38, 35, 62, 0.1) !important;
+    backdrop-filter: blur(5px) saturate(132%) !important;
     text-shadow: 0 1px 12px rgba(32, 24, 72, 0.32) !important;
   }
 
   .studio-shell .concept-progress span {
-    width: 72px !important;
-    height: 72px !important;
+    width: 70px !important;
+    height: 70px !important;
     display: grid !important;
     place-items: center !important;
     border-width: 4px !important;
@@ -530,20 +690,25 @@
   }
 
   .studio-shell .concept-progress strong {
+    display: block !important;
+    margin-top: 4px !important;
     font-size: 12px !important;
     font-weight: 740 !important;
+    color: rgba(255, 255, 255, 0.96) !important;
   }
 
   .studio-shell .concept-progress em {
-    font-size: 10px !important;
+    display: block !important;
+    font-size: 11px !important;
+    font-style: normal !important;
     color: rgba(255, 255, 255, 0.76) !important;
   }
 
   .studio-shell .composer {
     position: fixed !important;
-    left: 390px !important;
-    right: 210px !important;
-    bottom: 22px !important;
+    left: 392px !important;
+    right: 230px !important;
+    bottom: 20px !important;
     width: auto !important;
     max-width: none !important;
     transform: none !important;
@@ -561,37 +726,37 @@
     width: 100% !important;
     max-width: none !important;
     box-sizing: border-box !important;
-    grid-template-columns: 136px minmax(390px, 1fr) 178px 190px !important;
-    grid-template-rows: 68px 40px !important;
-    gap: 10px 18px !important;
-    min-height: 148px !important;
-    padding: 18px 20px !important;
-    border-radius: 18px !important;
-    border: 1px solid rgba(255, 255, 255, 0.64) !important;
+    grid-template-columns: 146px minmax(420px, 1fr) 190px 200px !important;
+    grid-template-rows: 68px 38px !important;
+    gap: 10px 20px !important;
+    min-height: 144px !important;
+    padding: 16px 20px !important;
+    border-radius: 19px !important;
+    border: 1px solid rgba(255, 255, 255, 0.7) !important;
     background:
-      linear-gradient(180deg, rgba(245, 243, 255, 0.74), rgba(221, 223, 245, 0.72)),
-      rgba(232, 231, 249, 0.78) !important;
-    backdrop-filter: blur(26px) saturate(142%) !important;
-    box-shadow: 0 -24px 82px rgba(137, 132, 178, 0.22), 0 28px 74px rgba(94, 91, 130, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+      linear-gradient(180deg, rgba(250, 248, 255, 0.7), rgba(225, 226, 247, 0.62)),
+      rgba(235, 234, 251, 0.62) !important;
+    backdrop-filter: blur(30px) saturate(150%) !important;
+    box-shadow: 0 -20px 70px rgba(147, 141, 185, 0.14), 0 28px 76px rgba(94, 91, 130, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.86) !important;
   }
 
   .studio-shell .composer-card::before {
     content: "" !important;
     position: absolute !important;
-    inset: -102px -190px -44px !important;
+    inset: -88px -160px -36px !important;
     z-index: -1 !important;
     pointer-events: none !important;
     background:
-      radial-gradient(ellipse at 18% 70%, rgba(118, 128, 181, 0.22), transparent 32%),
-      radial-gradient(ellipse at 70% 72%, rgba(171, 155, 215, 0.2), transparent 34%),
-      linear-gradient(0deg, rgba(205, 209, 236, 0.56), rgba(232, 231, 249, 0)) !important;
-    filter: blur(18px) !important;
+      radial-gradient(ellipse at 18% 76%, rgba(118, 128, 181, 0.17), transparent 34%),
+      radial-gradient(ellipse at 70% 74%, rgba(171, 155, 215, 0.16), transparent 36%),
+      linear-gradient(0deg, rgba(205, 209, 236, 0.38), rgba(232, 231, 249, 0)) !important;
+    filter: blur(22px) !important;
   }
 
   .studio-shell .upload-tile {
     grid-column: 1 !important;
     grid-row: 1 / 3 !important;
-    min-height: 110px !important;
+    min-height: 106px !important;
     border-radius: 13px !important;
     color: #6f6d91 !important;
     background: rgba(255, 255, 255, 0.34) !important;
@@ -622,7 +787,7 @@
     min-height: 68px !important;
     max-height: 68px !important;
     color: #32324f !important;
-    background: rgba(255, 255, 255, 0.72) !important;
+    background: rgba(255, 255, 255, 0.7) !important;
     border: 1px solid rgba(255, 255, 255, 0.66) !important;
     border-radius: 10px !important;
     padding: 20px 52px 18px 16px !important;
@@ -632,14 +797,14 @@
     grid-column: 2 / 4 !important;
     grid-row: 2 !important;
     display: flex !important;
-    gap: 12px !important;
+    gap: 10px !important;
   }
 
   .studio-shell .generate-button {
     grid-column: 4 !important;
     grid-row: 1 !important;
     height: 68px !important;
-    min-width: 190px !important;
+    min-width: 200px !important;
     border-radius: 11px !important;
     background: linear-gradient(135deg, #b991ff 0%, #7863f7 100%) !important;
   }
@@ -659,14 +824,14 @@
   }
 
   .studio-shell .concept-preview-list .concept-task:nth-child(3) {
-    height: 188px !important;
-    min-height: 188px !important;
-    margin-top: -2px !important;
+    height: 198px !important;
+    min-height: 198px !important;
+    margin-top: -4px !important;
   }
 
   .studio-shell .concept-preview-list .concept-task:nth-child(3) .task-content {
     grid-template-columns: minmax(0, 1fr) !important;
-    padding-left: 56.5% !important;
+    padding-left: 50.2% !important;
   }
 
   .studio-shell .concept-preview-list .concept-task:nth-child(3) .task-reference-block {
@@ -679,8 +844,8 @@
 
   .studio-shell .concept-preview-list .concept-task:nth-child(3) .concept-image,
   .studio-shell .concept-preview-list .concept-task:nth-child(3) .concept-image img {
-    height: 122px !important;
-    min-height: 122px !important;
+    height: 128px !important;
+    min-height: 128px !important;
   }
 
   .studio-shell .toast {
