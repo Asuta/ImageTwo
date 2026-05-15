@@ -1097,3 +1097,43 @@ body,
 .studio-shell .history-scroll::-webkit-scrollbar-thumb:hover {
   background: rgba(105, 91, 166, 0.66);
 }
+
+/* Keep the composer glass panel, but remove the large glow that covered history. */
+.studio-shell .composer-card {
+  background:
+    linear-gradient(180deg, rgba(250, 248, 255, 0.3), rgba(225, 226, 247, 0.2)),
+    rgba(235, 234, 251, 0.2) !important;
+  border-color: rgba(255, 255, 255, 0.7) !important;
+  box-shadow:
+    0 28px 76px rgba(94, 91, 130, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.86) !important;
+  backdrop-filter: blur(30px) saturate(150%) !important;
+}
+
+.studio-shell .history-feed {
+  padding-bottom: 0 !important;
+}
+
+.studio-shell .history-scroll {
+  padding-bottom: 180px !important;
+}
+
+.studio-shell .composer-card::before {
+  display: none !important;
+  content: none !important;
+}
+
+.studio-shell .prompt-top textarea {
+  background: rgba(255, 255, 255, 0.66) !important;
+  backdrop-filter: blur(16px) saturate(140%) !important;
+  box-shadow: 0 18px 40px rgba(68, 62, 112, 0.14) !important;
+}
+
+.studio-shell .upload-tile,
+.studio-shell .ratio-button,
+.studio-shell .soft-button,
+.studio-shell select,
+.studio-shell .count-control {
+  background: rgba(255, 255, 255, 0.48) !important;
+  backdrop-filter: blur(14px) saturate(135%) !important;
+}
