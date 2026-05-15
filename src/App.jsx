@@ -291,6 +291,7 @@ function App() {
   const [accountLoading, setAccountLoading] = useState(true);
   const [historyError, setHistoryError] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [historyImageScale, setHistoryImageScale] = useState(100);
   const historyRef = useRef([]);
   const previewImageRef = useRef(null);
   const toastTimerRef = useRef(null);
@@ -1041,11 +1042,15 @@ function App() {
   }
 
   function renderImageCard(image) {
+    const imageStyle = {
+      "--history-image-scale": historyImageScale / 100
+    };
+
     if (image.status === "streaming" && image.url) {
       return (
-        <figure key={image.id} className="image-card is-streaming">
+        <figure key={image.id} className="image-card generated-image-card is-streaming">
           <button className="image-preview-trigger" type="button" onClick={() => openImagePreview(image.url)} aria-label="放大预览生成结果">
-            <img src={image.url} alt="正在加载的生成结果" />
+            <img src={image.url} alt="正在加载的生成结果" style={imageStyle} />
           </button>
           <figcaption>正在接收图片...</figcaption>
         </figure>
@@ -1077,9 +1082,9 @@ function App() {
     }
 
     return (
-      <figure key={image.id} className="image-card">
+      <figure key={image.id} className="image-card generated-image-card">
         <button className="image-preview-trigger" type="button" onClick={() => openImagePreview(image.url)} aria-label="放大预览生成结果">
-          <img src={image.url} alt="生成结果" />
+          <img src={image.url} alt="生成结果" style={imageStyle} />
         </button>
         <figcaption>已保存在当前浏览器本地</figcaption>
       </figure>
@@ -1204,6 +1209,19 @@ function App() {
               <h1>Recent Generations</h1>
             </div>
             <div className="history-tools">
+              <label className="history-scale-control" title="调整历史图片缩放">
+                <span>缩放</span>
+                <input
+                  type="range"
+                  min="70"
+                  max="130"
+                  step="5"
+                  value={historyImageScale}
+                  onChange={event => setHistoryImageScale(Number(event.target.value))}
+                  aria-label="调整历史图片缩放"
+                />
+                <output>{historyImageScale}%</output>
+              </label>
               <Button className="view-button active" variant="secondary" size="icon" type="button" aria-label="网格视图"><Grid2X2 /></Button>
               <Button className="view-button" variant="ghost" size="icon" type="button" aria-label="列表视图"><Menu /></Button>
               <select aria-label="筛选模型">

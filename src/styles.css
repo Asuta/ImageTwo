@@ -3183,15 +3183,45 @@ h1 {
   padding: 0;
   background: transparent;
   text-align: inherit;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
 }
 
 .image-preview-trigger:hover img {
-  transform: scale(1.015);
+  transform: scale(calc(var(--history-image-scale, 1) * 1.015));
 }
 
 .image-card img {
-  object-fit: cover;
+  object-fit: contain;
+  background: var(--image-bg);
+  transform: scale(var(--history-image-scale, 1));
   transition: transform 180ms ease;
+}
+
+.studio-shell .generated-image-card:not(.is-loading):not(.is-streaming):not(.is-error) {
+  display: grid;
+  justify-items: center;
+  overflow: visible;
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.studio-shell .generated-image-card:not(.is-loading):not(.is-streaming):not(.is-error) .image-preview-trigger {
+  width: fit-content !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  background: transparent !important;
+}
+
+.studio-shell .generated-image-card:not(.is-loading):not(.is-streaming):not(.is-error) img {
+  width: auto !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  background: transparent !important;
 }
 
 .image-card figcaption {
@@ -6412,9 +6442,36 @@ select {
 
 .studio-shell .history-tools {
   display: grid !important;
-  grid-template-columns: 38px 38px 38px 128px !important;
+  grid-template-columns: minmax(160px, 210px) 38px 38px 128px !important;
   align-items: center !important;
   gap: 8px !important;
+}
+
+.studio-shell .history-scale-control {
+  min-width: 0 !important;
+  height: 38px !important;
+  padding: 0 10px !important;
+  border: 1px solid rgba(255, 255, 255, 0.66) !important;
+  border-radius: 12px !important;
+  display: grid !important;
+  grid-template-columns: auto minmax(54px, 1fr) auto !important;
+  align-items: center !important;
+  gap: 8px !important;
+  color: rgba(43, 39, 67, 0.72) !important;
+  background: rgba(255, 255, 255, 0.46) !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+}
+
+.studio-shell .history-scale-control input {
+  width: 100% !important;
+  accent-color: var(--accent) !important;
+}
+
+.studio-shell .history-scale-control output {
+  min-width: 36px !important;
+  text-align: right !important;
+  font-variant-numeric: tabular-nums !important;
 }
 
 .studio-shell .view-button {
@@ -7372,7 +7429,7 @@ select {
     width: 100% !important;
     height: 134px !important;
     min-height: 134px !important;
-    object-fit: cover !important;
+    object-fit: contain !important;
   }
 
   .studio-shell .concept-image {
