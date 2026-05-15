@@ -3,12 +3,13 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@9.15.2",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5176",
     "dev:api": "node scripts/dev-api.mjs",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "start": "npm run build && node server.js"
+    "start": "pnpm run build && node server.js"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.8",

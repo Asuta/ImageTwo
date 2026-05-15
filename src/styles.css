@@ -6694,6 +6694,80 @@ select {
   background: linear-gradient(135deg, #bd9dff 0%, #805fff 100%) !important;
 }
 
+.studio-shell .account-popover {
+  width: min(430px, calc(100vw - 32px)) !important;
+  padding: 22px !important;
+  border-radius: 18px !important;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(246, 243, 255, 0.82)) !important;
+  box-shadow:
+    0 34px 90px rgba(64, 58, 104, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.86) !important;
+}
+
+.studio-shell .account-panel {
+  z-index: 120 !important;
+}
+
+.studio-shell .account-panel-body {
+  gap: 14px !important;
+}
+
+.studio-shell .account-control {
+  min-height: auto !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  display: grid !important;
+  gap: 8px !important;
+  flex: none !important;
+  background: transparent !important;
+  color: #27243a !important;
+}
+
+.studio-shell .account-control span {
+  color: #5e5974 !important;
+  font-size: 13px !important;
+  font-weight: 760 !important;
+  text-align: left !important;
+}
+
+.studio-shell .account-control input {
+  height: 44px !important;
+  padding: 0 14px !important;
+  border: 1px solid rgba(120, 111, 154, 0.18) !important;
+  border-radius: 13px !important;
+  background: rgba(255, 255, 255, 0.74) !important;
+  color: #171426 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78) !important;
+}
+
+.studio-shell .account-control input:focus-visible {
+  border-color: rgba(127, 97, 255, 0.46) !important;
+  box-shadow:
+    0 0 0 3px rgba(127, 97, 255, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+}
+
+.studio-shell .panel-actions {
+  grid-template-columns: 1fr !important;
+  gap: 10px !important;
+}
+
+.studio-shell .panel-actions .soft-button {
+  width: 100% !important;
+  height: 44px !important;
+  border-radius: 13px !important;
+  background: linear-gradient(135deg, #b99aff 0%, #7659f4 100%) !important;
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.64) !important;
+  box-shadow: 0 16px 32px rgba(118, 89, 244, 0.26) !important;
+}
+
+.studio-shell .panel-actions .soft-button.hidden {
+  display: none !important;
+}
+
 .studio-shell .logo {
   display: flex !important;
   place-items: initial !important;
