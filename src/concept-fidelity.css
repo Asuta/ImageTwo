@@ -23,60 +23,44 @@
   }
 
   body::before {
-    content: "" !important;
-    position: fixed !important;
-    inset: 0 !important;
-    z-index: 0 !important;
-    pointer-events: none !important;
-    background:
-      radial-gradient(ellipse at 27% 20%, rgba(255, 255, 255, 0.72), transparent 28%),
-      radial-gradient(ellipse at 74% 8%, rgba(184, 161, 255, 0.22), transparent 32%),
-      radial-gradient(ellipse at 84% 42%, rgba(238, 229, 255, 0.38), transparent 34%),
-      radial-gradient(ellipse at 20% 78%, rgba(213, 216, 244, 0.34), transparent 38%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(211, 214, 239, 0.12)) !important;
-    filter: blur(18px) saturate(115%) !important;
+    display: none !important;
   }
 
   body {
     background:
-      radial-gradient(circle at 80% 14%, rgba(190, 171, 255, 0.22), transparent 28%),
-      radial-gradient(circle at 48% 0%, rgba(255, 255, 255, 0.48), transparent 36%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(195, 202, 232, 0.12)),
-      url("/assets/mist-cloud-background.png") center / cover fixed no-repeat,
-      linear-gradient(135deg, #f6f2ff 0%, #edebfb 46%, #d7d9ef 100%) !important;
+      linear-gradient(180deg, rgba(255, 255, 255, 0.68), rgba(255, 255, 255, 0) 40%),
+      radial-gradient(circle at 86% 10%, rgba(196, 177, 255, 0.18), transparent 34%),
+      linear-gradient(135deg, #f8f5ff 0%, #efedfb 48%, #dfe3f7 100%) !important;
   }
 
   body::after {
     content: "" !important;
     position: fixed !important;
-    inset: auto 0 0 240px !important;
+    inset: auto 0 0 0 !important;
     height: 330px !important;
     z-index: 1 !important;
     pointer-events: none !important;
     background:
-      radial-gradient(ellipse at 6% 94%, rgba(97, 108, 166, 0.28), transparent 27%),
-      radial-gradient(ellipse at 28% 104%, rgba(122, 128, 184, 0.22), transparent 34%),
-      radial-gradient(ellipse at 67% 96%, rgba(160, 145, 203, 0.18), transparent 36%),
-      radial-gradient(ellipse at 96% 104%, rgba(91, 98, 154, 0.2), transparent 30%),
-      linear-gradient(0deg, rgba(190, 197, 230, 0.48), rgba(221, 223, 244, 0.2) 48%, rgba(232, 231, 249, 0)) !important;
-    filter: blur(26px) saturate(118%) !important;
+      linear-gradient(0deg, rgba(188, 194, 230, 0.5), rgba(218, 221, 244, 0.24) 52%, rgba(238, 237, 250, 0)) !important;
+    filter: blur(18px) saturate(112%) !important;
+    mask-image: linear-gradient(0deg, #000 0%, rgba(0, 0, 0, 0.72) 58%, transparent 100%) !important;
+    -webkit-mask-image: linear-gradient(0deg, #000 0%, rgba(0, 0, 0, 0.72) 58%, transparent 100%) !important;
   }
 
   .studio-shell .main::after {
     content: "" !important;
     position: fixed !important;
-    left: 240px !important;
+    left: 0 !important;
     right: 0 !important;
     bottom: 0 !important;
     height: 150px !important;
     z-index: 70 !important;
     pointer-events: none !important;
     background:
-      radial-gradient(ellipse at 21% 86%, rgba(116, 127, 185, 0.18), transparent 34%),
-      radial-gradient(ellipse at 77% 92%, rgba(160, 147, 204, 0.16), transparent 36%),
-      linear-gradient(0deg, rgba(181, 190, 224, 0.46), rgba(211, 216, 241, 0.19) 48%, rgba(235, 233, 249, 0)) !important;
+      linear-gradient(0deg, rgba(188, 194, 230, 0.38), rgba(216, 219, 244, 0.18) 50%, rgba(238, 237, 250, 0)) !important;
     backdrop-filter: blur(2px) saturate(115%) !important;
     mask-image: linear-gradient(0deg, #000 0%, rgba(0, 0, 0, 0.72) 42%, transparent 100%) !important;
+    -webkit-mask-image: linear-gradient(0deg, #000 0%, rgba(0, 0, 0, 0.72) 42%, transparent 100%) !important;
   }
 
   .studio-shell {
@@ -91,24 +75,19 @@
   }
 
   .studio-shell::before {
-    inset: 0 !important;
-    height: auto !important;
-    opacity: 1 !important;
-    filter: blur(22px) saturate(118%) !important;
-    mask-image: none !important;
-    background:
-      radial-gradient(ellipse at 8% 91%, rgba(101, 113, 174, 0.42), transparent 27%),
-      radial-gradient(ellipse at 34% 101%, rgba(123, 130, 185, 0.28), transparent 32%),
-      radial-gradient(ellipse at 58% 105%, rgba(148, 140, 195, 0.26), transparent 33%),
-      radial-gradient(ellipse at 91% 96%, rgba(98, 105, 164, 0.24), transparent 28%),
-      linear-gradient(0deg, rgba(170, 177, 214, 0.2), transparent 48%) !important;
+    display: none !important;
   }
 
   .studio-shell::after {
     inset: 0 !important;
     height: auto !important;
     filter: none !important;
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0.48) 0 240px, rgba(255, 255, 255, 0.1) 240px 100%) !important;
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.46) 0 232px,
+      rgba(255, 255, 255, 0.24) 250px,
+      rgba(255, 255, 255, 0.08) 280px 100%
+    ) !important;
   }
 
   .studio-shell .sidebar {
