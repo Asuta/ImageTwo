@@ -1218,80 +1218,82 @@ function App() {
             <button type="button"><Image />Upscaled</button>
             <button type="button"><Star />Favorites</button>
           </div>
-          {historyLoading ? (
-            <section className="empty-state is-loading">
-              <div className="empty-card">
-                <span className="empty-icon">✦</span>
-                <h2>正在整理创作空间</h2>
-                <p>正在读取当前浏览器里的本地生成记录。</p>
-              </div>
-            </section>
-          ) : null}
-          {historyError ? <div className="empty-inline">{historyError}</div> : null}
-          {visibleHistory.map(task => (
-            <Card key={task.id} className={`history-task${task.id === selectedId ? " selected" : ""}`} data-id={task.id} onClick={() => {
-              setSelectedId(task.id);
-            }}>
-              <CardHeader className="task-head">
-                <div className="task-title-area">
-                  <Input type="checkbox" aria-label="选择生成记录" onClick={event => event.stopPropagation()} />
-                  <ChevronUp />
+          <div className="history-scroll">
+            {historyLoading ? (
+              <section className="empty-state is-loading">
+                <div className="empty-card">
+                  <span className="empty-icon">✦</span>
+                  <h2>正在整理创作空间</h2>
+                  <p>正在读取当前浏览器里的本地生成记录。</p>
                 </div>
-                <div className="task-copy-area">
-                  <CardTitle>{getTaskTitle(task.prompt)}</CardTitle>
-                  <div className="tag-row">
-                    <Badge variant="secondary">{task.model || "gpt-image-2"}</Badge>
-                    <Badge variant="secondary">{task.mode === "edit" ? "多图参考" : "图片生成"}</Badge>
-                    <Badge variant="outline">{getRatioLabel(task.aspectRatio || "auto")}</Badge>
-                    <Badge variant="outline">{task.quality || "medium"}</Badge>
-                    <Badge variant="outline">{task.count || task.images.length} 张</Badge>
-                    {task.costCredits ? <Badge variant="secondary">{task.costCredits} 点</Badge> : null}
-                    {Number.isFinite(task.remainingCreditsSnapshot) ? <Badge variant="secondary">余额 {task.remainingCreditsSnapshot}</Badge> : null}
-                    <Badge variant="outline">{formatTime(new Date(task.createdAt))}</Badge>
+              </section>
+            ) : null}
+            {historyError ? <div className="empty-inline">{historyError}</div> : null}
+            {visibleHistory.map(task => (
+              <Card key={task.id} className={`history-task${task.id === selectedId ? " selected" : ""}`} data-id={task.id} onClick={() => {
+                setSelectedId(task.id);
+              }}>
+                <CardHeader className="task-head">
+                  <div className="task-title-area">
+                    <Input type="checkbox" aria-label="选择生成记录" onClick={event => event.stopPropagation()} />
+                    <ChevronUp />
                   </div>
-                </div>
-                <div className="task-more-actions">
-                  <Button className="icon-button" variant="ghost" size="icon" type="button" aria-label="收藏" onClick={event => event.stopPropagation()}><Star /></Button>
-                  <Button className="icon-button" variant="ghost" size="icon" type="button" aria-label="分享" onClick={event => event.stopPropagation()}><Share2 /></Button>
-                  <Button className="icon-button" variant="ghost" size="icon" type="button" aria-label="更多" onClick={event => event.stopPropagation()}><Menu /></Button>
-                </div>
-              </CardHeader>
+                  <div className="task-copy-area">
+                    <CardTitle>{getTaskTitle(task.prompt)}</CardTitle>
+                    <div className="tag-row">
+                      <Badge variant="secondary">{task.model || "gpt-image-2"}</Badge>
+                      <Badge variant="secondary">{task.mode === "edit" ? "多图参考" : "图片生成"}</Badge>
+                      <Badge variant="outline">{getRatioLabel(task.aspectRatio || "auto")}</Badge>
+                      <Badge variant="outline">{task.quality || "medium"}</Badge>
+                      <Badge variant="outline">{task.count || task.images.length} 张</Badge>
+                      {task.costCredits ? <Badge variant="secondary">{task.costCredits} 点</Badge> : null}
+                      {Number.isFinite(task.remainingCreditsSnapshot) ? <Badge variant="secondary">余额 {task.remainingCreditsSnapshot}</Badge> : null}
+                      <Badge variant="outline">{formatTime(new Date(task.createdAt))}</Badge>
+                    </div>
+                  </div>
+                  <div className="task-more-actions">
+                    <Button className="icon-button" variant="ghost" size="icon" type="button" aria-label="收藏" onClick={event => event.stopPropagation()}><Star /></Button>
+                    <Button className="icon-button" variant="ghost" size="icon" type="button" aria-label="分享" onClick={event => event.stopPropagation()}><Share2 /></Button>
+                    <Button className="icon-button" variant="ghost" size="icon" type="button" aria-label="更多" onClick={event => event.stopPropagation()}><Menu /></Button>
+                  </div>
+                </CardHeader>
 
-              <CardContent className="task-content">
-                {renderReferenceChips(task)}
-                <div className={`image-grid count-${Math.min(task.images.length, 4)}`}>
-                  {task.images.slice(0, 4).map(renderImageCard)}
-                </div>
-              </CardContent>
+                <CardContent className="task-content">
+                  {renderReferenceChips(task)}
+                  <div className={`image-grid count-${Math.min(task.images.length, 4)}`}>
+                    {task.images.slice(0, 4).map(renderImageCard)}
+                  </div>
+                </CardContent>
 
-              <CardFooter className="task-actions">
-                <Button variant="secondary" type="button" onClick={e => { e.stopPropagation(); fillFromTask(task); }}>
-                  <WandSparkles data-icon="inline-start" />重新编辑
-                </Button>
-                <Button variant="outline" type="button" onClick={e => { e.stopPropagation(); rerunTask(task); }}>
-                  <RotateCcw data-icon="inline-start" />再次生成
-                </Button>
-                <Button variant="outline" type="button" onClick={async e => {
-                  e.stopPropagation();
-                  await navigator.clipboard.writeText(task.prompt);
-                  showToast("提示词已复制");
-                }}>
-                  <Copy data-icon="inline-start" />复制提示词
-                </Button>
-                <Button variant="destructive" type="button" onClick={async e => {
-                  e.stopPropagation();
-                  await deleteTask(task);
-                }} aria-label="删除">
-                  <Trash2 />
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-          {showPreviewRows ? (
-            <section className="concept-preview-list" aria-label="示例生成记录">
-              {supplementalPreviewRows.map(renderPreviewRow)}
-            </section>
-          ) : null}
+                <CardFooter className="task-actions">
+                  <Button variant="secondary" type="button" onClick={e => { e.stopPropagation(); fillFromTask(task); }}>
+                    <WandSparkles data-icon="inline-start" />重新编辑
+                  </Button>
+                  <Button variant="outline" type="button" onClick={e => { e.stopPropagation(); rerunTask(task); }}>
+                    <RotateCcw data-icon="inline-start" />再次生成
+                  </Button>
+                  <Button variant="outline" type="button" onClick={async e => {
+                    e.stopPropagation();
+                    await navigator.clipboard.writeText(task.prompt);
+                    showToast("提示词已复制");
+                  }}>
+                    <Copy data-icon="inline-start" />复制提示词
+                  </Button>
+                  <Button variant="destructive" type="button" onClick={async e => {
+                    e.stopPropagation();
+                    await deleteTask(task);
+                  }} aria-label="删除">
+                    <Trash2 />
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+            {showPreviewRows ? (
+              <section className="concept-preview-list" aria-label="示例生成记录">
+                {supplementalPreviewRows.map(renderPreviewRow)}
+              </section>
+            ) : null}
+          </div>
         </section>
       </main>
 
