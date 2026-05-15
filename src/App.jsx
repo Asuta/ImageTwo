@@ -378,6 +378,10 @@ function App() {
 
   const isLoggedIn = Boolean(currentUser);
   const visibleHistory = useMemo(() => history, [history]);
+  const showPreviewRows = !historyLoading && history.length < previewRows.length;
+  const supplementalPreviewRows = useMemo(() => (
+    showPreviewRows ? previewRows.slice(0, previewRows.length - history.length) : []
+  ), [showPreviewRows, history.length]);
 
   async function loadHistory() {
     setHistoryLoading(true);
@@ -1050,12 +1054,12 @@ function App() {
 
     if (image.status === "loading" || image.status === "streaming") {
       return (
-        <figure key={image.id} className="image-card is-loading">
+        <figure key={image.id} className="image-card is-loading concept-image concept-loading-image">
           <div className="image-skeleton" role="status" aria-label="图片生成中">
-            <div className="generation-loader" aria-hidden="true">
-              <span className="loader-orbit" />
-              <span className="loader-core" />
-              <span className="loader-sheen" />
+            <div className="concept-progress">
+              <span>{image.status === "streaming" ? "..." : "0%"}</span>
+              <strong>{image.status === "streaming" ? "Receiving your image..." : "Generating your image..."}</strong>
+              <em>This may take a few moments.</em>
             </div>
           </div>
           <figcaption>{image.status === "streaming" ? "正在接收图片..." : "正在生成..."}</figcaption>
@@ -1224,11 +1228,6 @@ function App() {
             </section>
           ) : null}
           {historyError ? <div className="empty-inline">{historyError}</div> : null}
-          {!historyLoading && history.length === 0 ? (
-            <section className="concept-preview-list" aria-label="示例生成记录">
-              {previewRows.map(renderPreviewRow)}
-            </section>
-          ) : null}
           {visibleHistory.map(task => (
             <Card key={task.id} className={`history-task${task.id === selectedId ? " selected" : ""}`} data-id={task.id} onClick={() => {
               setSelectedId(task.id);
@@ -1288,6 +1287,11 @@ function App() {
               </CardFooter>
             </Card>
           ))}
+          {showPreviewRows ? (
+            <section className="concept-preview-list" aria-label="示例生成记录">
+              {supplementalPreviewRows.map(renderPreviewRow)}
+            </section>
+          ) : null}
         </section>
       </main>
 

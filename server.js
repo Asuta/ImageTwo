@@ -10,7 +10,7 @@ const distDir = join(__dirname, "dist");
 
 loadLocalEnv();
 
-const START_PORT = Number(process.env.PORT || 5173);
+const START_PORT = Number(process.env.PORT || 5180);
 const HOST = process.env.HOST || "0.0.0.0";
 const API_URL = process.env.IMAGE2_API_URL || "https://api.bltcy.ai/v1/chat/completions";
 const MODEL = process.env.IMAGE2_MODEL || "gpt-image-2";
@@ -453,7 +453,12 @@ function normalizePartialBase64(base64) {
 }
 
 async function sendLoginCodeEmail(email, code) {
-  if (!process.env.RESEND_API_KEY || !process.env.MAIL_FROM) {
+  if (
+    process.env.RESEND_API_KEY === "dev-disabled" ||
+    process.env.MAIL_FROM === "dev-disabled" ||
+    !process.env.RESEND_API_KEY ||
+    !process.env.MAIL_FROM
+  ) {
     console.log(`[dev] Image2 login code for ${email}: ${code}`);
     return { delivered: false, devCode: code };
   }

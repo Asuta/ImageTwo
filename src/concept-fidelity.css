@@ -14,10 +14,7 @@
     min-height: 100vh !important;
     max-height: none !important;
     overflow: hidden !important;
-    background:
-      radial-gradient(circle at 80% 14%, rgba(190, 171, 255, 0.25), transparent 28%),
-      radial-gradient(circle at 48% 0%, rgba(255, 255, 255, 0.9), transparent 36%),
-      linear-gradient(135deg, #f6f2ff 0%, #edebfb 46%, #d7d9ef 100%) !important;
+    background-color: #d7d9ef !important;
   }
 
   html,
@@ -42,8 +39,10 @@
 
   body {
     background:
-      radial-gradient(circle at 80% 14%, rgba(190, 171, 255, 0.25), transparent 28%),
-      radial-gradient(circle at 48% 0%, rgba(255, 255, 255, 0.9), transparent 36%),
+      radial-gradient(circle at 80% 14%, rgba(190, 171, 255, 0.22), transparent 28%),
+      radial-gradient(circle at 48% 0%, rgba(255, 255, 255, 0.48), transparent 36%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(195, 202, 232, 0.12)),
+      url("/assets/mist-cloud-background.png") center / cover fixed no-repeat,
       linear-gradient(135deg, #f6f2ff 0%, #edebfb 46%, #d7d9ef 100%) !important;
   }
 
@@ -84,6 +83,11 @@
     grid-template-columns: 240px minmax(0, 1fr) !important;
     color: #17172f !important;
     position: relative !important;
+    background: transparent !important;
+  }
+
+  #root {
+    background: transparent !important;
   }
 
   .studio-shell::before {
@@ -450,7 +454,8 @@
     min-height: 0 !important;
     padding: 20px 0 72px !important;
     gap: 13px !important;
-    overflow: hidden !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
     border-radius: 15px 15px 0 0 !important;
     border: 1px solid rgba(255, 255, 255, 0.56) !important;
     background:
@@ -545,17 +550,29 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.74) !important;
   }
 
-  .studio-shell .concept-preview-list .concept-task:nth-child(2) {
+  .studio-shell .history-feed > .history-task {
+    margin: 0 18px !important;
+  }
+
+  .studio-shell .history-feed > .history-task + .concept-preview-list {
+    margin-top: 14px !important;
+  }
+
+  .studio-shell .history-task .task-actions {
+    display: none !important;
+  }
+
+  .studio-shell .concept-preview-list .concept-task.is-preview-loading {
     height: 242px !important;
     min-height: 242px !important;
   }
 
-  .studio-shell .concept-preview-list .concept-task:nth-child(2) .task-content {
+  .studio-shell .concept-preview-list .concept-task.is-preview-loading .task-content {
     transform: translateY(-2px) !important;
   }
 
-  .studio-shell .concept-preview-list .concept-task:nth-child(2) .concept-image,
-  .studio-shell .concept-preview-list .concept-task:nth-child(2) .concept-image img {
+  .studio-shell .concept-preview-list .concept-task.is-preview-loading .concept-image,
+  .studio-shell .concept-preview-list .concept-task.is-preview-loading .concept-image img {
     height: 146px !important;
     min-height: 146px !important;
   }
@@ -620,6 +637,16 @@
     grid-template-columns: 2.28fr 1fr 1fr !important;
   }
 
+  .studio-shell .image-grid.count-1,
+  .studio-shell .concept-grid.count-1 {
+    grid-template-columns: minmax(420px, 0.62fr) minmax(0, 0.38fr) !important;
+  }
+
+  .studio-shell .image-grid.count-1 .image-card,
+  .studio-shell .concept-grid.count-1 .concept-image {
+    grid-column: 1 !important;
+  }
+
   .studio-shell .image-card,
   .studio-shell .concept-image {
     height: 132px !important;
@@ -643,6 +670,39 @@
 
   .studio-shell .concept-image {
     background-image: none !important;
+  }
+
+  .studio-shell .image-card.is-loading,
+  .studio-shell .image-card.is-streaming {
+    background:
+      radial-gradient(circle at 52% 24%, rgba(255, 255, 255, 0.18), transparent 22%),
+      linear-gradient(135deg, rgba(69, 82, 123, 0.72), rgba(31, 30, 61, 0.95)),
+      url("/demo/cyber-1.png") center / cover no-repeat !important;
+    overflow: hidden !important;
+  }
+
+  .studio-shell .image-card.is-loading::before,
+  .studio-shell .image-card.is-streaming::before {
+    content: "" !important;
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 0 !important;
+    background:
+      linear-gradient(135deg, rgba(35, 43, 78, 0.62), rgba(45, 24, 72, 0.6)),
+      rgba(16, 17, 39, 0.12) !important;
+    backdrop-filter: blur(8px) saturate(128%) !important;
+  }
+
+  .studio-shell .image-card.is-loading .image-skeleton,
+  .studio-shell .image-card.is-streaming .image-skeleton {
+    position: relative !important;
+    z-index: 1 !important;
+    background: transparent !important;
+  }
+
+  .studio-shell .image-card.is-loading figcaption,
+  .studio-shell .image-card.is-streaming figcaption {
+    display: none !important;
   }
 
   .studio-shell .is-preview-loading .concept-image:not(:first-child) img {
@@ -902,5 +962,61 @@
   .studio-shell .view-button:nth-of-type(2) {
     background: rgba(255, 255, 255, 0.42) !important;
     opacity: 0.58 !important;
+  }
+
+  .studio-shell .main {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .studio-shell .history-feed {
+    flex: 1 1 auto !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow-y: scroll !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain !important;
+    scrollbar-gutter: stable !important;
+    padding-bottom: 230px !important;
+    touch-action: pan-y !important;
+    pointer-events: auto !important;
+  }
+
+  .studio-shell .history-feed::after {
+    content: "" !important;
+    display: block !important;
+    height: 12px !important;
+    flex: 0 0 auto !important;
+  }
+
+  html,
+  body,
+  #root,
+  .studio-shell {
+    height: auto !important;
+    min-height: 100vh !important;
+    max-height: none !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+
+  .studio-shell .main {
+    height: auto !important;
+    min-height: 100vh !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding-bottom: 260px !important;
+  }
+
+  .studio-shell .history-feed {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding-bottom: 42px !important;
   }
 }
