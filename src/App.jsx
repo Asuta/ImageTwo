@@ -41,6 +41,7 @@ const MAX_LOCAL_IMAGES = 300;
 const GENERATION_POLL_INTERVAL_MS = 2500;
 const GENERATION_POLL_TIMEOUT_MS = 5 * 60 * 1000;
 const HISTORY_LOAD_TIMEOUT_MS = 3500;
+const HISTORY_IMAGE_SCALE = 100;
 
 const ratioChoices = [
   { value: "auto", label: "智能", shape: "auto" },
@@ -300,7 +301,6 @@ function App() {
   const [accountLoading, setAccountLoading] = useState(true);
   const [historyError, setHistoryError] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [historyImageScale, setHistoryImageScale] = useState(100);
   const historyRef = useRef([]);
   const previewImageRef = useRef(null);
   const toastTimerRef = useRef(null);
@@ -1056,7 +1056,7 @@ function App() {
 
   function renderImageCard(image) {
     const imageStyle = {
-      "--history-image-scale": historyImageScale / 100
+      "--history-image-scale": HISTORY_IMAGE_SCALE / 100
     };
 
     if (image.status === "streaming" && image.url) {
@@ -1222,19 +1222,6 @@ function App() {
               <h1>Recent Generations</h1>
             </div>
             <div className="history-tools">
-              <label className="history-scale-control" title="调整历史图片缩放">
-                <span>缩放</span>
-                <input
-                  type="range"
-                  min="70"
-                  max="130"
-                  step="5"
-                  value={historyImageScale}
-                  onChange={event => setHistoryImageScale(Number(event.target.value))}
-                  aria-label="调整历史图片缩放"
-                />
-                <output>{historyImageScale}%</output>
-              </label>
               <Button className="view-button active" variant="secondary" size="icon" type="button" aria-label="网格视图"><Grid2X2 /></Button>
               <Button className="view-button" variant="ghost" size="icon" type="button" aria-label="列表视图"><Menu /></Button>
               <select aria-label="筛选模型">

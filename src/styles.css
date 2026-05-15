@@ -6442,36 +6442,9 @@ select {
 
 .studio-shell .history-tools {
   display: grid !important;
-  grid-template-columns: minmax(160px, 210px) 38px 38px 128px !important;
+  grid-template-columns: 38px 38px 128px !important;
   align-items: center !important;
   gap: 8px !important;
-}
-
-.studio-shell .history-scale-control {
-  min-width: 0 !important;
-  height: 38px !important;
-  padding: 0 10px !important;
-  border: 1px solid rgba(255, 255, 255, 0.66) !important;
-  border-radius: 12px !important;
-  display: grid !important;
-  grid-template-columns: auto minmax(54px, 1fr) auto !important;
-  align-items: center !important;
-  gap: 8px !important;
-  color: rgba(43, 39, 67, 0.72) !important;
-  background: rgba(255, 255, 255, 0.46) !important;
-  font-size: 12px !important;
-  font-weight: 800 !important;
-}
-
-.studio-shell .history-scale-control input {
-  width: 100% !important;
-  accent-color: var(--accent) !important;
-}
-
-.studio-shell .history-scale-control output {
-  min-width: 36px !important;
-  text-align: right !important;
-  font-variant-numeric: tabular-nums !important;
 }
 
 .studio-shell .view-button {
@@ -6482,7 +6455,6 @@ select {
 }
 
 .studio-shell .history-tools select {
-  grid-column: 4 !important;
   width: 128px !important;
   height: 38px !important;
   border-radius: 12px !important;
