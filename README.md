@@ -17,7 +17,21 @@
 
 ## 运行
 
-先在本地 `.env` 里配置：
+先配置环境变量。推荐把共享密钥放在用户目录的全局文件里，这样新建工作区或重新 clone 项目时不用反复复制项目根目录 `.env`。
+
+Windows 默认读取：
+
+```text
+C:\Users\<你的用户名>\.image2.env
+```
+
+macOS / Linux 默认读取：
+
+```text
+~/.image2.env
+```
+
+文件内容示例：
 
 ```text
 IMAGE2_API_URL=https://api.bltcy.ai/v1/chat/completions
@@ -32,6 +46,8 @@ MAIL_FROM=
 HOST=0.0.0.0
 PORT=5173
 ```
+
+也可以继续使用项目根目录的 `.env`。服务启动时会先读全局文件，再读项目根目录 `.env`；已经存在的系统环境变量优先级最高。如果想指定其他共享文件位置，可以设置 `IMAGE2_ENV_FILE`。
 
 ```powershell
 pnpm start
@@ -92,7 +108,7 @@ Invoke-RestMethod -Method Post -Uri http://localhost:5173/api/admin/users/<user-
 - 模型：`gpt-image-2`
 - 图片接口：`https://api.bltcy.ai/v1/chat/completions`
 - 图片不会长期保存在服务器；浏览器会把生成结果保存到当前浏览器的 IndexedDB。
-- API key 从本地 `.env` 或环境变量 `IMAGE2_API_KEY` 读取，`.env` 不会提交到 Git。
+- API key 从系统环境变量、全局共享 env 文件或项目根目录 `.env` 读取，`.env` 不会提交到 Git。
 - 用户、session、礼品卡和额度数据默认保存在 `IMAGE2_DATA_DIR` 下的 `image2-data.json`。
 - 如果修改了 `server.js`，需要重启 `pnpm start` 才会生效。
 - 请求格式细节见 `docs/request-format.md`。

@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -45,7 +46,17 @@ mkdirSync(dataDir, { recursive: true });
 ensureDataFile();
 
 function loadLocalEnv() {
-  const envPath = join(__dirname, ".env");
+  const envPaths = [
+    process.env.IMAGE2_ENV_FILE || join(homedir(), ".image2.env"),
+    join(__dirname, ".env")
+  ];
+
+  for (const envPath of envPaths) {
+    loadEnvFile(envPath);
+  }
+}
+
+function loadEnvFile(envPath) {
   if (!existsSync(envPath)) {
     return;
   }
