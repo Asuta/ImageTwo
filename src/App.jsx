@@ -246,6 +246,15 @@ function createTask({ prompt, aspectRatio, quality, count, mode, referenceImages
   };
 }
 
+function createInterruptedImages(count) {
+  return Array.from({ length: Math.max(1, Number(count) || 1) }, () => ({
+    id: createLocalId(),
+    status: "error",
+    error: "这次生成没有保存到浏览器本地，请重新生成。",
+    createdAt: new Date().toISOString()
+  }));
+}
+
 function getThemeFromStorage() {
   return localStorage.getItem("image2-theme") || document.documentElement.dataset.theme || "light";
 }
@@ -411,7 +420,9 @@ function App() {
           images: (imagesByTask.get(task.id) || []).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         }));
 
-      setHistory(loadedHistory);
+      setHistory(loadedHistory.map(task => (
+        task.images.length > 0 ? task : { ...task, images: createInterruptedImages(task.count) }
+      )));
       setSelectedId(prev => prev || loadedHistory[0]?.id || null);
     } catch (error) {
       console.error(error);
@@ -539,6 +550,9 @@ function App() {
       }
 
       setLoginCodeRequested(true);
+      if (payload.devCode) {
+        setCode(payload.devCode);
+      }
       showToast(payload.devCode ? `开发验证码：${payload.devCode}` : "验证码已发送，请检查邮箱");
     } catch (error) {
       showToast(error instanceof Error ? error.message : String(error));
@@ -838,7 +852,6 @@ function App() {
       showToast(`${generatedCount} 张图片已保存到当前浏览器`);
     }
 
-    await loadHistory();
     setIsGenerating(false);
   }
 

@@ -6725,6 +6725,10 @@ select {
   color: #27243a !important;
 }
 
+.studio-shell .account-control.hidden {
+  display: none !important;
+}
+
 .studio-shell .account-control span {
   color: #5e5974 !important;
   font-size: 13px !important;
@@ -6766,6 +6770,10 @@ select {
 
 .studio-shell .panel-actions .soft-button.hidden {
   display: none !important;
+}
+
+.studio-shell .toast {
+  z-index: 160 !important;
 }
 
 .studio-shell .logo {
