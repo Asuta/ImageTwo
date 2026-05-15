@@ -665,7 +665,7 @@
     width: 100% !important;
     height: 132px !important;
     min-height: 132px !important;
-    object-fit: cover !important;
+    object-fit: contain !important;
   }
 
   .studio-shell .concept-image {
