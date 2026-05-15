@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1350" viewBox="0 0 2400 1350" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="base" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fbf8ff"/>
+      <stop offset="0.42" stop-color="#eceafe"/>
+      <stop offset="0.72" stop-color="#d9dcf2"/>
+      <stop offset="1" stop-color="#ccd2eb"/>
+    </linearGradient>
+    <radialGradient id="violetGlow" cx="72%" cy="12%" r="58%">
+      <stop offset="0" stop-color="#d4c1ff" stop-opacity="0.68"/>
+      <stop offset="0.42" stop-color="#bfa7ff" stop-opacity="0.24"/>
+      <stop offset="1" stop-color="#bfa7ff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="pearlLift" cx="42%" cy="2%" r="62%">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.82"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="cloudBlur" x="-15%" y="-20%" width="130%" height="140%">
+      <feGaussianBlur stdDeviation="58"/>
+    </filter>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.72" numOctaves="3" seed="19"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer>
+        <feFuncA type="table" tableValues="0 0.055"/>
+      </feComponentTransfer>
+    </filter>
+    <filter id="softNoise" x="-12%" y="-12%" width="124%" height="124%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.006 0.012" numOctaves="5" seed="43"/>
+      <feDisplacementMap in="SourceGraphic" scale="42"/>
+      <feGaussianBlur stdDeviation="28"/>
+    </filter>
+  </defs>
+
+  <rect width="2400" height="1350" fill="url(#base)"/>
+  <rect width="2400" height="1350" fill="url(#violetGlow)"/>
+  <rect width="2400" height="1350" fill="url(#pearlLift)"/>
+
+  <g filter="url(#cloudBlur)" opacity="0.86">
+    <ellipse cx="360" cy="230" rx="430" ry="210" fill="#ffffff" opacity="0.54"/>
+    <ellipse cx="800" cy="95" rx="520" ry="230" fill="#f9f6ff" opacity="0.72"/>
+    <ellipse cx="1350" cy="145" rx="650" ry="250" fill="#ffffff" opacity="0.54"/>
+    <ellipse cx="1920" cy="170" rx="500" ry="260" fill="#d7c9ff" opacity="0.34"/>
+    <ellipse cx="2040" cy="520" rx="560" ry="300" fill="#efe8ff" opacity="0.44"/>
+    <ellipse cx="360" cy="980" rx="560" ry="260" fill="#bfc8e8" opacity="0.32"/>
+    <ellipse cx="900" cy="1120" rx="640" ry="230" fill="#cdd3ed" opacity="0.35"/>
+    <ellipse cx="1540" cy="1050" rx="720" ry="270" fill="#babee3" opacity="0.32"/>
+    <ellipse cx="2200" cy="1120" rx="460" ry="250" fill="#aeb7dd" opacity="0.28"/>
+  </g>
+
+  <g filter="url(#softNoise)" opacity="0.38">
+    <path d="M-130 745C210 615 404 692 670 626C1000 545 1176 416 1532 511C1844 594 2018 477 2530 348V1430H-130Z" fill="#ffffff" opacity="0.34"/>
+    <path d="M-96 1046C245 917 544 984 828 888C1091 799 1326 691 1626 789C1906 880 2078 829 2496 706V1430H-96Z" fill="#8f98cf" opacity="0.18"/>
+    <path d="M-160 1177C174 1072 497 1126 796 1054C1158 966 1424 978 1725 1058C1983 1126 2220 1092 2570 1008V1430H-160Z" fill="#6f79b8" opacity="0.16"/>
+  </g>
+
+  <rect width="2400" height="1350" fill="#ffffff" opacity="0.12"/>
+  <rect width="2400" height="1350" filter="url(#grain)" opacity="0.8"/>
+</svg>

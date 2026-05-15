@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Image2 Admin</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="admin-login-page">
+    <main class="admin-login-card">
+      <p class="eyebrow">运营后台</p>
+      <h1>管理员登录</h1>
+      <p>请输入服务器配置的管理 Key。验证通过后才会进入卡密管理页面。</p>
+      <form id="adminLoginForm">
+        <label class="admin-login-control">
+          <span>管理 Key</span>
+          <input id="adminLoginKey" type="password" autocomplete="current-password" placeholder="IMAGE2_ADMIN_KEY" required />
+        </label>
+        <button class="generate-button" type="submit">进入后台</button>
+      </form>
+      <div id="adminLoginToast" class="admin-login-toast hidden" role="status"></div>
+    </main>
+    <script type="module" src="/admin-login.js?v=20260510-admin-auth"></script>
+  </body>
+</html>

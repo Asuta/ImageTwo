@@ -19,9 +19,10 @@ Image2 服务 -> nowcoding Responses API POST https://nowcoding.ai/v1/responses
 
 ```http
 POST /api/generate
-Authorization: Bearer <Image2 用户 Key>
 Content-Type: application/json
 ```
+
+身份认证不再使用 `Authorization: Bearer img2_...`。用户需要先通过邮箱验证码登录，浏览器会自动携带 `image2_session` HttpOnly cookie。
 
 请求体：
 
@@ -58,29 +59,94 @@ Content-Type: application/json
 
 ## 3. 额度校验
 
-Image2 服务收到 `/api/generate` 后会先读取 `Authorization` header 中的 Image2 用户 Key。
+Image2 服务收到 `/api/generate` 后会先读取 `image2_session` cookie，并找到当前登录账号。
 
 额度规则：
 
 ```text
-low = 1 点 / 张
-medium = 2 点 / 张
-high = 4 点 / 张
+每生成 1 张图片 = 1 点
 ```
 
 扣费流程：
 
 ```text
-1. 校验用户 Key
-2. 检查 key 是否 active
-3. 检查余额是否足够
-4. 预扣额度并记录 usage log
-5. 调用上游供应商
-6. 成功则确认消耗
-7. 失败则返还预扣额度
+1. 校验登录 session
+2. 检查账号余额是否足够
+3. 预扣额度并记录 usage log
+4. 调用上游供应商
+5. 成功则确认消耗
+6. 失败则返还预扣额度
 ```
 
-第一阶段参考图编辑不额外加价。
+如果用户一次生成多张图，前端仍会并行发送多次 `/api/generate`，每个请求扣 1 点。
+
+### 3.1 登录与礼品卡兑换
+
+请求邮箱验证码：
+
+```http
+POST /api/auth/request-code
+Content-Type: application/json
+```
+
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+验证登录：
+
+```http
+POST /api/auth/verify-code
+Content-Type: application/json
+```
+
+```json
+{
+  "email": "user@example.com",
+  "code": "123456"
+}
+```
+
+登录成功后，服务端写入 `image2_session` cookie。新账号默认获得 100 点额度，具体值可通过 `IMAGE2_SIGNUP_CREDITS` 配置。
+
+查询当前账号：
+
+```http
+GET /api/auth/me
+```
+
+兑换礼品卡：
+
+```http
+POST /api/redeem
+Content-Type: application/json
+```
+
+```json
+{
+  "key": "gift_xxx"
+}
+```
+
+兑换成功会返回增加额度、当前用户和礼品卡状态：
+
+```json
+{
+  "creditsAdded": 10,
+  "giftCard": {
+    "id": "uuid",
+    "keyPreview": "gift_xxx...abcd",
+    "status": "redeemed"
+  },
+  "user": {
+    "id": "uuid",
+    "email": "user@example.com",
+    "credits": 110
+  }
+}
+```
 
 ## 4. 后端默认上下文
 
@@ -244,8 +310,8 @@ Image2 服务不会把图片长期写入服务器磁盘，而是把图片 base64
   "outputFormat": "png",
   "mimeType": "image/png",
   "imageBase64": "iVBORw0KGgoAAAANSUhE...",
-  "costCredits": 2,
-  "remainingCredits": 98
+  "costCredits": 1,
+  "remainingCredits": 99
 }
 ```
 
@@ -259,65 +325,95 @@ imageBase64 -> Blob -> IndexedDB -> URL.createObjectURL -> 页面展示
 
 ## 8. 管理接口
 
-管理接口使用 `IMAGE2_ADMIN_KEY`：
+管理员页面使用独立入口：
+
+```http
+GET /admin
+```
+
+未登录后台时返回管理员登录页；输入 `IMAGE2_ADMIN_KEY` 后，服务端写入 HttpOnly 的 `image2_admin` cookie，再返回卡密管理页面。普通用户首页不会展示后台入口，也不会加载后台管理脚本。
+
+管理接口可以使用后台 cookie，也可以继续使用 `IMAGE2_ADMIN_KEY` 的 Bearer 方式：
 
 ```http
 Authorization: Bearer <IMAGE2_ADMIN_KEY>
 ```
 
-创建用户 Key：
+查询用户：
 
 ```http
-POST /api/admin/keys
+GET /api/admin/users
+```
+
+调整账号额度：
+
+```http
+POST /api/admin/users/<user-id>/credits
 Content-Type: application/json
 ```
 
 ```json
 {
-  "label": "user-a",
-  "initialCredits": 100
+  "delta": 50,
+  "note": "manual top-up"
 }
 ```
 
-响应：
-
-```json
-{
-  "key": "img2_xxx",
-  "apiKey": {
-    "id": "uuid",
-    "label": "user-a",
-    "status": "active",
-    "remainingCredits": 100,
-    "createdAt": "2026-05-03T00:00:00.000Z",
-    "updatedAt": "2026-05-03T00:00:00.000Z"
-  }
-}
-```
-
-查询用户 Key：
+创建礼品卡：
 
 ```http
-GET /api/admin/keys
-```
-
-调整额度：
-
-```http
-POST /api/admin/keys/<id>/credits
+POST /api/admin/gift-cards
 Content-Type: application/json
 ```
 
 ```json
 {
-  "delta": 50
+  "label": "batch-a",
+  "credits": 10,
+  "count": 5,
+  "expiresAt": "2026-06-30T15:59:59.000Z",
+  "note": "渠道备注"
 }
 ```
 
-禁用用户 Key：
+响应会返回本批次创建的明文 `gift_...`，供你发到第三方发卡平台。礼品卡明文只在创建时返回，长期数据只保存 `keyHash` 和 `keyPreview`。
+
+查询礼品卡：
 
 ```http
-POST /api/admin/keys/<id>/disable
+GET /api/admin/gift-cards
+```
+
+可选查询参数：
+
+```http
+GET /api/admin/gift-cards?status=active&q=abcd
+```
+
+查询批次：
+
+```http
+GET /api/admin/gift-card-batches
+```
+
+卡密状态操作：
+
+```http
+POST /api/admin/gift-cards/<card-id>/disable
+POST /api/admin/gift-cards/<card-id>/enable
+POST /api/admin/gift-cards/<card-id>/revoke
+POST /api/admin/gift-card-batches/<batch-id>/disable
+```
+
+- `disable`：作废未兑换的 active 卡。
+- `enable`：重新启用 disabled 卡。
+- `revoke`：撤销已兑换卡，并从用户账号扣回对应额度，最低扣到 0。
+- 批次 `disable`：批量作废该批次里仍为 active 的卡。
+
+查询审计日志：
+
+```http
+GET /api/admin/audit-logs
 ```
 
 ## 9. 错误响应
@@ -330,19 +426,11 @@ POST /api/admin/keys/<id>/disable
 }
 ```
 
-用户 Key 无效：
+用户未登录：
 
 ```json
 {
-  "error": "用户 key 无效，请检查 Image2 Key。"
-}
-```
-
-用户 Key 被禁用：
-
-```json
-{
-  "error": "用户 key 已被禁用。"
+  "error": "请先使用邮箱验证码登录。"
 }
 ```
 
@@ -350,8 +438,8 @@ POST /api/admin/keys/<id>/disable
 
 ```json
 {
-  "error": "额度不足，请联系服务提供方充值。",
-  "costCredits": 4,
+  "error": "额度不足，请兑换礼品卡后再生成。",
+  "costCredits": 1,
   "remainingCredits": 2
 }
 ```
