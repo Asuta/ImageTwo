@@ -1331,3 +1331,73 @@ body,
     border-radius: 999px !important;
   }
 }
+
+/* Keep the final view controls readable after the concept fidelity overrides. */
+.studio-shell .history-tools {
+  grid-template-columns: 42px 42px 136px !important;
+  grid-template-rows: 42px !important;
+  align-items: center !important;
+  gap: 9px !important;
+}
+
+.studio-shell .history-tools::before {
+  display: none !important;
+}
+
+.studio-shell .history-tools .view-button {
+  width: 42px !important;
+  height: 42px !important;
+  min-width: 42px !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(129, 116, 190, 0.24) !important;
+  color: #675bb2 !important;
+  background: rgba(255, 255, 255, 0.74) !important;
+  box-shadow: 0 10px 24px rgba(95, 83, 150, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.86) !important;
+  opacity: 1 !important;
+}
+
+.studio-shell .history-tools .view-button:nth-of-type(2) {
+  background: rgba(255, 255, 255, 0.74) !important;
+  opacity: 1 !important;
+}
+
+.studio-shell .history-tools .view-button.active {
+  border-color: rgba(113, 77, 236, 0.42) !important;
+  color: #6b43f2 !important;
+  background: linear-gradient(135deg, rgba(226, 215, 255, 0.98), rgba(197, 178, 255, 0.94)) !important;
+  box-shadow: 0 12px 28px rgba(104, 72, 226, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.74) !important;
+}
+
+.studio-shell .history-tools select {
+  grid-column: 3 !important;
+  grid-row: 1 !important;
+  width: 136px !important;
+  height: 42px !important;
+  color: #444061 !important;
+  border: 1px solid rgba(129, 116, 190, 0.22) !important;
+  background: rgba(255, 255, 255, 0.8) !important;
+  box-shadow: 0 10px 24px rgba(95, 83, 150, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.86) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .history-tools .view-button,
+:root[data-theme="dark"] .studio-shell .history-tools .view-button:nth-of-type(2) {
+  border-color: rgba(226, 218, 255, 0.24) !important;
+  color: rgba(226, 218, 255, 0.82) !important;
+  background: rgba(68, 61, 92, 0.92) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+  opacity: 1 !important;
+}
+
+:root[data-theme="dark"] .studio-shell .history-tools .view-button.active {
+  border-color: rgba(191, 170, 255, 0.5) !important;
+  color: #8c62ff !important;
+  background: linear-gradient(135deg, rgba(219, 207, 255, 0.96), rgba(181, 160, 244, 0.92)) !important;
+  box-shadow: 0 14px 32px rgba(107, 78, 221, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.36) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .history-tools select {
+  border-color: rgba(226, 218, 255, 0.2) !important;
+  color: rgba(246, 242, 255, 0.9) !important;
+  background: rgba(54, 47, 78, 0.92) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
