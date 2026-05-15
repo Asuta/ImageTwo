@@ -428,7 +428,7 @@
 
   .studio-shell .image-grid.count-3,
   .studio-shell .concept-grid.count-3 {
-    grid-template-columns: 2.05fr 0.9fr 0.9fr !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   }
 
   .studio-shell .image-card,
@@ -1095,7 +1095,7 @@
 
   .studio-shell .image-grid.count-3,
   .studio-shell .concept-grid.count-3 {
-    grid-template-columns: 2.05fr 0.9fr 0.9fr !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   }
 
   .studio-shell .image-card,
@@ -1769,7 +1769,7 @@
 
   .studio-shell .image-grid.count-3,
   .studio-shell .concept-grid.count-3 {
-    grid-template-columns: 2.05fr 0.9fr 0.9fr !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   }
 
   .studio-shell .image-card,
@@ -7389,7 +7389,7 @@ select {
 
   .studio-shell .image-grid.count-3,
   .studio-shell .concept-grid.count-3 {
-    grid-template-columns: 2.05fr 0.9fr 0.9fr !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   }
 
   .studio-shell .image-card,
@@ -7512,3 +7512,4 @@ select {
     color: #474963 !important;
   }
 }
+
