@@ -1555,3 +1555,382 @@ body:has(.studio-shell .image-preview:not(.hidden))::after,
 .studio-shell .image-preview:not(.hidden) .preview-close {
   z-index: 4 !important;
 }
+
+/* Final dark-mode override: this is the last word for the desktop theme. */
+:root[data-theme="dark"] body,
+:root[data-theme="dark"] #root,
+:root[data-theme="dark"] .studio-shell {
+  color: #eef1fb !important;
+  background:
+    radial-gradient(circle at 16% 12%, rgba(139, 101, 255, 0.18), transparent 24%),
+    radial-gradient(circle at 82% 18%, rgba(81, 103, 186, 0.14), transparent 28%),
+    linear-gradient(135deg, #07080d 0%, #0d1017 44%, #090b11 100%) !important;
+}
+
+:root[data-theme="dark"] .studio-shell::before {
+  opacity: 1 !important;
+  filter: blur(24px) !important;
+  background:
+    radial-gradient(circle at 10% 90%, rgba(124, 92, 255, 0.2), transparent 28%),
+    radial-gradient(circle at 86% 82%, rgba(74, 95, 176, 0.16), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 36%) !important;
+}
+
+:root[data-theme="dark"] .studio-shell::after {
+  background:
+    linear-gradient(90deg, rgba(13, 16, 24, 0.94) 0 240px, rgba(13, 16, 24, 0.34) 240px 100%) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .sidebar {
+  background:
+    linear-gradient(180deg, rgba(15, 19, 29, 0.9), rgba(9, 12, 19, 0.96)) !important;
+  border-right-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .logo,
+:root[data-theme="dark"] .studio-shell .task-copy-area h2,
+:root[data-theme="dark"] .studio-shell .task-reference-block p {
+  color: #f0f3fd !important;
+}
+
+:root[data-theme="dark"] .studio-shell .logo-mark,
+:root[data-theme="dark"] .studio-shell .nav-item.active span:first-child {
+  color: #d5c4ff !important;
+}
+
+:root[data-theme="dark"] .studio-shell .new-generation-button,
+:root[data-theme="dark"] .studio-shell .generate-button {
+  background: linear-gradient(135deg, #7c61ff 0%, #c48dff 100%) !important;
+  box-shadow: 0 20px 44px rgba(108, 74, 230, 0.32) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .nav-item {
+  color: #a8aec5 !important;
+}
+
+:root[data-theme="dark"] .studio-shell .nav-item svg,
+:root[data-theme="dark"] .studio-shell .collection-head,
+:root[data-theme="dark"] .studio-shell .collection-stack button,
+:root[data-theme="dark"] .studio-shell .advanced-toggle,
+:root[data-theme="dark"] .studio-shell .tag-row [data-slot="badge"] {
+  color: #a7acc6 !important;
+}
+
+:root[data-theme="dark"] .studio-shell .nav-item.active {
+  color: #f6f7ff !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .collection-stack em {
+  color: #d6d9ea !important;
+  background: rgba(131, 136, 178, 0.14) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .upgrade-card {
+  color: #f3f5ff !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  background:
+    radial-gradient(circle at 84% 84%, rgba(168, 132, 255, 0.18), transparent 24%),
+    linear-gradient(160deg, rgba(23, 27, 40, 0.98), rgba(14, 17, 28, 0.94)) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .upgrade-card::before {
+  opacity: 0.9 !important;
+}
+
+:root[data-theme="dark"] .studio-shell .upgrade-card span {
+  color: #9fa6c3 !important;
+}
+
+:root[data-theme="dark"] .studio-shell .upgrade-card button {
+  color: #e9e3ff !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .credit-pill,
+:root[data-theme="dark"] .studio-shell .glass-button,
+:root[data-theme="dark"] .studio-shell .account-button,
+:root[data-theme="dark"] .studio-shell .top-icon-button,
+:root[data-theme="dark"] .studio-shell .premium-button,
+:root[data-theme="dark"] .studio-shell .history-tools .view-button,
+:root[data-theme="dark"] .studio-shell .history-tools select,
+:root[data-theme="dark"] .studio-shell .ratio-button,
+:root[data-theme="dark"] .studio-shell .soft-button,
+:root[data-theme="dark"] .studio-shell .count-control,
+:root[data-theme="dark"] .studio-shell .upload-tile,
+:root[data-theme="dark"] .studio-shell .prompt-top textarea {
+  color: #e4e8f6 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  background: rgba(22, 26, 38, 0.88) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .premium-button {
+  color: #cfbdff !important;
+  background: rgba(92, 68, 172, 0.28) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .account-button .status-dot {
+  background:
+    radial-gradient(circle at 50% 30%, #e8d6c6 0 16%, transparent 17%),
+    radial-gradient(circle at 50% 58%, #2f2631 0 22%, transparent 23%),
+    linear-gradient(145deg, #8f6f57, #f0cdbf) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .history-feed {
+  border-color: rgba(255, 255, 255, 0.06) !important;
+  background:
+    linear-gradient(180deg, rgba(19, 23, 33, 0.92), rgba(12, 15, 22, 0.88)),
+    rgba(10, 12, 18, 0.9) !important;
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+:root[data-theme="dark"] .studio-shell h1 {
+  color: #a8afcc !important;
+}
+
+:root[data-theme="dark"] .studio-shell .filter-tabs button,
+:root[data-theme="dark"] .studio-shell .history-tools .view-button,
+:root[data-theme="dark"] .studio-shell .history-tools select,
+:root[data-theme="dark"] .studio-shell .task-actions button,
+:root[data-theme="dark"] .studio-shell .soft-button {
+  color: #d7dceb !important;
+}
+
+:root[data-theme="dark"] .studio-shell .filter-tabs button.active,
+:root[data-theme="dark"] .studio-shell .history-tools .view-button.active {
+  color: #eadfff !important;
+  background: linear-gradient(135deg, rgba(118, 91, 246, 0.36), rgba(176, 138, 255, 0.24)) !important;
+  border-color: rgba(182, 157, 255, 0.36) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .history-task,
+:root[data-theme="dark"] .studio-shell .concept-preview-list .concept-task {
+  border-color: rgba(255, 255, 255, 0.06) !important;
+  background:
+    linear-gradient(180deg, rgba(26, 30, 43, 0.98), rgba(16, 19, 28, 0.94)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 16px 38px rgba(0, 0, 0, 0.24) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .history-task.selected {
+  box-shadow:
+    inset 0 0 0 1px rgba(191, 167, 255, 0.14),
+    0 18px 46px rgba(0, 0, 0, 0.28) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .image-card,
+:root[data-theme="dark"] .studio-shell .concept-image,
+:root[data-theme="dark"] .studio-shell .reference-sample,
+:root[data-theme="dark"] .studio-shell .reference-chip {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .image-card,
+:root[data-theme="dark"] .studio-shell .concept-image {
+  background: linear-gradient(135deg, rgba(50, 54, 73, 0.8), rgba(22, 24, 34, 0.95)) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .image-card figcaption {
+  color: #f0edf8 !important;
+  background: rgba(7, 10, 17, 0.72) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .image-skeleton {
+  background:
+    linear-gradient(110deg, transparent 0%, rgba(198, 182, 255, 0.1) 46%, transparent 60%),
+    linear-gradient(135deg, #1a1f2f, #23283a) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .image-error {
+  color: #ff9aa2 !important;
+}
+
+:root[data-theme="dark"] .studio-shell .prompt-top textarea::placeholder,
+:root[data-theme="dark"] .studio-shell .upload-tile,
+:root[data-theme="dark"] .studio-shell .upload-tile::after,
+:root[data-theme="dark"] .studio-shell .count-control span {
+  color: #8e95b5 !important;
+}
+
+:root[data-theme="dark"] .studio-shell .generate-button {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .toast {
+  color: #f0f2fd !important;
+  background: rgba(16, 19, 28, 0.94) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Match the generated dark mock more closely: cooler glass surfaces. */
+:root[data-theme="dark"] .studio-shell .sidebar {
+  background:
+    linear-gradient(180deg, rgba(23, 28, 40, 0.82), rgba(15, 18, 27, 0.92)) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .history-feed {
+  background:
+    linear-gradient(180deg, rgba(28, 33, 47, 0.78), rgba(15, 18, 27, 0.72)),
+    rgba(12, 15, 22, 0.88) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .history-task,
+:root[data-theme="dark"] .studio-shell .concept-preview-list .concept-task {
+  background:
+    linear-gradient(180deg, rgba(34, 39, 56, 0.92), rgba(20, 23, 34, 0.9)) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .image-card,
+:root[data-theme="dark"] .studio-shell .concept-image {
+  background: linear-gradient(135deg, rgba(58, 62, 82, 0.74), rgba(28, 31, 43, 0.96)) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .credit-pill,
+:root[data-theme="dark"] .studio-shell .glass-button,
+:root[data-theme="dark"] .studio-shell .account-button,
+:root[data-theme="dark"] .studio-shell .top-icon-button,
+:root[data-theme="dark"] .studio-shell .premium-button,
+:root[data-theme="dark"] .studio-shell .history-tools .view-button,
+:root[data-theme="dark"] .studio-shell .history-tools select,
+:root[data-theme="dark"] .studio-shell .ratio-button,
+:root[data-theme="dark"] .studio-shell .soft-button,
+:root[data-theme="dark"] .studio-shell .count-control,
+:root[data-theme="dark"] .studio-shell .upload-tile,
+:root[data-theme="dark"] .studio-shell .prompt-top textarea {
+  background: rgba(29, 33, 47, 0.86) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .composer-card {
+  background:
+    linear-gradient(180deg, rgba(52, 56, 75, 0.52), rgba(33, 37, 52, 0.42)),
+    rgba(23, 27, 39, 0.38) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .generate-button {
+  box-shadow: 0 24px 52px rgba(115, 81, 230, 0.36) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .prompt-top textarea {
+  background: rgba(41, 45, 62, 0.34) !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .upload-tile,
+:root[data-theme="dark"] .studio-shell .ratio-button,
+:root[data-theme="dark"] .studio-shell .soft-button,
+:root[data-theme="dark"] .studio-shell select,
+:root[data-theme="dark"] .studio-shell .count-control {
+  background: rgba(47, 51, 70, 0.34) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Dark readability fix: prioritize contrast for labels, titles, and controls. */
+:root[data-theme="dark"] .studio-shell .task-copy-area h2,
+:root[data-theme="dark"] .studio-shell .task-title-area,
+:root[data-theme="dark"] .studio-shell .task-title-area svg {
+  color: #eef2ff !important;
+  opacity: 1 !important;
+}
+
+:root[data-theme="dark"] .studio-shell [data-slot="card-title"],
+:root[data-theme="dark"] .studio-shell .task-copy-area [data-slot="card-title"],
+:root[data-theme="dark"] .studio-shell .concept-task [data-slot="card-title"] {
+  color: #eef2ff !important;
+  opacity: 1 !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.32) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .task-head input[type="checkbox"] {
+  accent-color: #a98cff !important;
+  background: #f8f7ff !important;
+}
+
+:root[data-theme="dark"] .studio-shell .tag-row [data-slot="badge"],
+:root[data-theme="dark"] .studio-shell .tag-row span {
+  color: #f1edff !important;
+  background: rgba(108, 96, 142, 0.78) !important;
+  border-color: rgba(228, 218, 255, 0.24) !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.38) !important;
+  opacity: 1 !important;
+}
+
+:root[data-theme="dark"] .studio-shell .tag-row [data-slot="badge"]:first-child {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #7457ea, #a987ff) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .filter-tabs button,
+:root[data-theme="dark"] .studio-shell .history-tools select,
+:root[data-theme="dark"] .studio-shell .history-tools .view-button,
+:root[data-theme="dark"] .studio-shell .credit-pill,
+:root[data-theme="dark"] .studio-shell .glass-button,
+:root[data-theme="dark"] .studio-shell .account-button,
+:root[data-theme="dark"] .studio-shell .top-icon-button,
+:root[data-theme="dark"] .studio-shell .premium-button {
+  color: #f0f2ff !important;
+  border-color: rgba(225, 218, 255, 0.2) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .filter-tabs button svg,
+:root[data-theme="dark"] .studio-shell .history-tools .view-button svg,
+:root[data-theme="dark"] .studio-shell .topbar-actions svg {
+  color: #f0ecff !important;
+  opacity: 1 !important;
+}
+
+:root[data-theme="dark"] .studio-shell .filter-tabs button.active,
+:root[data-theme="dark"] .studio-shell .history-tools .view-button.active {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, rgba(111, 83, 236, 0.92), rgba(148, 116, 255, 0.78)) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .prompt-top textarea {
+  color: #f2f5ff !important;
+}
+
+:root[data-theme="dark"] .studio-shell .prompt-top textarea::placeholder {
+  color: #bcc3df !important;
+  opacity: 1 !important;
+}
+
+:root[data-theme="dark"] .studio-shell .ratio-button,
+:root[data-theme="dark"] .studio-shell select,
+:root[data-theme="dark"] .studio-shell .count-control,
+:root[data-theme="dark"] .studio-shell .count-control input,
+:root[data-theme="dark"] .studio-shell .soft-button,
+:root[data-theme="dark"] .studio-shell .advanced-toggle {
+  color: #f1f3ff !important;
+}
+
+:root[data-theme="dark"] .studio-shell .count-control span,
+:root[data-theme="dark"] .studio-shell .upload-tile,
+:root[data-theme="dark"] .studio-shell .upload-tile::after {
+  color: #c9cfea !important;
+}
+
+:root[data-theme="dark"] .studio-shell .task-more-actions .icon-button,
+:root[data-theme="dark"] .studio-shell .task-more-actions svg {
+  color: #d8dcf4 !important;
+  opacity: 1 !important;
+}
+
+:root[data-theme="dark"] body::after {
+  background:
+    radial-gradient(ellipse at 30% 96%, rgba(126, 92, 255, 0.18), transparent 34%),
+    radial-gradient(ellipse at 78% 100%, rgba(61, 67, 104, 0.34), transparent 36%),
+    linear-gradient(0deg, rgba(7, 8, 13, 0.9), rgba(17, 20, 31, 0.68) 48%, rgba(18, 21, 32, 0)) !important;
+  filter: blur(18px) saturate(112%) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .main::after {
+  background:
+    radial-gradient(ellipse at 52% 100%, rgba(133, 101, 255, 0.18), transparent 44%),
+    linear-gradient(0deg, rgba(8, 9, 15, 0.72), rgba(21, 24, 36, 0.5) 50%, rgba(21, 24, 36, 0)) !important;
+  backdrop-filter: blur(2px) saturate(118%) !important;
+}
