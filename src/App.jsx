@@ -1344,28 +1344,45 @@ function App() {
           event.preventDefault();
           await generateNewTask();
         }}>
-          <label className="upload-tile" title="上传参考图">
-            <input type="file" accept="image/*" multiple onChange={async event => {
-              await addReferenceFiles(event.target.files || []);
-              event.target.value = "";
-            }} />
-            <span aria-hidden="true"><Upload /></span>
-          </label>
+          {referenceImages.length === 0 ? (
+            <label className="upload-tile" title="上传参考图">
+              <input type="file" accept="image/*" multiple onChange={async event => {
+                await addReferenceFiles(event.target.files || []);
+                event.target.value = "";
+              }} />
+              <span aria-hidden="true"><Upload /></span>
+            </label>
+          ) : (
+            <div
+              className="reference-dock"
+              aria-label={`已选择 ${referenceImages.length} 张参考图`}
+              style={{
+                ["--reference-count"]: referenceImages.length,
+                ["--reference-expanded-width"]: `${12 + (referenceImages.length + 1) * 72 + 12}px`
+              }}
+            >
+              <div className="reference-dock-stack">
+                {referenceImages.map((image, index) => (
+                  <figure className="reference-dock-card" key={image.id} style={{ ["--reference-index"]: index }}>
+                    <img src={image.dataUrl} alt={image.name} />
+                    <button type="button" aria-label="移除参考图" onClick={() => removeReference(image.id)}>
+                      <X />
+                    </button>
+                  </figure>
+                ))}
+                <label className="reference-dock-add" title="继续添加参考图">
+                  <input type="file" accept="image/*" multiple onChange={async event => {
+                    await addReferenceFiles(event.target.files || []);
+                    event.target.value = "";
+                  }} />
+                  <Plus />
+                </label>
+              </div>
+            </div>
+          )}
 
           <div className="prompt-zone">
             <div className="prompt-top">
-              <div className={`reference-strip${referenceImages.length === 0 ? " hidden" : ""}`} style={{
-                ["--reference-count"]: referenceImages.length,
-                ["--reference-collapsed-width"]: `${88 + Math.max(0, referenceImages.length - 1) * 24}px`,
-                ["--reference-expanded-width"]: `${88 + Math.max(0, referenceImages.length - 1) * 98}px`
-              }}>
-                {referenceImages.map((image, index) => (
-                  <div className="reference-thumb" key={image.id} style={{ ["--reference-index"]: index, zIndex: referenceImages.length - index }}>
-                    <img src={image.dataUrl} alt={image.name} />
-                    <button type="button" aria-label="移除参考图" onClick={() => removeReference(image.id)}>x</button>
-                  </div>
-                ))}
-              </div>
               <Textarea
                 value={prompt}
                 onChange={event => setPrompt(event.target.value)}
