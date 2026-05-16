@@ -1101,7 +1101,7 @@ body,
   max-width: min(520px, 34vw) !important;
   height: clamp(150px, 10vw, 184px) !important;
   min-height: clamp(150px, 10vw, 184px) !important;
-  overflow: visible !important;
+  overflow: hidden !important;
   border-radius: 8px !important;
   border-color: transparent !important;
   background: transparent !important;
@@ -1118,7 +1118,8 @@ body,
   max-width: none !important;
   height: 100% !important;
   min-height: 100% !important;
-  overflow: visible !important;
+  overflow: hidden !important;
+  border-radius: 8px !important;
 }
 
 .studio-shell .image-card img,
@@ -1131,6 +1132,7 @@ body,
   min-height: 100% !important;
   object-fit: contain !important;
   background: transparent !important;
+  border-radius: 8px !important;
 }
 
 .studio-shell .image-skeleton,
@@ -1400,4 +1402,17 @@ body,
   color: rgba(246, 242, 255, 0.9) !important;
   background: rgba(54, 47, 78, 0.92) !important;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+.studio-shell .generated-image-card:not(.is-loading):not(.is-streaming):not(.is-error),
+.studio-shell .generated-image-card:not(.is-loading):not(.is-streaming):not(.is-error) .image-preview-trigger,
+.studio-shell .generated-image-card:not(.is-loading):not(.is-streaming):not(.is-error) img {
+  overflow: hidden !important;
+  border-radius: 8px !important;
+}
+
+.studio-shell .history-task {
+  height: 248px !important;
+  min-height: 248px !important;
+  isolation: isolate !important;
 }
