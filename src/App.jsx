@@ -1464,52 +1464,54 @@ function App() {
       }}>
         <div className="preview-backdrop" data-close-preview />
         <div className="preview-stage">
-          <img
-            ref={previewImageRef}
-            src={preview.src}
-            alt="放大的生成结果"
-            draggable="false"
-            style={{ transform: `translate(${preview.x}px, ${preview.y}px) scale(${preview.scale})` }}
-            onPointerDown={event => {
-              if (!preview.isOpen) {
-                return;
-              }
+          {preview.src ? (
+            <img
+              ref={previewImageRef}
+              src={preview.src}
+              alt="放大的生成结果"
+              draggable="false"
+              style={{ transform: `translate(${preview.x}px, ${preview.y}px) scale(${preview.scale})` }}
+              onPointerDown={event => {
+                if (!preview.isOpen) {
+                  return;
+                }
 
-              event.preventDefault();
-              setPreview(prev => ({
-                ...prev,
-                isDragging: true,
-                dragStartX: event.clientX,
-                dragStartY: event.clientY,
-                originX: prev.x,
-                originY: prev.y
-              }));
-              event.currentTarget.setPointerCapture(event.pointerId);
-              event.currentTarget.classList.add("is-dragging");
-            }}
-            onPointerMove={event => {
-              if (!preview.isDragging) {
-                return;
-              }
+                event.preventDefault();
+                setPreview(prev => ({
+                  ...prev,
+                  isDragging: true,
+                  dragStartX: event.clientX,
+                  dragStartY: event.clientY,
+                  originX: prev.x,
+                  originY: prev.y
+                }));
+                event.currentTarget.setPointerCapture(event.pointerId);
+                event.currentTarget.classList.add("is-dragging");
+              }}
+              onPointerMove={event => {
+                if (!preview.isDragging) {
+                  return;
+                }
 
-              setPreview(prev => ({
-                ...prev,
-                x: prev.originX + event.clientX - prev.dragStartX,
-                y: prev.originY + event.clientY - prev.dragStartY
-              }));
-            }}
-            onPointerUp={event => {
-              setPreview(prev => ({ ...prev, isDragging: false }));
-              event.currentTarget.classList.remove("is-dragging");
-              if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-                event.currentTarget.releasePointerCapture(event.pointerId);
-              }
-            }}
-            onPointerCancel={event => {
-              setPreview(prev => ({ ...prev, isDragging: false }));
-              event.currentTarget.classList.remove("is-dragging");
-            }}
-          />
+                setPreview(prev => ({
+                  ...prev,
+                  x: prev.originX + event.clientX - prev.dragStartX,
+                  y: prev.originY + event.clientY - prev.dragStartY
+                }));
+              }}
+              onPointerUp={event => {
+                setPreview(prev => ({ ...prev, isDragging: false }));
+                event.currentTarget.classList.remove("is-dragging");
+                if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                  event.currentTarget.releasePointerCapture(event.pointerId);
+                }
+              }}
+              onPointerCancel={event => {
+                setPreview(prev => ({ ...prev, isDragging: false }));
+                event.currentTarget.classList.remove("is-dragging");
+              }}
+            />
+          ) : null}
         </div>
         <div className="preview-toolbar" aria-label="预览控制" onClick={event => event.stopPropagation()}>
           <Button className="preview-tool" variant="secondary" size="icon" type="button" aria-label="缩小" onClick={() => zoomPreview(-0.2)}><ZoomOut /></Button>

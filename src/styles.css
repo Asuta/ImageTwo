@@ -110,6 +110,8 @@
     opacity: 1 !important;
     filter: blur(16px) !important;
     mask-image: none !important;
+    pointer-events: none !important;
+    z-index: 0 !important;
     background:
       radial-gradient(ellipse at 8% 93%, rgba(115, 124, 171, 0.36), transparent 27%),
       radial-gradient(ellipse at 50% 103%, rgba(132, 130, 180, 0.28), transparent 34%),
@@ -121,7 +123,26 @@
     inset: 0 !important;
     height: auto !important;
     filter: none !important;
+    pointer-events: none !important;
+    z-index: 0 !important;
     background: linear-gradient(90deg, rgba(255, 255, 255, 0.48) 0 240px, rgba(255, 255, 255, 0.1) 240px 100%) !important;
+  }
+
+  .studio-shell .image-preview {
+    z-index: 240 !important;
+  }
+
+  .studio-shell .preview-backdrop {
+    z-index: 0 !important;
+  }
+
+  .studio-shell .preview-stage {
+    z-index: 1 !important;
+  }
+
+  .studio-shell .preview-toolbar,
+  .studio-shell .preview-close {
+    z-index: 2 !important;
   }
 
   .studio-shell .sidebar {
