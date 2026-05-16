@@ -988,6 +988,21 @@ function App() {
     });
   }
 
+  function handlePreviewStageClick(event) {
+    if (event.target === event.currentTarget) {
+      closeImagePreview();
+    }
+  }
+
+  function handlePreviewWheel(event) {
+    if (!preview.isOpen) {
+      return;
+    }
+
+    event.preventDefault();
+    zoomPreview(event.deltaY > 0 ? -0.12 : 0.12);
+  }
+
   function renderReferenceChips(task) {
     const thumbs = task.referenceThumbs || [];
 
@@ -1470,7 +1485,7 @@ function App() {
         }
       }}>
         <div className="preview-backdrop" data-close-preview />
-        <div className="preview-stage">
+        <div className="preview-stage" onClick={handlePreviewStageClick} onWheel={handlePreviewWheel}>
           {preview.src ? (
             <img
               ref={previewImageRef}
