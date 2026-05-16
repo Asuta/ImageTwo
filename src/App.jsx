@@ -377,6 +377,13 @@ function App() {
   }, [history]);
 
   useEffect(() => {
+    document.body.classList.toggle("preview-open", preview.isOpen);
+    return () => {
+      document.body.classList.remove("preview-open");
+    };
+  }, [preview.isOpen]);
+
+  useEffect(() => {
     if (!toast) {
       return;
     }
