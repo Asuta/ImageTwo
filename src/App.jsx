@@ -300,7 +300,6 @@ function App() {
   const [historyLoading, setHistoryLoading] = useState(true);
   const [accountLoading, setAccountLoading] = useState(true);
   const [historyError, setHistoryError] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
   const historyRef = useRef([]);
   const previewImageRef = useRef(null);
   const toastTimerRef = useRef(null);
@@ -717,8 +716,8 @@ function App() {
         throw new Error(result.detail || result.error || "生成失败。");
       }
 
-      if (Number.isFinite(result.remainingCredits) && currentUser) {
-        setCurrentUser({ ...currentUser, credits: result.remainingCredits });
+      if (Number.isFinite(result.remainingCredits)) {
+        setCurrentUser(prev => prev ? { ...prev, credits: result.remainingCredits } : prev);
       }
 
       const blob = base64ToBlob(result.imageBase64, result.mimeType || "image/png");
@@ -841,7 +840,6 @@ function App() {
   }
 
   async function runTaskImages(task, images) {
-    setIsGenerating(true);
     await Promise.allSettled(images.map(image => requestImage(task, image.id)));
     const updatedTask = historyRef.current.find(item => item.id === task.id);
     const generatedCount = updatedTask?.images.filter(image => image.status === "done").length || 0;
@@ -852,8 +850,6 @@ function App() {
     } else {
       showToast(`${generatedCount} 张图片已保存到当前浏览器`);
     }
-
-    setIsGenerating(false);
   }
 
   async function generateNewTask() {
@@ -888,7 +884,10 @@ function App() {
     });
     setPrompt("");
     showToast("已提交生成请求");
-    await runTaskImages(task, task.images);
+    runTaskImages(task, task.images).catch(error => {
+      console.error(error);
+      showToast(error instanceof Error ? error.message : String(error));
+    });
   }
 
   async function rerunTask(task) {
@@ -900,7 +899,10 @@ function App() {
     setSelectedId(task.id);
     const images = createLoadingImages(task.count || 1);
     setHistory(prev => prev.map(item => item.id === task.id ? { ...item, images: [...images, ...item.images] } : item));
-    await runTaskImages(task, images);
+    runTaskImages(task, images).catch(error => {
+      console.error(error);
+      showToast(error instanceof Error ? error.message : String(error));
+    });
   }
 
   function fillFromTask(task) {
@@ -1384,7 +1386,7 @@ function App() {
             </div>
           </div>
 
-          <Button className="generate-button" type="submit" disabled={isGenerating}>
+          <Button className="generate-button" type="submit">
             <Sparkles data-icon="inline-start" />
             <span>{referenceModeActive ? "编辑" : "生成"}</span>
           </Button>
