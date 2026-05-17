@@ -52,6 +52,7 @@ const GENERATION_POLL_INTERVAL_MS = 2500;
 const GENERATION_POLL_TIMEOUT_MS = 5 * 60 * 1000;
 const HISTORY_LOAD_TIMEOUT_MS = 3500;
 const HISTORY_IMAGE_SCALE = 100;
+const GIFT_CARD_SHOP_URL = "https://pay.ldxp.cn/shop/2C8QL88T";
 
 const ratioChoices = [
   { value: "auto", label: "智能", shape: "auto" },
@@ -367,7 +368,7 @@ function App() {
       if (!event.target.closest(".ratio-control")) {
         setRatioOpen(false);
       }
-      if (!event.target.closest(".account-popover") && !event.target.closest("#accountButton")) {
+      if (!event.target.closest(".account-popover") && !event.target.closest("[data-account-trigger]")) {
         setAccountOpen(false);
       }
     };
@@ -1296,13 +1297,21 @@ function App() {
       <main className="main">
         <header className="topbar">
           <div className="topbar-actions">
-            <Button className="credit-pill" variant="outline" type="button">
+            <Button
+              className="credit-pill"
+              variant="outline"
+              type="button"
+              data-account-trigger
+              aria-expanded={accountOpen}
+              aria-controls="accountPanel"
+              onClick={() => setAccountOpen(true)}
+            >
               <CreditCard data-icon="inline-start" />
               <span>Credits {isLoggedIn ? currentUser.credits : "0"}</span>
               <Plus data-icon="inline-end" />
             </Button>
             <Button className="premium-button" asChild>
-              <a href="https://pay.ldxp.cn/shop/2C8QL88T" target="_blank" rel="noreferrer">
+              <a href={GIFT_CARD_SHOP_URL} target="_blank" rel="noreferrer">
                 <Sparkles data-icon="inline-start" />
                 Pro
               </a>
@@ -1339,7 +1348,7 @@ function App() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-            <Button id="accountButton" className="account-button" variant="outline" type="button" aria-expanded={accountOpen} aria-controls="accountPanel" onClick={() => setAccountOpen(prev => !prev)}>
+            <Button id="accountButton" className="account-button" variant="outline" type="button" data-account-trigger aria-expanded={accountOpen} aria-controls="accountPanel" onClick={() => setAccountOpen(prev => !prev)}>
               <span className="status-dot" />
               <span>{isLoggedIn ? currentUser.email : "Ava Chen"}</span>
             </Button>
@@ -1596,6 +1605,11 @@ function App() {
                   <strong>{currentUser.email}</strong>
                   <span>{currentUser.credits} 点</span>
                 </div>
+                <Button className="buy-gift-card-button" variant="outline" size="sm" asChild>
+                  <a href={GIFT_CARD_SHOP_URL} target="_blank" rel="noreferrer">
+                    购买兑换码
+                  </a>
+                </Button>
               </div>
               <label className="account-control">
                 <span>礼品卡</span>
