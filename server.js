@@ -48,13 +48,17 @@ ensureDataFile();
 
 function loadLocalEnv() {
   const envPaths = [
-    process.env.IMAGE2_ENV_FILE || join(homedir(), ".image2.env"),
+    getSharedEnvPath(),
     join(__dirname, ".env")
   ];
 
   for (const envPath of envPaths) {
     loadEnvFile(envPath);
   }
+}
+
+function getSharedEnvPath() {
+  return resolve(process.env.IMAGE2_ENV_FILE || join(homedir(), ".image2.env"));
 }
 
 function loadEnvFile(envPath) {
@@ -123,6 +127,7 @@ function isValidEmail(email) {
 
 function ensureDataFile() {
   if (existsSync(dataPath)) {
+    migrateProviderConfigToEnv();
     const data = readData();
     if (!Array.isArray(data.providers) || data.providers.length === 0) {
       data.providers = [createDefaultProvider()];
@@ -164,8 +169,7 @@ function readData() {
       creditLogs: Array.isArray(data.creditLogs) ? data.creditLogs : [],
       adminLogs: Array.isArray(data.adminLogs) ? data.adminLogs : [],
       usageLogs: Array.isArray(data.usageLogs) ? data.usageLogs : [],
-      providers: normalizeProviders(Array.isArray(data.providers) ? data.providers : []),
-      activeProviderId: typeof data.activeProviderId === "string" ? data.activeProviderId : ""
+      ...readProviderStore(data)
     };
   } catch {
     return {
@@ -177,8 +181,7 @@ function readData() {
       creditLogs: [],
       adminLogs: [],
       usageLogs: [],
-      providers: [],
-      activeProviderId: ""
+      ...readProviderStore({})
     };
   }
 }
@@ -193,18 +196,108 @@ function writeData(data) {
     giftCards: normalizeGiftCards(Array.isArray(data.giftCards) ? data.giftCards : []),
     creditLogs: Array.isArray(data.creditLogs) ? data.creditLogs : [],
     adminLogs: Array.isArray(data.adminLogs) ? data.adminLogs : [],
-    usageLogs: Array.isArray(data.usageLogs) ? data.usageLogs : [],
-    providers: normalizeProviders(Array.isArray(data.providers) ? data.providers : []),
-    activeProviderId: typeof data.activeProviderId === "string" ? data.activeProviderId : ""
+    usageLogs: Array.isArray(data.usageLogs) ? data.usageLogs : []
   };
-  if (!storableData.providers.length) {
-    storableData.providers = [createDefaultProvider()];
-  }
-  if (!storableData.providers.some(provider => provider.id === storableData.activeProviderId && provider.enabled)) {
-    storableData.activeProviderId = storableData.providers.find(provider => provider.enabled)?.id || storableData.providers[0]?.id || "";
-  }
+  writeProviderStore(data);
   writeFileSync(tmpPath, JSON.stringify(storableData, null, 2));
   renameSync(tmpPath, dataPath);
+}
+
+function readProviderStore(data = {}) {
+  const envStore = readProviderStoreFromEnv();
+  if (envStore) {
+    return envStore;
+  }
+
+  return normalizeProviderStore(
+    Array.isArray(data.providers) ? data.providers : [],
+    typeof data.activeProviderId === "string" ? data.activeProviderId : ""
+  );
+}
+
+function readProviderStoreFromEnv() {
+  const rawProviders = String(process.env.IMAGE2_PROVIDERS_JSON || "").trim();
+  if (!rawProviders) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(rawProviders);
+    const providerList = Array.isArray(parsed) ? parsed : parsed.providers;
+    return normalizeProviderStore(
+      Array.isArray(providerList) ? providerList : [],
+      process.env.IMAGE2_ACTIVE_PROVIDER_ID || parsed.activeProviderId || ""
+    );
+  } catch {
+    return null;
+  }
+}
+
+function normalizeProviderStore(providers, activeProviderId = "") {
+  const normalizedProviders = normalizeProviders(Array.isArray(providers) ? providers : []);
+  if (!normalizedProviders.length) {
+    normalizedProviders.push(createDefaultProvider());
+  }
+
+  let normalizedActiveProviderId = String(activeProviderId || "");
+  if (!normalizedProviders.some(provider => provider.id === normalizedActiveProviderId && provider.enabled)) {
+    normalizedActiveProviderId = normalizedProviders.find(provider => provider.enabled)?.id || normalizedProviders[0]?.id || "";
+  }
+
+  return {
+    providers: normalizedProviders,
+    activeProviderId: normalizedActiveProviderId
+  };
+}
+
+function writeProviderStore(data) {
+  const providerStore = normalizeProviderStore(data.providers, data.activeProviderId);
+  updateSharedEnvFile({
+    IMAGE2_PROVIDERS_JSON: JSON.stringify(providerStore.providers),
+    IMAGE2_ACTIVE_PROVIDER_ID: providerStore.activeProviderId
+  });
+}
+
+function migrateProviderConfigToEnv() {
+  if (readProviderStoreFromEnv()) {
+    return;
+  }
+
+  try {
+    const rawData = JSON.parse(readFileSync(dataPath, "utf8").replace(/^\uFEFF/, ""));
+    if (Array.isArray(rawData.providers) && rawData.providers.length) {
+      writeProviderStore(rawData);
+    }
+  } catch {
+    // Ignore migration failures; readData will fall back to the default provider.
+  }
+}
+
+function updateSharedEnvFile(values) {
+  const envPath = getSharedEnvPath();
+  const lines = existsSync(envPath) ? readFileSync(envPath, "utf8").split(/\r?\n/) : [];
+  const pending = new Map(Object.entries(values).map(([key, value]) => [key, String(value ?? "")]));
+  const nextLines = lines.map(line => {
+    const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=/);
+    if (!match || !pending.has(match[1])) {
+      return line;
+    }
+
+    const key = match[1];
+    const value = pending.get(key);
+    pending.delete(key);
+    return `${key}=${value}`;
+  });
+
+  for (const [key, value] of pending) {
+    nextLines.push(`${key}=${value}`);
+  }
+
+  mkdirSync(resolve(envPath, ".."), { recursive: true });
+  writeFileSync(envPath, nextLines.join("\n").replace(/\n*$/, "\n"));
+  for (const [key, value] of Object.entries(values)) {
+    process.env[key] = String(value ?? "");
+  }
 }
 
 function createDefaultProvider() {
