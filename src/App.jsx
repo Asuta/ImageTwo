@@ -1433,8 +1433,15 @@ function App() {
                     onMouseEnter={() => setReferenceDockExpanded(true)}
                     onFocus={() => setReferenceDockExpanded(true)}
                   >
-                    <img src={image.dataUrl} alt={image.name} />
-                    <button type="button" aria-label="移除参考图" onClick={() => removeReference(image.id)}>
+                    <button
+                      className="reference-dock-preview"
+                      type="button"
+                      aria-label={`放大浏览参考图 ${image.name || index + 1}`}
+                      onClick={() => openImagePreview(image.dataUrl)}
+                    >
+                      <img src={image.dataUrl} alt={image.name} />
+                    </button>
+                    <button className="reference-dock-remove" type="button" aria-label="移除参考图" onClick={() => removeReference(image.id)}>
                       <X />
                     </button>
                   </figure>

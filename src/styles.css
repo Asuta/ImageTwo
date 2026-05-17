@@ -3773,6 +3773,22 @@ body.preview-open {
     z-index: calc(12 - var(--reference-index, 0)) !important;
   }
 
+  .studio-shell .reference-dock-preview {
+    width: 100% !important;
+    height: 100% !important;
+    display: block !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: inherit !important;
+    background: transparent !important;
+    cursor: zoom-in !important;
+  }
+
+  .studio-shell .reference-dock-preview:focus-visible {
+    outline: 2px solid rgba(116, 95, 255, 0.82) !important;
+    outline-offset: -3px !important;
+  }
+
   .studio-shell .reference-dock-card img {
     width: 100% !important;
     height: 100% !important;
@@ -3781,7 +3797,7 @@ body.preview-open {
     background: linear-gradient(180deg, rgba(255,255,255,0.58), rgba(229,226,244,0.78)) !important;
   }
 
-  .studio-shell .reference-dock-card button {
+  .studio-shell .reference-dock-card .reference-dock-remove {
     position: absolute !important;
     top: 6px !important;
     right: 6px !important;
@@ -3797,7 +3813,7 @@ body.preview-open {
     transition: opacity 160ms ease !important;
   }
 
-  .studio-shell .reference-dock-card button svg {
+  .studio-shell .reference-dock-card .reference-dock-remove svg {
     width: 12px !important;
     height: 12px !important;
   }
@@ -3833,8 +3849,8 @@ body.preview-open {
     transform: translateY(-2px) !important;
   }
 
-  .studio-shell .reference-dock:hover .reference-dock-card button,
-  .studio-shell .reference-dock:focus-within .reference-dock-card button {
+  .studio-shell .reference-dock:hover .reference-dock-card .reference-dock-remove,
+  .studio-shell .reference-dock:focus-within .reference-dock-card .reference-dock-remove {
     opacity: 1 !important;
   }
 
