@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
@@ -300,6 +300,7 @@ function App() {
   const [historyLoading, setHistoryLoading] = useState(true);
   const [accountLoading, setAccountLoading] = useState(true);
   const [historyError, setHistoryError] = useState("");
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const historyRef = useRef([]);
   const previewImageRef = useRef(null);
   const toastTimerRef = useRef(null);
@@ -446,7 +447,7 @@ function App() {
     const db = await openHistoryDb();
     const transaction = db.transaction("tasks", "readwrite");
     const done = transactionDone(transaction);
-    const { referenceImages: _referenceImages, images: _images, ...storableTask } = task;
+    const { images: _images, ...storableTask } = task;
     transaction.objectStore("tasks").put(storableTask);
     await done;
   }
@@ -897,22 +898,47 @@ function App() {
     });
   }
 
-  async function rerunTask(task) {
+  async function generateFromTask(task) {
+    if (!currentUser) {
+      showToast("请先登录后再生成");
+      setAccountOpen(true);
+      return;
+    }
+
     if (task.mode === "edit" && (!task.referenceImages || task.referenceImages.length === 0)) {
       showToast("刷新后参考图原始数据已失效，请重新上传");
       return;
     }
 
-    setSelectedId(task.id);
-    const images = createLoadingImages(task.count || 1);
-    setHistory(prev => prev.map(item => item.id === task.id ? { ...item, images: [...images, ...item.images] } : item));
-    runTaskImages(task, images).catch(error => {
+    const nextTask = createTask({
+      prompt: task.prompt,
+      aspectRatio: task.aspectRatio || "auto",
+      quality: task.quality || "medium",
+      count: getCountValue(task.count || task.images.length || 1),
+      mode: task.referenceImages?.length ? "edit" : "generate",
+      referenceImages: task.referenceImages || []
+    });
+
+    setDeleteConfirmId(null);
+    setSelectedId(nextTask.id);
+    setHistory(prev => [nextTask, ...prev]);
+    saveTask(nextTask).catch(error => {
+      console.error(error);
+      showToast("本地历史暂时不可用，仍会继续生成");
+    });
+    showToast("已按该历史记录再次提交生成");
+    runTaskImages(nextTask, nextTask.images).catch(error => {
       console.error(error);
       showToast(error instanceof Error ? error.message : String(error));
     });
   }
 
   function fillFromTask(task) {
+    if (task.mode === "edit" && (!task.referenceImages || task.referenceImages.length === 0)) {
+      showToast("刷新后参考图原始数据已失效，请重新上传");
+    }
+
+    setDeleteConfirmId(null);
     setSelectedId(task.id);
     setPrompt(task.prompt);
     setAspectRatio(task.aspectRatio || "auto");
@@ -933,9 +959,19 @@ function App() {
         URL.revokeObjectURL(image.url);
       }
     });
-    setHistory(prev => prev.filter(item => item.id !== task.id));
-    setSelectedId(prev => (prev === task.id ? historyRef.current[0]?.id || null : prev));
+    setDeleteConfirmId(null);
+    setHistory(prev => {
+      const nextHistory = prev.filter(item => item.id !== task.id);
+      setSelectedId(selected => (selected === task.id ? nextHistory[0]?.id || null : selected));
+      return nextHistory;
+    });
     showToast("已删除本地历史记录");
+  }
+
+  async function copyPromptFromTask(task) {
+    setDeleteConfirmId(null);
+    await navigator.clipboard.writeText(task.prompt);
+    showToast("提示词已复制");
   }
 
   function openImagePreview(src) {
@@ -1299,10 +1335,43 @@ function App() {
                       <Badge variant="outline">{formatTime(new Date(task.createdAt))}</Badge>
                     </div>
                   </div>
-                  <div className="task-more-actions">
-                    <Button className="icon-button" variant="ghost" size="icon" type="button" aria-label="收藏" onClick={event => event.stopPropagation()}><Star /></Button>
-                    <Button className="icon-button" variant="ghost" size="icon" type="button" aria-label="分享" onClick={event => event.stopPropagation()}><Share2 /></Button>
-                    <Button className="icon-button" variant="ghost" size="icon" type="button" aria-label="更多" onClick={event => event.stopPropagation()}><Menu /></Button>
+                  <div className="task-more-actions" onClick={event => event.stopPropagation()}>
+                    <Button className="task-action-button" variant="ghost" type="button" title="重新编辑" aria-label="重新编辑" onClick={() => fillFromTask(task)}>
+                      <WandSparkles data-icon="inline-start" />
+                      <span>重新编辑</span>
+                    </Button>
+                    <Button className="task-action-button" variant="ghost" type="button" title="再次生成" aria-label="再次生成" onClick={() => generateFromTask(task)}>
+                      <RotateCcw data-icon="inline-start" />
+                      <span>再次生成</span>
+                    </Button>
+                    <Button className="task-action-button compact" variant="ghost" type="button" title="复制提示词" aria-label="复制提示词" onClick={() => copyPromptFromTask(task)}>
+                      <Copy />
+                    </Button>
+                    <div className="delete-action-wrap">
+                      <Button
+                        className="task-delete-button"
+                        variant="ghost"
+                        size="icon"
+                        type="button"
+                        aria-label="删除"
+                        aria-expanded={deleteConfirmId === task.id}
+                        onClick={() => setDeleteConfirmId(prev => prev === task.id ? null : task.id)}
+                      >
+                        <Trash2 />
+                      </Button>
+                      {deleteConfirmId === task.id ? (
+                        <div className="delete-confirm-popover" role="dialog" aria-label="确认删除历史记录">
+                          <strong>删除这条记录？</strong>
+                          <span>会移除该条目的所有图片。</span>
+                          <div>
+                            <Button variant="ghost" type="button" onClick={() => setDeleteConfirmId(null)}>取消</Button>
+                            <Button variant="destructive" type="button" onClick={async () => {
+                              await deleteTask(task);
+                            }}>删除</Button>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                 </CardHeader>
 
@@ -1312,28 +1381,6 @@ function App() {
                     {task.images.slice(0, 4).map(renderImageCard)}
                   </div>
                 </CardContent>
-
-                <CardFooter className="task-actions">
-                  <Button variant="secondary" type="button" onClick={e => { e.stopPropagation(); fillFromTask(task); }}>
-                    <WandSparkles data-icon="inline-start" />重新编辑
-                  </Button>
-                  <Button variant="outline" type="button" onClick={e => { e.stopPropagation(); rerunTask(task); }}>
-                    <RotateCcw data-icon="inline-start" />再次生成
-                  </Button>
-                  <Button variant="outline" type="button" onClick={async e => {
-                    e.stopPropagation();
-                    await navigator.clipboard.writeText(task.prompt);
-                    showToast("提示词已复制");
-                  }}>
-                    <Copy data-icon="inline-start" />复制提示词
-                  </Button>
-                  <Button variant="destructive" type="button" onClick={async e => {
-                    e.stopPropagation();
-                    await deleteTask(task);
-                  }} aria-label="删除">
-                    <Trash2 />
-                  </Button>
-                </CardFooter>
               </Card>
             ))}
             {showPreviewRows ? (
