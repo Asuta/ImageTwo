@@ -1118,9 +1118,10 @@ function App() {
                 <img src={src} alt="示例生成图" />
                 {row.loading && index === 0 ? (
                   <div className="concept-progress">
-                    <span>45%</span>
-                    <strong>Generating your image...</strong>
-                    <em>This may take a few moments.</em>
+                    <span className="aurora-flow aurora-flow-a" aria-hidden="true" />
+                    <span className="aurora-flow aurora-flow-b" aria-hidden="true" />
+                    <span className="aurora-flow aurora-flow-c" aria-hidden="true" />
+                    <span className="gradient-status">生成中...</span>
                   </div>
                 ) : null}
                 {!row.loading && rowIndex === 0 && index === images.length - 1 ? <div className="concept-more">+2</div> : null}
@@ -1154,9 +1155,10 @@ function App() {
         <figure key={image.id} className="image-card is-loading concept-image concept-loading-image">
           <div className="image-skeleton" role="status" aria-label="图片生成中">
             <div className="concept-progress">
-              <span>{image.status === "streaming" ? "..." : "0%"}</span>
-              <strong>{image.status === "streaming" ? "Receiving your image..." : "Generating your image..."}</strong>
-              <em>This may take a few moments.</em>
+              <span className="aurora-flow aurora-flow-a" aria-hidden="true" />
+              <span className="aurora-flow aurora-flow-b" aria-hidden="true" />
+              <span className="aurora-flow aurora-flow-c" aria-hidden="true" />
+              <span className="gradient-status">{image.status === "streaming" ? "接收中..." : "生成中..."}</span>
             </div>
           </div>
           <figcaption>{image.status === "streaming" ? "正在接收图片..." : "正在生成..."}</figcaption>

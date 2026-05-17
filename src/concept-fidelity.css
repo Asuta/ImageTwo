@@ -659,12 +659,12 @@
   .studio-shell .image-card.is-loading,
   .studio-shell .image-card.is-streaming {
     background:
-      radial-gradient(circle at 52% 24%, rgba(255, 255, 255, 0.18), transparent 22%),
-      linear-gradient(135deg, rgba(69, 82, 123, 0.72), rgba(31, 30, 61, 0.95)),
-      url("/demo/cyber-1.png") center / cover no-repeat !important;
+      linear-gradient(145deg, #f6f3ff 0%, #eefaff 38%, #f7fff1 68%, #fff1f7 100%) !important;
+    background-size: 100% 100% !important;
     overflow: hidden !important;
   }
 
+  .studio-shell .concept-loading-image::before,
   .studio-shell .image-card.is-loading::before,
   .studio-shell .image-card.is-streaming::before {
     content: "" !important;
@@ -672,9 +672,23 @@
     inset: 0 !important;
     z-index: 0 !important;
     background:
-      linear-gradient(135deg, rgba(35, 43, 78, 0.62), rgba(45, 24, 72, 0.6)),
-      rgba(16, 17, 39, 0.12) !important;
-    backdrop-filter: blur(8px) saturate(128%) !important;
+      radial-gradient(circle at 16% 14%, rgba(255, 194, 222, 0.54), transparent 24%),
+      radial-gradient(circle at 74% 12%, rgba(202, 255, 216, 0.54), transparent 27%),
+      radial-gradient(circle at 48% 88%, rgba(184, 214, 255, 0.5), transparent 34%) !important;
+    opacity: 0.72 !important;
+  }
+
+  .studio-shell .concept-loading-image::after,
+  .studio-shell .image-card.is-loading::after,
+  .studio-shell .image-card.is-streaming::after {
+    content: "" !important;
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 0 !important;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.42), transparent 46%, rgba(255, 255, 255, 0.2)),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.24), transparent 38%, rgba(255, 255, 255, 0.12)) !important;
+    opacity: 0.56 !important;
   }
 
   .studio-shell .image-card.is-loading .image-skeleton,
@@ -682,6 +696,7 @@
     position: relative !important;
     z-index: 1 !important;
     background: transparent !important;
+    animation: none !important;
   }
 
   .studio-shell .image-card.is-loading figcaption,
@@ -699,53 +714,159 @@
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
   }
 
+  .studio-shell .is-preview-loading .concept-grid::after {
+    content: none !important;
+  }
+
   .studio-shell .concept-loading-image img {
-    filter: saturate(0.95) blur(0.15px) !important;
+    opacity: 0 !important;
+    filter: none !important;
   }
 
   .studio-shell .concept-progress {
     inset: 0 !important;
     width: auto !important;
     height: auto !important;
-    gap: 5px !important;
-    color: rgba(255, 255, 255, 0.94) !important;
-    background: rgba(38, 35, 62, 0.1) !important;
-    backdrop-filter: blur(5px) saturate(132%) !important;
-    text-shadow: 0 1px 12px rgba(32, 24, 72, 0.32) !important;
+    display: block !important;
+    position: absolute !important;
+    overflow: hidden !important;
+    color: #fff !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    text-align: left !important;
+    text-shadow: none !important;
   }
 
   .studio-shell .concept-progress span {
-    width: 70px !important;
-    height: 70px !important;
-    display: grid !important;
-    place-items: center !important;
-    border-width: 4px !important;
-    border-style: solid !important;
-    border-color: rgba(255, 255, 255, 0.72) !important;
-    border-right-color: rgba(151, 115, 255, 0.82) !important;
+    position: absolute !important;
+  }
+
+  .studio-shell .concept-progress .aurora-flow {
+    z-index: 1 !important;
+    pointer-events: none !important;
+    display: block !important;
+    width: 78% !important;
+    height: 62% !important;
     border-radius: 999px !important;
-    box-shadow:
-      0 0 0 10px rgba(255, 255, 255, 0.12),
-      0 12px 32px rgba(94, 70, 156, 0.32) !important;
-    font-size: 17px !important;
-    font-weight: 760 !important;
-    background: rgba(98, 80, 162, 0.18) !important;
+    opacity: 0.74;
+    mix-blend-mode: multiply !important;
+    filter: blur(28px) saturate(1.34) brightness(1.04) !important;
+    will-change: transform, opacity !important;
+  }
+
+  .studio-shell .concept-progress .aurora-flow-a {
+    left: -20% !important;
+    top: -10% !important;
+    background:
+      linear-gradient(110deg, rgba(255, 104, 178, 0.68), rgba(154, 115, 255, 0.44) 48%, rgba(95, 222, 255, 0.5)) !important;
+    transform: translate3d(-4%, 8%, 0) rotate(-12deg) scale(1.08);
+    animation: aurora-ribbon-a 6.4s cubic-bezier(0.45, 0, 0.2, 1) infinite alternate !important;
+  }
+
+  .studio-shell .concept-progress .aurora-flow-b {
+    right: -24% !important;
+    top: 6% !important;
+    background:
+      linear-gradient(100deg, rgba(94, 239, 218, 0.68), rgba(216, 255, 122, 0.52) 46%, rgba(126, 177, 255, 0.44)) !important;
+    transform: translate3d(4%, -4%, 0) rotate(14deg) scale(1.12);
+    animation: aurora-ribbon-b 7.6s cubic-bezier(0.42, 0, 0.22, 1) infinite alternate !important;
+  }
+
+  .studio-shell .concept-progress .aurora-flow-c {
+    left: 14% !important;
+    bottom: -24% !important;
+    width: 88% !important;
+    height: 74% !important;
+    background:
+      linear-gradient(95deg, rgba(185, 131, 255, 0.56), rgba(120, 222, 255, 0.48) 42%, rgba(255, 193, 229, 0.54)) !important;
+    transform: translate3d(0, 8%, 0) rotate(4deg) scale(1.02);
+    animation: aurora-ribbon-c 8.2s cubic-bezier(0.4, 0, 0.18, 1) infinite alternate !important;
+  }
+
+  .studio-shell .concept-progress .gradient-status {
+    position: absolute !important;
+    top: 20px !important;
+    left: 20px !important;
+    z-index: 3 !important;
+    width: auto !important;
+    height: auto !important;
+    min-width: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 9px 12px !important;
+    border: 0 !important;
+    border-radius: 9px !important;
+    background: rgba(58, 61, 67, 0.48) !important;
     color: #fff !important;
+    box-shadow: 0 8px 20px rgba(44, 55, 64, 0.12) !important;
+    font-size: 13px !important;
+    font-weight: 760 !important;
+    line-height: 1 !important;
+    letter-spacing: 0 !important;
+    animation: status-chip-breathe 2.8s ease-in-out infinite !important;
   }
 
   .studio-shell .concept-progress strong {
-    display: block !important;
-    margin-top: 4px !important;
-    font-size: 12px !important;
-    font-weight: 740 !important;
-    color: rgba(255, 255, 255, 0.96) !important;
+    display: none !important;
   }
 
   .studio-shell .concept-progress em {
-    display: block !important;
-    font-size: 11px !important;
-    font-style: normal !important;
-    color: rgba(255, 255, 255, 0.76) !important;
+    display: none !important;
+  }
+
+  @keyframes aurora-ribbon-a {
+    0% {
+      transform: translate3d(-6%, 10%, 0) rotate(-14deg) scale(1.08);
+      opacity: 0.48;
+    }
+    45% {
+      transform: translate3d(22%, 28%, 0) rotate(6deg) scale(1.25);
+      opacity: 0.78;
+    }
+    100% {
+      transform: translate3d(54%, -2%, 0) rotate(16deg) scale(1.12);
+      opacity: 0.58;
+    }
+  }
+
+  @keyframes aurora-ribbon-b {
+    0% {
+      transform: translate3d(8%, -8%, 0) rotate(16deg) scale(1.12);
+      opacity: 0.5;
+    }
+    50% {
+      transform: translate3d(-28%, 18%, 0) rotate(-10deg) scale(1.28);
+      opacity: 0.82;
+    }
+    100% {
+      transform: translate3d(-58%, -2%, 0) rotate(-22deg) scale(1.14);
+      opacity: 0.56;
+    }
+  }
+
+  @keyframes aurora-ribbon-c {
+    0% {
+      transform: translate3d(-2%, 12%, 0) rotate(4deg) scale(1.02);
+      opacity: 0.44;
+    }
+    50% {
+      transform: translate3d(10%, -18%, 0) rotate(-8deg) scale(1.18);
+      opacity: 0.72;
+    }
+    100% {
+      transform: translate3d(-18%, -4%, 0) rotate(10deg) scale(1.24);
+      opacity: 0.54;
+    }
+  }
+
+  @keyframes status-chip-breathe {
+    0%, 100% {
+      background: rgba(58, 61, 67, 0.46);
+    }
+    50% {
+      background: rgba(42, 47, 55, 0.58);
+    }
   }
 
   .studio-shell .composer {
@@ -1482,6 +1603,40 @@ body,
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.5)),
     rgba(246, 244, 255, 0.66) !important;
+}
+
+.studio-shell .history-scroll .concept-loading-image,
+.studio-shell .history-scroll .image-card.is-loading,
+.studio-shell .history-scroll .image-card.is-streaming {
+  background:
+    linear-gradient(145deg, #f6f3ff 0%, #eefaff 38%, #f7fff1 68%, #fff1f7 100%) !important;
+  background-size: 100% 100% !important;
+  animation: none !important;
+}
+
+.studio-shell .history-scroll .concept-loading-image::before,
+.studio-shell .history-scroll .image-card.is-loading::before,
+.studio-shell .history-scroll .image-card.is-streaming::before {
+  background:
+    radial-gradient(circle at 16% 14%, rgba(255, 194, 222, 0.54), transparent 24%),
+    radial-gradient(circle at 74% 12%, rgba(202, 255, 216, 0.54), transparent 27%),
+    radial-gradient(circle at 48% 88%, rgba(184, 214, 255, 0.5), transparent 34%) !important;
+  opacity: 0.72 !important;
+}
+
+.studio-shell .history-scroll .concept-loading-image::after,
+.studio-shell .history-scroll .image-card.is-loading::after,
+.studio-shell .history-scroll .image-card.is-streaming::after {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.42), transparent 46%, rgba(255, 255, 255, 0.2)),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.24), transparent 38%, rgba(255, 255, 255, 0.12)) !important;
+  opacity: 0.56 !important;
+}
+
+.studio-shell .history-scroll .concept-loading-image .concept-progress,
+.studio-shell .history-scroll .image-card.is-loading .concept-progress,
+.studio-shell .history-scroll .image-card.is-streaming .concept-progress {
+  background: transparent !important;
 }
 
 .studio-shell .prompt-top textarea,
