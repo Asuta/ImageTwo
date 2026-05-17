@@ -31,6 +31,16 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
@@ -313,6 +323,7 @@ function App() {
   const [accountLoading, setAccountLoading] = useState(true);
   const [historyError, setHistoryError] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [clearHistoryConfirmOpen, setClearHistoryConfirmOpen] = useState(false);
   const historyRef = useRef([]);
   const previewImageRef = useRef(null);
   const toastTimerRef = useRef(null);
@@ -496,6 +507,19 @@ function App() {
     transaction.objectStore("tasks").clear();
     transaction.objectStore("images").clear();
     await done;
+  }
+
+  async function clearAllLocalHistory() {
+    await clearHistoryDb();
+    history.forEach(task => task.images.forEach(image => {
+      if (image.url?.startsWith("blob:")) {
+        URL.revokeObjectURL(image.url);
+      }
+    }));
+    setHistory([]);
+    setSelectedId(null);
+    setClearHistoryConfirmOpen(false);
+    showToast("已清空当前浏览器的本地历史");
   }
 
   async function trimLocalHistory() {
@@ -1275,26 +1299,28 @@ function App() {
               {theme === "dark" ? <Sun data-icon="inline-start" /> : <Moon data-icon="inline-start" />}
               <span>{theme === "dark" ? "浅色模式" : "深色模式"}</span>
             </Button>
-            <Button className="glass-button" variant="outline" asChild>
-              <a href="/admin">
-                <Settings2 data-icon="inline-start" />
-                <span>后台</span>
-              </a>
-            </Button>
-            <Button className={`glass-button${history.length === 0 ? " hidden" : ""}`} variant="outline" type="button" onClick={async () => {
-              await clearHistoryDb();
-              history.forEach(task => task.images.forEach(image => {
-                if (image.url?.startsWith("blob:")) {
-                  URL.revokeObjectURL(image.url);
-                }
-              }));
-              setHistory([]);
-              setSelectedId(null);
-              showToast("已清空当前浏览器的本地历史");
-            }}>
-              <Eraser data-icon="inline-start" />
-              <span>清空本地历史</span>
-            </Button>
+            <Dialog open={clearHistoryConfirmOpen} onOpenChange={setClearHistoryConfirmOpen}>
+              <DialogTrigger asChild>
+                <Button className={`glass-button${history.length === 0 ? " hidden" : ""}`} variant="outline" type="button">
+                  <Eraser data-icon="inline-start" />
+                  <span>清空本地历史</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="clear-history-dialog" aria-describedby="clearHistoryDescription">
+                <DialogHeader>
+                  <DialogTitle>清空本地历史？</DialogTitle>
+                  <DialogDescription id="clearHistoryDescription">
+                    此操作会删除当前浏览器中保存的全部生成历史和图片记录。清空之后不可恢复，请确认是否继续。
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button variant="outline" type="button">取消</Button>
+                  </DialogClose>
+                  <Button variant="destructive" type="button" onClick={clearAllLocalHistory}>确认清空</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             <Button id="accountButton" className="account-button" variant="outline" type="button" aria-expanded={accountOpen} aria-controls="accountPanel" onClick={() => setAccountOpen(prev => !prev)}>
               <span className="status-dot" />
               <span>{isLoggedIn ? currentUser.email : "Ava Chen"}</span>

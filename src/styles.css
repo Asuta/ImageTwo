@@ -8126,6 +8126,23 @@ select {
   padding: 0 10px !important;
 }
 
+.studio-shell .clear-history-dialog {
+  width: min(420px, calc(100vw - 32px)) !important;
+  border: 1px solid rgba(255, 255, 255, 0.72) !important;
+  border-radius: 18px !important;
+  color: #29243d !important;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(249, 245, 255, 0.92)),
+    rgba(255, 255, 255, 0.94) !important;
+  box-shadow: 0 24px 70px rgba(72, 58, 126, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.78) !important;
+}
+
+.studio-shell .clear-history-dialog [data-slot="dialog-description"] {
+  color: #735057 !important;
+  font-weight: 600 !important;
+  line-height: 1.65 !important;
+}
+
 :root[data-theme="dark"] .studio-shell .task-action-button,
 :root[data-theme="dark"] .studio-shell .task-delete-button,
 :root[data-theme="dark"] .studio-shell .delete-confirm-popover button {
@@ -8161,6 +8178,19 @@ select {
 
 :root[data-theme="dark"] .studio-shell .delete-confirm-popover span {
   color: rgba(231, 225, 255, 0.68) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .clear-history-dialog {
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  color: #f2edff !important;
+  background:
+    linear-gradient(145deg, rgba(38, 31, 58, 0.98), rgba(24, 20, 38, 0.96)),
+    rgba(24, 20, 38, 0.96) !important;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .clear-history-dialog [data-slot="dialog-description"] {
+  color: #ffd0d8 !important;
 }
 
 @media (max-width: 980px) {
