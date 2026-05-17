@@ -703,6 +703,24 @@ function App() {
     setReferenceImages(prev => [...prev, ...additions]);
   }
 
+  async function handlePromptPaste(event) {
+    const clipboardFiles = [...(event.clipboardData?.files || [])];
+    const itemFiles = [...(event.clipboardData?.items || [])]
+      .filter(item => item.kind === "file")
+      .map(item => item.getAsFile())
+      .filter(Boolean);
+    const imageFiles = (itemFiles.length > 0 ? itemFiles : clipboardFiles)
+      .filter(file => file.type.startsWith("image/"));
+
+    if (imageFiles.length === 0) {
+      return;
+    }
+
+    event.preventDefault();
+    await addReferenceFiles(imageFiles);
+    showToast(`已粘贴 ${imageFiles.length} 张参考图`);
+  }
+
   function clearReferences() {
     setReferenceImages([]);
     setReferenceDockExpanded(false);
@@ -1508,6 +1526,7 @@ function App() {
               <Textarea
                 value={prompt}
                 onChange={event => setPrompt(event.target.value)}
+                onPaste={handlePromptPaste}
                 rows={3}
                 placeholder="请输入你的创意，例如：雨后城市里的未来感产品海报，干净构图，高级广告摄影"
                 required
