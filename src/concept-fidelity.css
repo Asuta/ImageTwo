@@ -50,8 +50,8 @@
   .studio-shell .main::after {
     content: "" !important;
     position: fixed !important;
-    left: 0 !important;
-    right: 0 !important;
+    left: 240px !important;
+    right: 48px !important;
     bottom: 0 !important;
     height: 150px !important;
     z-index: 70 !important;
