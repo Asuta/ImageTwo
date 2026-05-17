@@ -274,6 +274,7 @@ function App() {
   const [count, setCount] = useState("1");
   const [aspectRatio, setAspectRatio] = useState("auto");
   const [referenceImages, setReferenceImages] = useState([]);
+  const [referenceDockExpanded, setReferenceDockExpanded] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [loginCodeRequested, setLoginCodeRequested] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -669,10 +670,17 @@ function App() {
 
   function clearReferences() {
     setReferenceImages([]);
+    setReferenceDockExpanded(false);
   }
 
   function removeReference(id) {
-    setReferenceImages(prev => prev.filter(image => image.id !== id));
+    setReferenceImages(prev => {
+      const next = prev.filter(image => image.id !== id);
+      if (next.length === 0) {
+        setReferenceDockExpanded(false);
+      }
+      return next;
+    });
   }
 
   function renderRatioOptions() {
@@ -1398,32 +1406,40 @@ function App() {
           await generateNewTask();
         }}>
           {referenceImages.length === 0 ? (
-            <label className="upload-tile" title="上传参考图">
+            <label className="upload-tile upload-tile-compact" title="上传参考图">
               <input type="file" accept="image/*" multiple onChange={async event => {
                 await addReferenceFiles(event.target.files || []);
                 event.target.value = "";
               }} />
-              <span aria-hidden="true"><Upload /></span>
+              <span aria-hidden="true"><Plus /></span>
             </label>
           ) : (
             <div
-              className="reference-dock"
+              className={`reference-dock${referenceDockExpanded ? " is-expanded" : ""}`}
               aria-label={`已选择 ${referenceImages.length} 张参考图`}
+              onMouseLeave={() => setReferenceDockExpanded(false)}
               style={{
                 ["--reference-count"]: referenceImages.length,
-                ["--reference-expanded-width"]: `${12 + (referenceImages.length + 1) * 72 + 12}px`
+                ["--reference-expanded-width"]: `${referenceImages.length * 78 + 84}px`
               }}
             >
+              <div className="reference-dock-hover-plate" aria-hidden="true" />
               <div className="reference-dock-stack">
                 {referenceImages.map((image, index) => (
-                  <figure className="reference-dock-card" key={image.id} style={{ ["--reference-index"]: index }}>
+                  <figure
+                    className="reference-dock-card"
+                    key={image.id}
+                    style={{ ["--reference-index"]: index }}
+                    onMouseEnter={() => setReferenceDockExpanded(true)}
+                    onFocus={() => setReferenceDockExpanded(true)}
+                  >
                     <img src={image.dataUrl} alt={image.name} />
                     <button type="button" aria-label="移除参考图" onClick={() => removeReference(image.id)}>
                       <X />
                     </button>
                   </figure>
                 ))}
-                <label className="reference-dock-add" title="继续添加参考图">
+                <label className="reference-dock-add reference-dock-add-expanded" title="继续添加参考图">
                   <input type="file" accept="image/*" multiple onChange={async event => {
                     await addReferenceFiles(event.target.files || []);
                     event.target.value = "";
@@ -1431,6 +1447,13 @@ function App() {
                   <Plus />
                 </label>
               </div>
+              <label className="reference-dock-add" title="继续添加参考图">
+                <input type="file" accept="image/*" multiple onChange={async event => {
+                  await addReferenceFiles(event.target.files || []);
+                  event.target.value = "";
+                }} />
+                <Plus />
+              </label>
             </div>
           )}
 
