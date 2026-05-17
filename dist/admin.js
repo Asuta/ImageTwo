@@ -1,5 +1,20 @@
 const refreshAdminButton = document.querySelector("#refreshAdminButton");
+const providerReloadButton = document.querySelector("#providerReloadButton");
 const adminLogoutButton = document.querySelector("#adminLogoutButton");
+const providerForm = document.querySelector("#providerForm");
+const providerId = document.querySelector("#providerId");
+const providerLabel = document.querySelector("#providerLabel");
+const providerApiUrl = document.querySelector("#providerApiUrl");
+const providerApiKey = document.querySelector("#providerApiKey");
+const providerModel = document.querySelector("#providerModel");
+const providerApiFormat = document.querySelector("#providerApiFormat");
+const providerEnabled = document.querySelector("#providerEnabled");
+const providerNote = document.querySelector("#providerNote");
+const providerSaveButton = document.querySelector("#providerSaveButton");
+const providerResetButton = document.querySelector("#providerResetButton");
+const providerTestButton = document.querySelector("#providerTestButton");
+const providerList = document.querySelector("#providerList");
+const providerSummary = document.querySelector("#providerSummary");
 const giftBatchForm = document.querySelector("#giftBatchForm");
 const giftBatchLabel = document.querySelector("#giftBatchLabel");
 const giftBatchCredits = document.querySelector("#giftBatchCredits");
@@ -15,6 +30,8 @@ const auditLogList = document.querySelector("#auditLogList");
 const toast = document.querySelector("#toast");
 
 let adminState = {
+  providers: [],
+  activeProvider: null,
   batches: [],
   giftCards: [],
   adminLogs: [],
@@ -72,6 +89,7 @@ async function adminFetch(path, options = {}) {
 
 async function loadAdminData() {
   refreshAdminButton.disabled = true;
+  providerReloadButton.disabled = true;
   try {
     const params = new URLSearchParams();
     const query = giftSearchInput.value.trim();
@@ -83,11 +101,14 @@ async function loadAdminData() {
       params.set("status", status);
     }
 
-    const [giftPayload, auditPayload] = await Promise.all([
+    const [providerPayload, giftPayload, auditPayload] = await Promise.all([
+      adminFetch("/api/admin/providers"),
       adminFetch(`/api/admin/gift-cards${params.toString() ? `?${params}` : ""}`),
       adminFetch("/api/admin/audit-logs")
     ]);
     adminState = {
+      providers: providerPayload.providers || [],
+      activeProvider: providerPayload.activeProvider || null,
       batches: giftPayload.batches || [],
       giftCards: giftPayload.giftCards || [],
       adminLogs: auditPayload.adminLogs || [],
@@ -99,13 +120,55 @@ async function loadAdminData() {
     showToast(error instanceof Error ? error.message : String(error));
   } finally {
     refreshAdminButton.disabled = false;
+    providerReloadButton.disabled = false;
   }
 }
 
 function renderAdmin() {
+  renderProviderSummary();
+  renderProviderList();
   renderGiftBatches();
   renderGiftCards();
   renderAuditLogs();
+}
+
+function renderProviderSummary() {
+  const active = adminState.activeProvider;
+  providerSummary.innerHTML = active
+    ? `<strong>当前启用：${escapeHtml(active.label || active.id)}</strong><span>${escapeHtml(active.apiFormat || "-")} · ${escapeHtml(active.model || "-")} · ${escapeHtml(active.apiUrl || "")}</span>`
+    : `<strong>当前启用：-</strong><span>请先配置至少一个供应商。</span>`;
+}
+
+function renderProviderList() {
+  if (!adminState.providers.length) {
+    providerList.innerHTML = `<div class="provider-empty">暂无供应商，先创建一条吧。</div>`;
+    return;
+  }
+
+  providerList.innerHTML = adminState.providers.map(provider => `
+    <div class="provider-row${provider.isActive ? " is-active" : ""}" data-provider-id="${escapeHtml(provider.id)}">
+      <div class="provider-main">
+        <div class="provider-main-head">
+          <strong>${escapeHtml(provider.label || "未命名供应商")}</strong>
+          ${provider.isActive ? `<span class="provider-badge">当前启用</span>` : ""}
+          <span class="provider-badge ${provider.enabled ? "enabled" : "disabled"}">${provider.enabled ? "启用" : "停用"}</span>
+        </div>
+        <div class="provider-meta">
+          <span>${escapeHtml(provider.apiFormat || "-")}</span>
+          <span>${escapeHtml(provider.model || "-")}</span>
+          <span>${escapeHtml(provider.apiUrl || "")}</span>
+          ${provider.note ? `<span>${escapeHtml(provider.note)}</span>` : ""}
+        </div>
+      </div>
+      <div class="provider-actions">
+        <button class="soft-button" type="button" data-provider-action="edit" data-id="${escapeHtml(provider.id)}">编辑</button>
+        <button class="soft-button" type="button" data-provider-action="test" data-id="${escapeHtml(provider.id)}">测试</button>
+        ${provider.enabled ? `<button class="soft-button" type="button" data-provider-action="disable" data-id="${escapeHtml(provider.id)}">停用</button>` : `<button class="soft-button" type="button" data-provider-action="enable" data-id="${escapeHtml(provider.id)}">启用</button>`}
+        ${provider.isActive ? "" : `<button class="soft-button" type="button" data-provider-action="activate" data-id="${escapeHtml(provider.id)}">设为当前</button>`}
+        <button class="soft-button danger" type="button" data-provider-action="delete" data-id="${escapeHtml(provider.id)}">删除</button>
+      </div>
+    </div>
+  `).join("");
 }
 
 function escapeHtml(value) {
@@ -221,6 +284,130 @@ function renderAuditLogs() {
   }).join("");
 }
 
+function resetProviderForm() {
+  providerId.value = "";
+  providerLabel.value = "";
+  providerApiUrl.value = "";
+  providerApiKey.value = "";
+  providerModel.value = "gpt-image-2";
+  providerApiFormat.value = "compilation";
+  providerEnabled.checked = true;
+  providerNote.value = "";
+  providerSaveButton.querySelector("span:last-child").textContent = "创建供应商";
+}
+
+function fillProviderForm(provider) {
+  providerId.value = provider.id || "";
+  providerLabel.value = provider.label || "";
+  providerApiUrl.value = provider.apiUrl || "";
+  providerApiKey.value = provider.apiKey || "";
+  providerModel.value = provider.model || "gpt-image-2";
+  providerApiFormat.value = provider.apiFormat || "compilation";
+  providerEnabled.checked = Boolean(provider.enabled);
+  providerNote.value = provider.note || "";
+  providerSaveButton.querySelector("span:last-child").textContent = "保存供应商";
+}
+
+function getProviderFormBody() {
+  return {
+    label: providerLabel.value.trim(),
+    apiUrl: providerApiUrl.value.trim(),
+    apiKey: providerApiKey.value.trim(),
+    model: providerModel.value.trim(),
+    apiFormat: providerApiFormat.value,
+    enabled: providerEnabled.checked,
+    note: providerNote.value.trim()
+  };
+}
+
+async function saveProvider(event) {
+  event.preventDefault();
+  const body = getProviderFormBody();
+  const editingId = providerId.value.trim();
+  const isEditing = Boolean(editingId);
+
+  try {
+    const payload = await adminFetch(isEditing ? `/api/admin/providers/${encodeURIComponent(editingId)}` : "/api/admin/providers", {
+      method: isEditing ? "PATCH" : "POST",
+      body: JSON.stringify(body)
+    });
+    if (payload.provider) {
+      fillProviderForm(payload.provider);
+    }
+    await loadAdminData();
+    showToast(isEditing ? "供应商已保存" : "供应商已创建");
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : String(error));
+  }
+}
+
+async function testProvider() {
+  const editingId = providerId.value.trim();
+  if (!editingId) {
+    showToast("请先选择一个供应商再测试");
+    return;
+  }
+
+  try {
+    const payload = await adminFetch(`/api/admin/providers/${encodeURIComponent(editingId)}/test`, {
+      method: "POST"
+    });
+    showToast(payload.detail || "连接测试完成");
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : String(error));
+  }
+}
+
+async function handleProviderAction(action, id) {
+  if (action === "edit") {
+    const provider = adminState.providers.find(item => item.id === id);
+    if (provider) {
+      fillProviderForm(provider);
+    }
+    return;
+  }
+
+  const routes = {
+    enable: `/api/admin/providers/${encodeURIComponent(id)}/enable`,
+    disable: `/api/admin/providers/${encodeURIComponent(id)}/disable`,
+    activate: `/api/admin/providers/${encodeURIComponent(id)}/activate`,
+    test: `/api/admin/providers/${encodeURIComponent(id)}/test`
+  };
+
+  if (action === "delete") {
+    if (!window.confirm("确认删除这个供应商吗？")) {
+      return;
+    }
+    try {
+      await adminFetch(`/api/admin/providers/${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (providerId.value === id) {
+        resetProviderForm();
+      }
+      await loadAdminData();
+      showToast("供应商已删除");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : String(error));
+    }
+    return;
+  }
+
+  if (!routes[action]) {
+    return;
+  }
+
+  try {
+    const payload = await adminFetch(routes[action], { method: "POST" });
+    if (action === "test") {
+      showToast(payload.detail || "测试完成");
+      return;
+    }
+    await loadAdminData();
+    showToast("操作已完成");
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : String(error));
+  }
+}
+
 async function createGiftBatch(event) {
   event.preventDefault();
   const body = {
@@ -305,7 +492,11 @@ async function logoutAdmin() {
 }
 
 refreshAdminButton.addEventListener("click", loadAdminData);
+providerReloadButton.addEventListener("click", loadAdminData);
 adminLogoutButton.addEventListener("click", logoutAdmin);
+providerForm.addEventListener("submit", saveProvider);
+providerResetButton.addEventListener("click", resetProviderForm);
+providerTestButton.addEventListener("click", testProvider);
 giftBatchForm.addEventListener("submit", createGiftBatch);
 giftSearchInput.addEventListener("input", () => {
   window.clearTimeout(giftSearchInput.searchTimer);
@@ -331,6 +522,12 @@ giftCardTable.addEventListener("click", event => {
   const button = event.target.closest("[data-admin-action]");
   if (button) {
     handleAdminAction(button.dataset.adminAction, button.dataset.id);
+  }
+});
+providerList.addEventListener("click", event => {
+  const button = event.target.closest("[data-provider-action]");
+  if (button) {
+    handleProviderAction(button.dataset.providerAction, button.dataset.id);
   }
 });
 

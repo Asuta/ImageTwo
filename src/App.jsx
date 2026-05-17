@@ -1218,6 +1218,12 @@ function App() {
               {theme === "dark" ? <Sun data-icon="inline-start" /> : <Moon data-icon="inline-start" />}
               <span>{theme === "dark" ? "浅色模式" : "深色模式"}</span>
             </Button>
+            <Button className="glass-button" variant="outline" asChild>
+              <a href="/admin">
+                <Settings2 data-icon="inline-start" />
+                <span>后台</span>
+              </a>
+            </Button>
             <Button className={`glass-button${history.length === 0 ? " hidden" : ""}`} variant="outline" type="button" onClick={async () => {
               await clearHistoryDb();
               history.forEach(task => task.images.forEach(image => {

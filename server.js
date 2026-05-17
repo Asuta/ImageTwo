@@ -13,8 +13,8 @@ loadLocalEnv();
 
 const START_PORT = Number(process.env.PORT || 5180);
 const HOST = process.env.HOST || "0.0.0.0";
-const API_URL = process.env.IMAGE2_API_URL || "https://api.bltcy.ai/v1/chat/completions";
-const MODEL = process.env.IMAGE2_MODEL || "gpt-image-2";
+const DEFAULT_API_URL = process.env.IMAGE2_API_URL || "https://api.bltcy.ai/v1/chat/completions";
+const DEFAULT_MODEL = process.env.IMAGE2_MODEL || "gpt-image-2";
 const dataDir = process.env.IMAGE2_DATA_DIR || join(__dirname, "data");
 const dataPath = join(dataDir, "image2-data.json");
 const DEFAULT_SIGNUP_CREDITS = Number.parseInt(process.env.IMAGE2_SIGNUP_CREDITS || "100", 10);
@@ -28,6 +28,7 @@ const ADMIN_COOKIE_NAME = "image2_admin";
 const qualityOptions = new Set(["low", "medium", "high"]);
 const aspectRatioOptions = new Set(["auto", "9:21", "9:16", "2:3", "3:4", "1:1", "4:3", "3:2", "16:9", "21:9"]);
 const giftCardStatuses = new Set(["active", "disabled", "redeemed", "revoked"]);
+const providerFormats = new Set(["responses", "compilation"]);
 const generationJobs = new Map();
 const JOB_TTL_MS = 15 * 60 * 1000;
 const PARTIAL_IMAGE_MIN_BASE64_CHARS = 1600;
@@ -123,7 +124,17 @@ function isValidEmail(email) {
 function ensureDataFile() {
   if (existsSync(dataPath)) {
     const data = readData();
-    writeData(data);
+    if (!Array.isArray(data.providers) || data.providers.length === 0) {
+      data.providers = [createDefaultProvider()];
+      data.activeProviderId = data.providers[0].id;
+      writeData(data);
+      return;
+    }
+
+    if (!data.activeProviderId || !data.providers.some(provider => provider.id === data.activeProviderId && provider.enabled)) {
+      data.activeProviderId = data.providers.find(provider => provider.enabled)?.id || data.providers[0]?.id || "";
+      writeData(data);
+    }
     return;
   }
 
@@ -135,7 +146,9 @@ function ensureDataFile() {
     giftCards: [],
     creditLogs: [],
     adminLogs: [],
-    usageLogs: []
+    usageLogs: [],
+    providers: [createDefaultProvider()],
+    activeProviderId: "default-provider"
   });
 }
 
@@ -150,7 +163,9 @@ function readData() {
       giftCards: normalizeGiftCards(Array.isArray(data.giftCards) ? data.giftCards : []),
       creditLogs: Array.isArray(data.creditLogs) ? data.creditLogs : [],
       adminLogs: Array.isArray(data.adminLogs) ? data.adminLogs : [],
-      usageLogs: Array.isArray(data.usageLogs) ? data.usageLogs : []
+      usageLogs: Array.isArray(data.usageLogs) ? data.usageLogs : [],
+      providers: normalizeProviders(Array.isArray(data.providers) ? data.providers : []),
+      activeProviderId: typeof data.activeProviderId === "string" ? data.activeProviderId : ""
     };
   } catch {
     return {
@@ -161,7 +176,9 @@ function readData() {
       giftCards: [],
       creditLogs: [],
       adminLogs: [],
-      usageLogs: []
+      usageLogs: [],
+      providers: [],
+      activeProviderId: ""
     };
   }
 }
@@ -176,10 +193,137 @@ function writeData(data) {
     giftCards: normalizeGiftCards(Array.isArray(data.giftCards) ? data.giftCards : []),
     creditLogs: Array.isArray(data.creditLogs) ? data.creditLogs : [],
     adminLogs: Array.isArray(data.adminLogs) ? data.adminLogs : [],
-    usageLogs: Array.isArray(data.usageLogs) ? data.usageLogs : []
+    usageLogs: Array.isArray(data.usageLogs) ? data.usageLogs : [],
+    providers: normalizeProviders(Array.isArray(data.providers) ? data.providers : []),
+    activeProviderId: typeof data.activeProviderId === "string" ? data.activeProviderId : ""
   };
+  if (!storableData.providers.length) {
+    storableData.providers = [createDefaultProvider()];
+  }
+  if (!storableData.providers.some(provider => provider.id === storableData.activeProviderId && provider.enabled)) {
+    storableData.activeProviderId = storableData.providers.find(provider => provider.enabled)?.id || storableData.providers[0]?.id || "";
+  }
   writeFileSync(tmpPath, JSON.stringify(storableData, null, 2));
   renameSync(tmpPath, dataPath);
+}
+
+function createDefaultProvider() {
+  const now = new Date().toISOString();
+  return normalizeProvider({
+    id: "default-provider",
+    label: "默认百拉图",
+    apiUrl: DEFAULT_API_URL,
+    apiKey: getImageApiKey(),
+    model: DEFAULT_MODEL,
+    apiFormat: detectProviderFormat(DEFAULT_API_URL),
+    enabled: true,
+    note: "系统默认配置",
+    createdAt: now,
+    updatedAt: now
+  }, now);
+}
+
+function normalizeProvider(provider, now = new Date().toISOString()) {
+  const apiUrl = String(provider?.apiUrl || provider?.endpoint || DEFAULT_API_URL).trim();
+  const apiFormat = normalizeProviderFormat(provider?.apiFormat || provider?.format || detectProviderFormat(apiUrl));
+  return {
+    id: String(provider?.id || randomUUID()),
+    label: String(provider?.label || provider?.name || "未命名供应商").trim().slice(0, 80),
+    apiUrl,
+    apiKey: String(provider?.apiKey || "").trim(),
+    model: String(provider?.model || DEFAULT_MODEL).trim().slice(0, 120),
+    apiFormat,
+    enabled: provider?.enabled !== false,
+    note: String(provider?.note || "").trim().slice(0, 200),
+    createdAt: provider?.createdAt || now,
+    updatedAt: provider?.updatedAt || provider?.createdAt || now
+  };
+}
+
+function normalizeProviders(providers) {
+  return providers.map(provider => normalizeProvider(provider));
+}
+
+function normalizeProviderFormat(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "responses" || normalized === "response" || normalized === "openai-responses") {
+    return "responses";
+  }
+
+  if (
+    normalized === "compilation" ||
+    normalized === "completions" ||
+    normalized === "completion" ||
+    normalized === "chat" ||
+    normalized === "chat-completions"
+  ) {
+    return "compilation";
+  }
+
+  return providerFormats.has(normalized) ? normalized : "compilation";
+}
+
+function detectProviderFormat(apiUrl) {
+  return /\/v1\/responses(\?|$)/i.test(String(apiUrl || "")) ? "responses" : "compilation";
+}
+
+function getProviderFormatLabel(value) {
+  return normalizeProviderFormat(value) === "responses" ? "OpenAI Response" : "Compilation";
+}
+
+function getProviderSecret(provider) {
+  return String(provider?.apiKey || "").trim() || getImageApiKey();
+}
+
+function getActiveProvider(data) {
+  const providers = Array.isArray(data.providers) ? data.providers : [];
+  const activeById = providers.find(provider => provider.id === data.activeProviderId && provider.enabled);
+  if (activeById) {
+    return activeById;
+  }
+
+  return providers.find(provider => provider.enabled) || null;
+}
+
+function applyProviderSelection(data) {
+  const activeProvider = getActiveProvider(data);
+  data.activeProviderId = activeProvider?.id || "";
+  return activeProvider;
+}
+
+function publicProvider(provider, activeProviderId) {
+  return {
+    id: provider.id,
+    label: provider.label,
+    apiUrl: provider.apiUrl,
+    apiKey: provider.apiKey,
+    model: provider.model,
+    apiFormat: provider.apiFormat,
+    enabled: provider.enabled,
+    note: provider.note,
+    hasApiKey: Boolean(provider.apiKey),
+    isActive: provider.id === activeProviderId,
+    createdAt: provider.createdAt,
+    updatedAt: provider.updatedAt
+  };
+}
+
+function publicProviderSummary(provider) {
+  if (!provider) {
+    return null;
+  }
+
+  return {
+    id: provider.id,
+    label: provider.label,
+    apiUrl: provider.apiUrl,
+    model: provider.model,
+    apiFormat: provider.apiFormat,
+    enabled: provider.enabled,
+    note: provider.note,
+    createdAt: provider.createdAt,
+    updatedAt: provider.updatedAt
+  };
 }
 
 function normalizeGiftCards(cards) {
@@ -611,6 +755,196 @@ async function handleAdmin(req, res, url) {
     return;
   }
 
+  if (req.method === "GET" && url.pathname === "/api/admin/providers") {
+    const data = readData();
+    const previousActiveProviderId = data.activeProviderId;
+    const activeProvider = applyProviderSelection(data);
+    if (activeProvider?.id !== previousActiveProviderId) {
+      writeData(data);
+    }
+
+    sendJson(res, 200, {
+      providers: data.providers.map(provider => publicProvider(provider, data.activeProviderId)),
+      activeProvider: publicProviderSummary(activeProvider)
+    });
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/admin/providers") {
+    const body = JSON.parse(await readBody(req) || "{}");
+    const apiUrl = String(body.apiUrl || "").trim();
+    const label = String(body.label || "").trim();
+    if (!apiUrl) {
+      sendJson(res, 400, { error: "apiUrl 不能为空。" });
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const data = readData();
+    const provider = normalizeProvider({
+      id: randomUUID(),
+      label: label || "未命名供应商",
+      apiUrl,
+      apiKey: String(body.apiKey || "").trim(),
+      model: String(body.model || DEFAULT_MODEL).trim(),
+      apiFormat: body.apiFormat,
+      enabled: body.enabled !== false,
+      note: String(body.note || "").trim(),
+      createdAt: now,
+      updatedAt: now
+    }, now);
+    data.providers.unshift(provider);
+    if (!data.activeProviderId && provider.enabled) {
+      data.activeProviderId = provider.id;
+    }
+    addAdminLog(data, "provider-created", {
+      providerId: provider.id,
+      label: provider.label,
+      apiFormat: provider.apiFormat
+    });
+    writeData(data);
+    sendJson(res, 201, {
+      provider: publicProvider(provider, data.activeProviderId)
+    });
+    return;
+  }
+
+  const providerMatch = /^\/api\/admin\/providers\/([^/]+)$/.exec(url.pathname);
+  if (providerMatch && req.method === "PATCH") {
+    const body = JSON.parse(await readBody(req) || "{}");
+    const data = readData();
+    const provider = data.providers.find(item => item.id === providerMatch[1]);
+    if (!provider) {
+      sendJson(res, 404, { error: "没有找到供应商。" });
+      return;
+    }
+
+    const nextProvider = normalizeProvider({
+      ...provider,
+      label: body.label !== undefined ? String(body.label || "").trim() : provider.label,
+      apiUrl: body.apiUrl !== undefined ? String(body.apiUrl || "").trim() : provider.apiUrl,
+      apiKey: body.apiKey !== undefined ? String(body.apiKey || "").trim() || provider.apiKey : provider.apiKey,
+      model: body.model !== undefined ? String(body.model || "").trim() : provider.model,
+      apiFormat: body.apiFormat !== undefined ? body.apiFormat : provider.apiFormat,
+      enabled: body.enabled !== undefined ? Boolean(body.enabled) : provider.enabled,
+      note: body.note !== undefined ? String(body.note || "").trim() : provider.note,
+      updatedAt: new Date().toISOString()
+    });
+    Object.assign(provider, nextProvider);
+    if (provider.enabled && !data.activeProviderId) {
+      data.activeProviderId = provider.id;
+    }
+    if (!provider.enabled && data.activeProviderId === provider.id) {
+      data.activeProviderId = "";
+    }
+    addAdminLog(data, "provider-updated", {
+      providerId: provider.id,
+      label: provider.label,
+      enabled: provider.enabled
+    });
+    writeData(data);
+    sendJson(res, 200, {
+      provider: publicProvider(provider, data.activeProviderId)
+    });
+    return;
+  }
+
+  const providerActionMatch = /^\/api\/admin\/providers\/([^/]+)\/(enable|disable|activate|test)$/.exec(url.pathname);
+  if (providerActionMatch && req.method === "POST") {
+    const [, providerId, action] = providerActionMatch;
+    const data = readData();
+    const provider = data.providers.find(item => item.id === providerId);
+    if (!provider) {
+      sendJson(res, 404, { error: "没有找到供应商。" });
+      return;
+    }
+
+    const now = new Date().toISOString();
+    if (action === "enable") {
+      provider.enabled = true;
+      provider.updatedAt = now;
+    } else if (action === "disable") {
+      provider.enabled = false;
+      provider.updatedAt = now;
+      if (data.activeProviderId === provider.id) {
+        data.activeProviderId = "";
+      }
+    } else if (action === "activate") {
+      if (!provider.enabled) {
+        sendJson(res, 409, { error: "禁用状态的供应商不能直接设为当前启用项，请先启用。" });
+        return;
+      }
+      data.activeProviderId = provider.id;
+      provider.updatedAt = now;
+    } else if (action === "test") {
+      try {
+        const probe = await testProviderConnection(provider);
+        addAdminLog(data, "provider-tested", {
+          providerId: provider.id,
+          label: provider.label,
+          ok: probe.ok
+        });
+        writeData(data);
+        sendJson(res, 200, probe);
+        return;
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        addAdminLog(data, "provider-tested", {
+          providerId: provider.id,
+          label: provider.label,
+          ok: false,
+          detail
+        });
+        writeData(data);
+        sendJson(res, 500, {
+          ok: false,
+          error: "连接测试失败。",
+          detail
+        });
+        return;
+      }
+    }
+
+    if (action !== "test") {
+      addAdminLog(data, `provider-${action}`, {
+        providerId: provider.id,
+        label: provider.label
+      });
+      applyProviderSelection(data);
+      writeData(data);
+      sendJson(res, 200, {
+        provider: publicProvider(provider, data.activeProviderId),
+        activeProviderId: data.activeProviderId
+      });
+      return;
+    }
+  }
+
+  const providerDeleteMatch = /^\/api\/admin\/providers\/([^/]+)$/.exec(url.pathname);
+  if (providerDeleteMatch && req.method === "DELETE") {
+    const data = readData();
+    const index = data.providers.findIndex(item => item.id === providerDeleteMatch[1]);
+    if (index === -1) {
+      sendJson(res, 404, { error: "没有找到供应商。" });
+      return;
+    }
+
+    const [provider] = data.providers.splice(index, 1);
+    if (data.activeProviderId === provider.id) {
+      applyProviderSelection(data);
+    }
+    addAdminLog(data, "provider-deleted", {
+      providerId: provider.id,
+      label: provider.label
+    });
+    writeData(data);
+    sendJson(res, 200, {
+      ok: true,
+      activeProviderId: data.activeProviderId
+    });
+    return;
+  }
+
   const userCreditsMatch = /^\/api\/admin\/users\/([^/]+)\/credits$/.exec(url.pathname);
   if (req.method === "POST" && userCreditsMatch) {
     const body = JSON.parse(await readBody(req) || "{}");
@@ -892,6 +1226,57 @@ async function handleAdmin(req, res, url) {
   sendJson(res, 404, { error: "没有找到管理接口。" });
 }
 
+async function testProviderConnection(provider) {
+  const apiUrl = String(provider.apiUrl || "").trim();
+  const apiKey = getProviderSecret(provider);
+  if (!apiUrl) {
+    throw new Error("供应商 API 地址不能为空。");
+  }
+  if (!apiKey) {
+    throw new Error("供应商 API Key 不能为空。");
+  }
+
+  const format = normalizeProviderFormat(provider.apiFormat);
+  if (format === "responses") {
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: provider.model || DEFAULT_MODEL,
+        input: "Generate a minimal image test response. Return only the image."
+      })
+    });
+    const text = await response.text();
+    return {
+      ok: response.ok,
+      status: response.status,
+      detail: response.ok ? "OpenAI Response 格式测试成功。" : text.slice(0, 400)
+    };
+  }
+
+  const response = await fetch(apiUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: provider.model || DEFAULT_MODEL,
+      messages: [{ role: "user", content: "Generate a minimal image test response. Return only the image." }],
+      quality: "medium"
+    })
+  });
+  const text = await response.text();
+  return {
+    ok: response.ok,
+    status: response.status,
+    detail: response.ok ? "Compilation 格式测试成功。" : text.slice(0, 400)
+  };
+}
+
 async function handleAuth(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/auth/me") {
     const sessionUser = getSessionUser(req);
@@ -1144,8 +1529,10 @@ async function handleGenerate(req, res) {
       return;
     }
 
-    if (!getImageApiKey()) {
-      sendJson(res, 500, { error: "缺少 IMAGE2_API_KEY，请在本地 .env 中配置。" });
+    const data = readData();
+    const provider = getActiveProvider(data);
+    if (!provider) {
+      sendJson(res, 500, { error: "没有可用的供应商配置，请先在后台启用一个供应商。" });
       return;
     }
 
@@ -1189,6 +1576,7 @@ async function handleGenerate(req, res) {
       requestId: reservation.requestId,
       costCredits: reservation.costCredits,
       remainingCredits: reservation.remainingCredits,
+      provider: publicProviderSummary(provider),
       error: ""
     });
 
@@ -1197,7 +1585,8 @@ async function handleGenerate(req, res) {
       input,
       quality,
       costCredits: reservation.costCredits,
-      remainingCredits: reservation.remainingCredits
+      remainingCredits: reservation.remainingCredits,
+      providerId: provider.id
     });
 
     sendJson(res, 202, {
@@ -1228,23 +1617,27 @@ async function handleGenerate(req, res) {
 
 async function runGenerationJob({ requestId, input, quality, costCredits, remainingCredits }) {
   try {
-    updateJob(requestId, { status: "running" });
+    const currentJob = generationJobs.get(requestId);
+    const providerId = currentJob?.provider?.id || "";
+    const data = readData();
+    const provider = data.providers.find(item => item.id === providerId && item.enabled) || getActiveProvider(data);
+    if (!provider) {
+      throw new Error("没有可用的供应商配置。");
+    }
+
+    updateJob(requestId, { status: "running", provider: publicProviderSummary(provider) });
 
     const messages = Array.isArray(input)
       ? input
       : [{ role: "user", content: input }];
 
-    const upstream = await fetch(API_URL, {
+    const upstream = await fetch(provider.apiUrl || DEFAULT_API_URL, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${getImageApiKey()}`,
+        "Authorization": `Bearer ${getProviderSecret(provider)}`,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        model: MODEL,
-        messages,
-        quality
-      })
+      body: JSON.stringify(buildUpstreamRequest(provider, messages, quality))
     });
 
     const { text, payload } = await readUpstreamImageResponse(upstream, requestId);
@@ -1282,7 +1675,7 @@ async function runGenerationJob({ requestId, input, quality, costCredits, remain
       status: "succeeded",
       id: payload.id,
       requestId,
-      model: payload.model || MODEL,
+      model: payload.model || provider.model || DEFAULT_MODEL,
       imageStatus: imageResult.status,
       outputFormat,
       mimeType: `image/${outputFormat}`,
@@ -1300,6 +1693,24 @@ async function runGenerationJob({ requestId, input, quality, costCredits, remain
       remainingCredits: usage?.remainingCredits ?? remainingCredits
     });
   }
+}
+
+function buildUpstreamRequest(provider, messages, quality) {
+  const model = provider.model || DEFAULT_MODEL;
+  const format = normalizeProviderFormat(provider.apiFormat);
+
+  if (format === "responses") {
+    return {
+      model,
+      input: messages
+    };
+  }
+
+  return {
+    model,
+    messages,
+    quality
+  };
 }
 
 async function extractImageResult(payload) {

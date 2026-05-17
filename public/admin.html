@@ -3,16 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Image2 卡密管理</title>
+    <title>Image2 运营后台</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <section class="admin-panel is-standalone" aria-label="卡密管理">
+    <section class="admin-panel is-standalone" aria-label="运营后台">
       <div class="admin-shell">
         <header class="admin-header">
           <div>
             <p class="eyebrow">运营后台</p>
-            <h1>卡密管理</h1>
+            <h1>卡密与供应商</h1>
           </div>
           <div class="admin-header-actions">
             <a class="soft-button" href="/">返回前台</a>
@@ -21,6 +21,77 @@
         </header>
 
         <div class="admin-layout">
+          <section class="admin-card admin-card-wide">
+            <div class="admin-card-head">
+              <div>
+                <h2>供应商配置</h2>
+                <p>这里管理当前启用的图片服务商，以及 OpenAI Response / Compilation 两种接口格式。</p>
+              </div>
+              <div class="admin-header-actions">
+                <button id="providerReloadButton" class="soft-button" type="button">刷新供应商</button>
+              </div>
+            </div>
+
+            <div class="provider-summary" id="providerSummary">
+              <strong>当前启用：-</strong>
+              <span>请先配置至少一个供应商。</span>
+            </div>
+
+            <div class="provider-grid">
+              <form id="providerForm" class="admin-form provider-form">
+                <input id="providerId" type="hidden" />
+                <label class="provider-wide">
+                  <span>供应商名称</span>
+                  <input id="providerLabel" type="text" placeholder="例如：百拉图主服务" required />
+                </label>
+                <label class="provider-wide">
+                  <span>API 地址</span>
+                  <input id="providerApiUrl" type="url" placeholder="https://api.example.com/v1/chat/completions" required />
+                </label>
+                <label>
+                  <span>API Key</span>
+                  <input id="providerApiKey" type="text" placeholder="留空则沿用全局密钥" />
+                </label>
+                <label>
+                  <span>模型名</span>
+                  <input id="providerModel" type="text" placeholder="gpt-image-2" required />
+                </label>
+                <label>
+                  <span>接口格式</span>
+                  <select id="providerApiFormat">
+                    <option value="compilation">Compilation</option>
+                    <option value="responses">OpenAI Response</option>
+                  </select>
+                </label>
+                <label class="provider-switch">
+                  <span>状态</span>
+                  <input id="providerEnabled" type="checkbox" checked />
+                  <span>启用</span>
+                </label>
+                <label class="provider-wide">
+                  <span>备注</span>
+                  <input id="providerNote" type="text" placeholder="切换原因、限流说明、故障备注等" />
+                </label>
+                <div class="provider-actions provider-wide">
+                  <button id="providerSaveButton" class="generate-button admin-submit" type="submit">
+                    <span aria-hidden="true">＋</span>
+                    <span>创建供应商</span>
+                  </button>
+                  <button id="providerResetButton" class="soft-button" type="button">清空表单</button>
+                  <button id="providerTestButton" class="soft-button" type="button">测试连接</button>
+                </div>
+              </form>
+
+              <div class="provider-list-wrap">
+                <div class="provider-list-head">
+                  <strong>供应商列表</strong>
+                  <span>启用、切换、测试、删除都在这里完成。</span>
+                </div>
+                <div id="providerList" class="provider-list"></div>
+              </div>
+            </div>
+          </section>
+
           <section class="admin-card">
             <div class="admin-card-head">
               <div>
