@@ -256,6 +256,17 @@ function createInterruptedImages(count) {
   }));
 }
 
+function getTaskReferenceThumbs(task) {
+  const savedThumbs = Array.isArray(task.referenceThumbs) ? task.referenceThumbs : [];
+  if (savedThumbs.length > 0) {
+    return savedThumbs;
+  }
+
+  return (Array.isArray(task.referenceImages) ? task.referenceImages : [])
+    .map(image => image?.dataUrl)
+    .filter(Boolean);
+}
+
 function getThemeFromStorage() {
   return localStorage.getItem("image2-theme") || document.documentElement.dataset.theme || "light";
 }
@@ -1048,7 +1059,7 @@ function App() {
   }
 
   function renderReferenceChips(task) {
-    const thumbs = task.referenceThumbs || [];
+    const thumbs = getTaskReferenceThumbs(task);
 
     return (
       <div className="task-reference-block" title={`${thumbs.length} 张参考图`}>
