@@ -1050,7 +1050,8 @@
   }
 
   .studio-shell .count-control span {
-    opacity: 0.6 !important;
+    color: #514d76 !important;
+    opacity: 1 !important;
   }
 
   .studio-shell .control-row select,
