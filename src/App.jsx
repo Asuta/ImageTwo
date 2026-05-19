@@ -1729,6 +1729,7 @@ function App() {
           <div className="prompt-zone">
             <div className="prompt-top">
               <Textarea
+                className="prompt-textarea"
                 value={prompt}
                 onChange={event => setPrompt(event.target.value)}
                 onPaste={handlePromptPaste}
