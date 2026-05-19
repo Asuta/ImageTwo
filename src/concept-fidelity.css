@@ -2485,6 +2485,1659 @@ body:has(.studio-shell .image-preview:not(.hidden))::after,
     width: 18px !important;
     height: 18px !important;
   }
+
+/* Portrait phone layout: this lives at the end of the final fidelity layer so
+   the desktop locks above stay intact while narrow vertical screens get a
+   native single-column workflow. */
+@media (max-width: 720px) and (orientation: portrait) {
+  html,
+  body,
+  #root,
+  .studio-shell {
+    position: static !important;
+    inset: auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 100dvh !important;
+    max-height: none !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior-y: auto !important;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0) 34%),
+      radial-gradient(circle at 78% 6%, rgba(195, 176, 255, 0.2), transparent 32%),
+      linear-gradient(145deg, #f8f5ff 0%, #efedfb 54%, #dde2f6 100%) !important;
+  }
+
+  body::after,
+  .studio-shell::before,
+  .studio-shell::after,
+  .studio-shell .main::after {
+    display: none !important;
+    content: none !important;
+  }
+
+  .studio-shell {
+    display: block !important;
+    color: #17172f !important;
+    padding: 0 !important;
+  }
+
+  .studio-shell .sidebar {
+    display: none !important;
+  }
+
+  .studio-shell .main {
+    position: static !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    height: auto !important;
+    min-height: 100dvh !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 12px 10px calc(286px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .studio-shell .topbar {
+    position: sticky !important;
+    top: 0 !important;
+    right: auto !important;
+    z-index: 30 !important;
+    width: calc(100vw - 20px) !important;
+    padding: 8px 0 10px !important;
+    margin: 0 auto !important;
+    background:
+      linear-gradient(180deg, rgba(248, 245, 255, 0.96), rgba(248, 245, 255, 0.72)) !important;
+    backdrop-filter: blur(16px) saturate(132%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(132%) !important;
+  }
+
+  .studio-shell .topbar-actions {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 44px 44px 44px !important;
+    gap: 8px !important;
+    align-items: center !important;
+    width: 100% !important;
+    margin: 0 !important;
+  }
+
+  .studio-shell .credit-pill,
+  .studio-shell .premium-button,
+  .studio-shell .glass-button,
+  .studio-shell .account-button,
+  .studio-shell .top-icon-button {
+    width: auto !important;
+    min-width: 0 !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    padding: 0 11px !important;
+    justify-content: center !important;
+    border-radius: 14px !important;
+    color: #4e4a73 !important;
+    border: 1px solid rgba(255, 255, 255, 0.78) !important;
+    background: rgba(255, 255, 255, 0.7) !important;
+    box-shadow: 0 10px 24px rgba(100, 92, 144, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.86) !important;
+  }
+
+  .studio-shell .credit-pill {
+    grid-column: 1 !important;
+    justify-content: flex-start !important;
+    gap: 7px !important;
+  }
+
+  .studio-shell .credit-pill span {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    font-size: 13px !important;
+  }
+
+  .studio-shell .credit-pill [data-icon="inline-end"],
+  .studio-shell .glass-button[aria-label="切换深色模式"] span,
+  .studio-shell .account-button {
+    display: none !important;
+  }
+
+  .studio-shell .premium-button,
+  .studio-shell .top-icon-button,
+  .studio-shell .glass-button[aria-label="切换深色模式"] {
+    width: 44px !important;
+    min-width: 44px !important;
+    padding: 0 !important;
+  }
+
+  .studio-shell .premium-button span,
+  .studio-shell .premium-button svg {
+    margin: 0 !important;
+  }
+
+  .studio-shell .history-feed {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: calc(100dvh - 96px) !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 16px 12px 18px !important;
+    overflow: visible !important;
+    border-radius: 22px !important;
+    border: 1px solid rgba(255, 255, 255, 0.62) !important;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.58), rgba(246, 244, 255, 0.3)),
+      rgba(246, 244, 255, 0.28) !important;
+    box-shadow: 0 18px 48px rgba(133, 126, 176, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.78) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .studio-shell .history-toolbar {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 12px !important;
+    min-height: 0 !important;
+    margin: 0 0 12px !important;
+  }
+
+  .studio-shell .eyebrow {
+    font-size: 11px !important;
+    letter-spacing: 0.08em !important;
+    color: #8381a2 !important;
+  }
+
+  .studio-shell h1 {
+    font-size: clamp(24px, 8vw, 32px) !important;
+    line-height: 1.04 !important;
+    color: #201d35 !important;
+  }
+
+  .studio-shell .history-tools {
+    position: static !important;
+    display: grid !important;
+    grid-template-columns: 44px 44px minmax(0, 1fr) !important;
+    grid-template-rows: 44px !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .studio-shell .history-tools .view-button,
+  .studio-shell .history-tools select {
+    height: 44px !important;
+    min-height: 44px !important;
+    border-radius: 14px !important;
+  }
+
+  .studio-shell .history-tools select {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .studio-shell .filter-tabs {
+    display: flex !important;
+    gap: 8px !important;
+    width: calc(100% + 24px) !important;
+    margin: 0 -12px 14px !important;
+    padding: 0 12px 4px !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+    scroll-snap-type: x proximity !important;
+  }
+
+  .studio-shell .filter-tabs::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .studio-shell .filter-tabs button {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: 96px !important;
+    height: 42px !important;
+    padding: 0 14px !important;
+    justify-content: center !important;
+    border-radius: 14px !important;
+    scroll-snap-align: start !important;
+  }
+
+  .studio-shell .history-scroll {
+    display: grid !important;
+    gap: 12px !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 0 10px !important;
+    overflow: visible !important;
+    scrollbar-width: none !important;
+  }
+
+  .studio-shell .history-task,
+  .studio-shell .concept-preview-list .concept-task {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    border-radius: 18px !important;
+    contain: layout paint style !important;
+    content-visibility: auto !important;
+    contain-intrinsic-size: 430px 360px !important;
+  }
+
+  .studio-shell .history-task:hover,
+  .studio-shell .history-task.selected {
+    transform: none !important;
+  }
+
+  .studio-shell .task-head {
+    display: grid !important;
+    grid-template-columns: 24px minmax(0, 1fr) !important;
+    gap: 10px !important;
+    padding: 14px 14px 8px !important;
+  }
+
+  .studio-shell .task-title-area {
+    gap: 6px !important;
+  }
+
+  .studio-shell .task-title-area svg {
+    display: none !important;
+  }
+
+  .studio-shell .task-copy-area h2,
+  .studio-shell [data-slot="card-title"],
+  .studio-shell .task-copy-area [data-slot="card-title"] {
+    max-width: 100% !important;
+    font-size: 14px !important;
+    line-height: 1.42 !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+  }
+
+  .studio-shell .tag-row {
+    display: flex !important;
+    gap: 6px !important;
+    margin-top: 8px !important;
+    overflow-x: auto !important;
+    padding-bottom: 2px !important;
+    scrollbar-width: none !important;
+  }
+
+  .studio-shell .tag-row::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .studio-shell .tag-row [data-slot="badge"] {
+    flex: 0 0 auto !important;
+    min-height: 24px !important;
+    font-size: 11px !important;
+    white-space: nowrap !important;
+  }
+
+  .studio-shell .task-more-actions {
+    grid-column: 1 / -1 !important;
+    display: flex !important;
+    justify-content: flex-start !important;
+    gap: 7px !important;
+    padding: 0 0 0 34px !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+  }
+
+  .studio-shell .task-more-actions::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .studio-shell .task-action-button,
+  .studio-shell .task-delete-button {
+    flex: 0 0 auto !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    border-radius: 12px !important;
+  }
+
+  .studio-shell .task-content,
+  .studio-shell .concept-task .task-content {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+    padding: 0 14px 14px !important;
+    transform: none !important;
+  }
+
+  .studio-shell .task-reference-block {
+    min-height: 0 !important;
+    padding: 0 !important;
+    gap: 8px !important;
+  }
+
+  .studio-shell .task-reference-block p {
+    font-size: 12px !important;
+  }
+
+  .studio-shell .reference-chip-stack {
+    display: flex !important;
+    gap: 7px !important;
+    min-width: 0 !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+  }
+
+  .studio-shell .reference-chip-stack::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .studio-shell .reference-sample,
+  .studio-shell .reference-chip,
+  .studio-shell .reference-empty,
+  .studio-shell .reference-more {
+    flex: 0 0 46px !important;
+    width: 46px !important;
+    height: 46px !important;
+    border-radius: 10px !important;
+  }
+
+  .studio-shell .image-grid,
+  .studio-shell .concept-grid,
+  .studio-shell .image-grid.count-1,
+  .studio-shell .image-grid.count-2,
+  .studio-shell .image-grid.count-3,
+  .studio-shell .image-grid.count-4,
+  .studio-shell .concept-grid.count-1,
+  .studio-shell .concept-grid.count-2,
+  .studio-shell .concept-grid.count-3,
+  .studio-shell .concept-grid.count-4 {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .studio-shell .image-grid.count-1,
+  .studio-shell .concept-grid.count-1 {
+    grid-template-columns: 1fr !important;
+  }
+
+  .studio-shell .image-card,
+  .studio-shell .concept-image,
+  .studio-shell .generated-image-card:not(.is-loading):not(.is-streaming):not(.is-error) {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    aspect-ratio: 1 / 1 !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+  }
+
+  .studio-shell .image-grid.count-1 .image-card,
+  .studio-shell .concept-grid.count-1 .concept-image {
+    grid-column: auto !important;
+    aspect-ratio: 16 / 11 !important;
+  }
+
+  .studio-shell .image-card img,
+  .studio-shell .generated-image-card:not(.is-loading):not(.is-streaming):not(.is-error) img,
+  .studio-shell .concept-image img,
+  .studio-shell .image-preview-trigger,
+  .studio-shell .image-skeleton,
+  .studio-shell .image-error {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    object-fit: contain !important;
+  }
+
+  .studio-shell .image-card figcaption,
+  .studio-shell .concept-image figcaption {
+    min-height: 28px !important;
+    padding: 6px 8px !important;
+    font-size: 11px !important;
+  }
+
+  .studio-shell .composer {
+    position: fixed !important;
+    left: 10px !important;
+    right: 10px !important;
+    bottom: max(10px, env(safe-area-inset-bottom, 0px)) !important;
+    z-index: 40 !important;
+    width: auto !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: none !important;
+    translate: none !important;
+  }
+
+  .studio-shell .composer-card {
+    display: grid !important;
+    grid-template-columns: 48px minmax(0, 1fr) !important;
+    grid-template-rows: auto auto 50px !important;
+    gap: 9px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-height: min(42dvh, 280px) !important;
+    padding: 10px !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+    border-radius: 20px !important;
+    background:
+      linear-gradient(180deg, rgba(250, 248, 255, 0.86), rgba(232, 234, 250, 0.72)),
+      rgba(236, 234, 251, 0.78) !important;
+    border-color: rgba(255, 255, 255, 0.76) !important;
+    box-shadow: 0 18px 52px rgba(84, 78, 122, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.86) !important;
+    backdrop-filter: blur(16px) saturate(132%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(132%) !important;
+  }
+
+  .studio-shell .upload-tile,
+  .studio-shell .reference-dock {
+    grid-column: 1 !important;
+    grid-row: 1 / 3 !important;
+    align-self: stretch !important;
+    width: 48px !important;
+    min-width: 48px !important;
+    min-height: 100% !important;
+    height: auto !important;
+    border-radius: 14px !important;
+  }
+
+  .studio-shell .upload-tile::after,
+  .studio-shell .upload-tile-compact::after {
+    display: none !important;
+    content: none !important;
+  }
+
+  .studio-shell .reference-dock,
+  .studio-shell .reference-dock-stack {
+    overflow: visible !important;
+  }
+
+  .studio-shell .reference-dock-card,
+  .studio-shell .reference-dock-preview,
+  .studio-shell .reference-dock-preview img {
+    width: 48px !important;
+    height: 58px !important;
+    border-radius: 14px !important;
+  }
+
+  .studio-shell .reference-dock-add {
+    left: 28px !important;
+    top: auto !important;
+    bottom: -4px !important;
+    width: 30px !important;
+    height: 30px !important;
+  }
+
+  .studio-shell .prompt-zone {
+    display: grid !important;
+    grid-column: 2 !important;
+    grid-row: 1 / 3 !important;
+    grid-template-rows: auto auto !important;
+    gap: 8px !important;
+    min-width: 0 !important;
+  }
+
+  .studio-shell .prompt-top {
+    display: block !important;
+    grid-column: auto !important;
+    grid-row: auto !important;
+    min-height: 76px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  .studio-shell .prompt-top textarea,
+  .studio-shell textarea {
+    width: 100% !important;
+    min-height: 76px !important;
+    max-height: 112px !important;
+    padding: 12px 13px !important;
+    border-radius: 14px !important;
+    font-size: 14px !important;
+    line-height: 1.5 !important;
+    color: #2f2d49 !important;
+    background: rgba(255, 255, 255, 0.72) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78) !important;
+  }
+
+  .studio-shell .control-row {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.72fr) minmax(0, 0.72fr) !important;
+    grid-column: auto !important;
+    grid-row: auto !important;
+    gap: 7px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .studio-shell .ratio-control,
+  .studio-shell .ratio-button,
+  .studio-shell .control-row select,
+  .studio-shell .count-control,
+  .studio-shell .soft-button {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    border-radius: 13px !important;
+    font-size: 12px !important;
+  }
+
+  .studio-shell .ratio-button,
+  .studio-shell .count-control,
+  .studio-shell .soft-button {
+    justify-content: center !important;
+  }
+
+  .studio-shell .ratio-button span:not(.ratio-icon),
+  .studio-shell .count-control span,
+  .studio-shell .soft-button span {
+    max-width: 78px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .studio-shell .count-control input {
+    width: 32px !important;
+    min-width: 32px !important;
+    padding: 0 !important;
+    text-align: center !important;
+  }
+
+  .studio-shell .soft-button.hidden {
+    display: none !important;
+  }
+
+  .studio-shell .generate-button {
+    grid-column: 1 / -1 !important;
+    grid-row: 3 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 50px !important;
+    min-height: 50px !important;
+    border-radius: 15px !important;
+    font-size: 15px !important;
+  }
+
+  .studio-shell .advanced-toggle {
+    display: none !important;
+  }
+
+  .studio-shell .ratio-panel {
+    position: fixed !important;
+    left: 10px !important;
+    right: 10px !important;
+    bottom: calc(max(10px, env(safe-area-inset-bottom, 0px)) + min(42dvh, 280px) + 8px) !important;
+    z-index: 70 !important;
+    width: auto !important;
+    max-height: 42dvh !important;
+    padding: 12px !important;
+    overflow-y: auto !important;
+    border-radius: 18px !important;
+  }
+
+  .studio-shell .ratio-options {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .studio-shell .ratio-option {
+    min-height: 54px !important;
+    border-radius: 14px !important;
+  }
+
+  .studio-shell .account-panel {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 80 !important;
+  }
+
+  .studio-shell .account-popover {
+    position: fixed !important;
+    left: 10px !important;
+    right: 10px !important;
+    bottom: max(10px, env(safe-area-inset-bottom, 0px)) !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: min(76dvh, 560px) !important;
+    overflow-y: auto !important;
+    border-radius: 22px !important;
+  }
+
+  .studio-shell .panel-actions {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .studio-shell .panel-actions .soft-button {
+    min-height: 44px !important;
+  }
+
+  .studio-shell .delete-confirm-popover {
+    right: auto !important;
+    left: 0 !important;
+    width: min(232px, calc(100vw - 40px)) !important;
+  }
+
+  .studio-shell .preview-stage {
+    inset: 0 !important;
+    padding: 72px 12px 96px !important;
+  }
+
+  .studio-shell .image-preview:not(.hidden) .preview-stage img {
+    max-width: 94vw !important;
+    max-height: calc(100dvh - 180px) !important;
+  }
+
+  .studio-shell .preview-toolbar {
+    left: 50% !important;
+    right: auto !important;
+    bottom: max(20px, env(safe-area-inset-bottom, 0px)) !important;
+    transform: translateX(-50%) !important;
+  }
+
+  .studio-shell .preview-close {
+    top: max(14px, env(safe-area-inset-top, 0px)) !important;
+    right: 14px !important;
+  }
+
+  .studio-shell .toast {
+    left: 12px !important;
+    right: 12px !important;
+    top: auto !important;
+    bottom: calc(max(10px, env(safe-area-inset-bottom, 0px)) + min(42dvh, 280px) + 12px) !important;
+    width: auto !important;
+    max-width: none !important;
+    transform: none !important;
+    border-radius: 15px !important;
+  }
+
+  :root[data-theme="dark"] html,
+  :root[data-theme="dark"] body,
+  :root[data-theme="dark"] #root,
+  :root[data-theme="dark"] .studio-shell {
+    color: #eef1fb !important;
+    background:
+      radial-gradient(circle at 22% 4%, rgba(126, 91, 255, 0.18), transparent 28%),
+      linear-gradient(145deg, #07080d 0%, #0d1017 48%, #090b11 100%) !important;
+  }
+
+  :root[data-theme="dark"] .studio-shell .topbar {
+    background:
+      linear-gradient(180deg, rgba(8, 10, 16, 0.96), rgba(8, 10, 16, 0.72)) !important;
+  }
+}
+
+@media (max-width: 720px) and (orientation: portrait) {
+  .studio-shell .topbar {
+    width: calc(100vw - 20px) !important;
+    padding: 8px 0 !important;
+  }
+
+  .studio-shell .topbar-actions {
+    grid-template-columns: minmax(0, 1fr) 52px 52px !important;
+    grid-auto-rows: 46px !important;
+  }
+
+  .studio-shell .premium-button {
+    width: 52px !important;
+    min-width: 52px !important;
+    font-size: 0 !important;
+  }
+
+  .studio-shell .premium-button svg {
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  .studio-shell .top-icon-button {
+    display: none !important;
+  }
+
+  .studio-shell .glass-button[aria-label="切换深色模式"] {
+    width: 52px !important;
+    min-width: 52px !important;
+    grid-column: 3 !important;
+  }
+
+  .studio-shell .main {
+    padding-top: 10px !important;
+    padding-bottom: calc(258px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .studio-shell .history-feed {
+    margin-top: 10px !important;
+    padding-top: 14px !important;
+  }
+
+  .studio-shell h1 {
+    font-size: clamp(22px, 7.1vw, 28px) !important;
+  }
+
+  .studio-shell .filter-tabs {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    width: 100% !important;
+    margin: 0 0 14px !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .studio-shell .filter-tabs button {
+    min-width: 0 !important;
+    width: 100% !important;
+    height: 42px !important;
+  }
+
+  .studio-shell .composer-card {
+    grid-template-columns: 42px minmax(0, 1fr) !important;
+    max-height: min(37dvh, 252px) !important;
+    padding: 9px !important;
+    border-radius: 18px !important;
+  }
+
+  .studio-shell .upload-tile,
+  .studio-shell .reference-dock {
+    width: 42px !important;
+    min-width: 42px !important;
+  }
+
+  .studio-shell .upload-tile span svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  .studio-shell .prompt-top {
+    min-height: 68px !important;
+  }
+
+  .studio-shell .prompt-top textarea,
+  .studio-shell textarea {
+    min-height: 68px !important;
+    max-height: 94px !important;
+    padding: 10px 12px !important;
+  }
+
+  .studio-shell .control-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.86fr) !important;
+  }
+
+  .studio-shell .count-control {
+    grid-column: 1 / -1 !important;
+  }
+
+  .studio-shell .ratio-panel {
+    bottom: calc(max(10px, env(safe-area-inset-bottom, 0px)) + min(37dvh, 252px) + 10px) !important;
+    max-height: 36dvh !important;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(248, 245, 255, 0.94)),
+      rgba(255, 255, 255, 0.95) !important;
+    box-shadow: 0 18px 54px rgba(60, 53, 96, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.86) !important;
+    backdrop-filter: blur(18px) saturate(136%) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(136%) !important;
+  }
+
+  .studio-shell .ratio-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .studio-shell .ratio-option {
+    min-height: 46px !important;
+  }
+
+  .studio-shell .account-popover {
+    bottom: max(18px, env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: 18px !important;
+  }
+
+  .studio-shell .toast {
+    bottom: calc(max(10px, env(safe-area-inset-bottom, 0px)) + min(37dvh, 252px) + 12px) !important;
+    pointer-events: none !important;
+  }
+}
+
+.studio-shell .mobile-ratio-panel {
+  display: none !important;
+}
+
+/* Last-load portrait lock: concept-fidelity.css is imported after styles.css,
+   so this must be the final mobile authority for the phone composer. */
+@media (max-width: 720px) and (orientation: portrait) {
+  .studio-shell.studio-shell .main {
+    padding-bottom: calc(244px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .studio-shell.studio-shell .composer {
+    position: fixed !important;
+    left: 10px !important;
+    right: 10px !important;
+    bottom: max(10px, env(safe-area-inset-bottom, 0px)) !important;
+    z-index: 90 !important;
+    width: calc(100vw - 20px) !important;
+    min-width: 0 !important;
+    max-width: calc(100vw - 20px) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: none !important;
+    translate: none !important;
+    inset-inline: 10px !important;
+  }
+
+  .studio-shell.studio-shell .composer-card {
+    display: grid !important;
+    grid-template-columns: 44px minmax(0, 1fr) !important;
+    grid-template-rows: auto auto 48px !important;
+    gap: 8px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    max-height: min(36dvh, 238px) !important;
+    min-height: 0 !important;
+    padding: 9px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain !important;
+    border-radius: 18px !important;
+  }
+
+  .studio-shell.studio-shell .upload-tile,
+  .studio-shell.studio-shell .reference-dock {
+    grid-column: 1 !important;
+    grid-row: 1 / 3 !important;
+    align-self: stretch !important;
+    width: 44px !important;
+    min-width: 44px !important;
+    max-width: 44px !important;
+    min-height: 0 !important;
+    height: auto !important;
+    border-radius: 14px !important;
+  }
+
+  .studio-shell.studio-shell .upload-tile::after,
+  .studio-shell.studio-shell .upload-tile-compact::after {
+    display: none !important;
+    content: none !important;
+  }
+
+  .studio-shell.studio-shell .prompt-zone {
+    display: grid !important;
+    grid-column: 2 !important;
+    grid-row: 1 / 3 !important;
+    grid-template-rows: auto auto !important;
+    gap: 7px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .studio-shell.studio-shell .prompt-top {
+    display: block !important;
+    grid-column: auto !important;
+    grid-row: auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 66px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  .studio-shell.studio-shell .prompt-top textarea,
+  .studio-shell.studio-shell textarea {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    min-height: 66px !important;
+    max-height: 92px !important;
+    padding: 10px 12px !important;
+    border-radius: 14px !important;
+    font-size: 14px !important;
+    line-height: 1.45 !important;
+  }
+
+  .studio-shell.studio-shell .control-row {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr) !important;
+    grid-column: auto !important;
+    grid-row: auto !important;
+    gap: 7px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .studio-shell.studio-shell .ratio-control,
+  .studio-shell.studio-shell .ratio-button,
+  .studio-shell.studio-shell .control-row select,
+  .studio-shell.studio-shell .count-control,
+  .studio-shell.studio-shell .soft-button {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    border-radius: 13px !important;
+    font-size: 12px !important;
+  }
+
+  .studio-shell.studio-shell .count-control {
+    grid-column: 1 / -1 !important;
+  }
+
+  .studio-shell.studio-shell .count-control input {
+    width: 34px !important;
+    min-width: 34px !important;
+    padding: 0 !important;
+    text-align: center !important;
+  }
+
+  .studio-shell.studio-shell .generate-button {
+    grid-column: 1 / -1 !important;
+    grid-row: 3 !important;
+    align-self: stretch !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    border-radius: 15px !important;
+    font-size: 15px !important;
+  }
+
+  .studio-shell.studio-shell .advanced-toggle {
+    display: none !important;
+  }
+
+  .studio-shell.studio-shell .desktop-ratio-panel {
+    display: none !important;
+  }
+
+  .studio-shell.studio-shell .mobile-ratio-panel {
+    display: block !important;
+    position: fixed !important;
+    left: 10px !important;
+    right: 10px !important;
+    bottom: calc(max(10px, env(safe-area-inset-bottom, 0px)) + 184px) !important;
+    z-index: 125 !important;
+    width: calc(100vw - 20px) !important;
+    min-width: 0 !important;
+    max-width: calc(100vw - 20px) !important;
+    max-height: 220px !important;
+    padding: 12px !important;
+    overflow-y: auto !important;
+    pointer-events: auto !important;
+    transform: none !important;
+  }
+
+  .studio-shell.studio-shell .mobile-ratio-panel.hidden {
+    display: none !important;
+  }
+
+  .studio-shell.studio-shell .mobile-ratio-panel .ratio-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .studio-shell.studio-shell .mobile-ratio-panel .ratio-option {
+    min-height: 46px !important;
+    border-radius: 14px !important;
+  }
+
+  .studio-shell.studio-shell .account-panel {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 130 !important;
+  }
+
+  .studio-shell.studio-shell .account-popover {
+    position: fixed !important;
+    left: 10px !important;
+    right: 10px !important;
+    bottom: max(14px, env(safe-area-inset-bottom, 0px)) !important;
+    width: calc(100vw - 20px) !important;
+    max-width: calc(100vw - 20px) !important;
+    max-height: min(76dvh, 560px) !important;
+    overflow-y: auto !important;
+    border-radius: 22px !important;
+  }
+
+  .studio-shell.studio-shell .toast {
+    inset-inline: 12px !important;
+    left: 12px !important;
+    right: 12px !important;
+    top: max(88px, env(safe-area-inset-top, 0px)) !important;
+    bottom: auto !important;
+    width: calc(100vw - 24px) !important;
+    max-width: none !important;
+    margin: 0 !important;
+    transform: none !important;
+    translate: none !important;
+    --tw-translate-x: 0 !important;
+    --tw-translate-y: 0 !important;
+    pointer-events: none !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock {
+    position: relative !important;
+    display: block !important;
+    min-height: 111px !important;
+    overflow: hidden !important;
+    border: 1px dashed rgba(149, 141, 178, 0.3) !important;
+    background: rgba(255, 255, 255, 0.66) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.62) !important;
+    backdrop-filter: blur(14px) !important;
+    -webkit-backdrop-filter: blur(14px) !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock::before,
+  .studio-shell.studio-shell .reference-dock-hover-plate,
+  .studio-shell.studio-shell .reference-dock-add-expanded {
+    display: none !important;
+    content: none !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock-stack {
+    position: relative !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    min-height: 100% !important;
+    height: 100% !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+    transition: none !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock-stack::before {
+    display: none !important;
+    content: none !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock.is-expanded,
+  .studio-shell.studio-shell .reference-dock.is-expanded .reference-dock-stack {
+    width: 44px !important;
+    min-width: 44px !important;
+    max-width: 44px !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock-card {
+    position: absolute !important;
+    top: calc(7px + min(var(--reference-index, 0), 2) * 17px) !important;
+    left: 5px !important;
+    width: 34px !important;
+    height: 44px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 11px !important;
+    overflow: hidden !important;
+    transform: none !important;
+    pointer-events: auto !important;
+    z-index: calc(8 - min(var(--reference-index, 0), 3)) !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock:hover .reference-dock-card,
+  .studio-shell.studio-shell .reference-dock:focus-within .reference-dock-card,
+  .studio-shell.studio-shell .reference-dock.is-expanded .reference-dock-card {
+    left: 5px !important;
+    transform: none !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock-card:nth-of-type(n + 4) {
+    display: none !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock-preview,
+  .studio-shell.studio-shell .reference-dock-preview img {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    object-fit: cover !important;
+    border-radius: inherit !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock-remove {
+    display: none !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock > .reference-dock-add {
+    position: absolute !important;
+    left: 7px !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: 7px !important;
+    width: 30px !important;
+    min-width: 30px !important;
+    height: 30px !important;
+    min-height: 30px !important;
+    display: grid !important;
+    place-items: center !important;
+    border-radius: 999px !important;
+    border: 1px solid rgba(232, 228, 246, 0.92) !important;
+    background: rgba(255, 255, 255, 0.94) !important;
+    box-shadow: 0 8px 18px rgba(39, 35, 82, 0.14) !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+    transform: none !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    z-index: 20 !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock:hover > .reference-dock-add,
+  .studio-shell.studio-shell .reference-dock:focus-within > .reference-dock-add,
+  .studio-shell.studio-shell .reference-dock.is-expanded > .reference-dock-add {
+    left: 7px !important;
+    transform: none !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock-add svg {
+    width: 16px !important;
+    height: 16px !important;
+    flex: 0 0 auto !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock input,
+  .studio-shell.studio-shell .reference-dock-add input,
+  .studio-shell.studio-shell .upload-tile input {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    margin: -1px !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    clip: rect(0 0 0 0) !important;
+    clip-path: inset(50%) !important;
+    border: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    white-space: nowrap !important;
+  }
+
+  .studio-shell.studio-shell .control-row:has(.soft-button:not(.hidden)) {
+    grid-template-columns: minmax(0, 1fr) 72px !important;
+  }
+
+  .studio-shell.studio-shell .control-row:has(.soft-button:not(.hidden)) .count-control {
+    grid-column: 1 !important;
+  }
+
+  .studio-shell.studio-shell .control-row:has(.soft-button:not(.hidden)) .soft-button {
+    grid-column: 2 !important;
+    width: 72px !important;
+    min-width: 72px !important;
+    max-width: 72px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 0 !important;
+    border-radius: 13px !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+  }
+
+  .studio-shell.studio-shell .control-row:has(.soft-button:not(.hidden)) .soft-button span {
+    display: none !important;
+  }
+
+  .studio-shell.studio-shell .control-row:has(.soft-button:not(.hidden)) .soft-button svg {
+    width: 16px !important;
+    height: 16px !important;
+    margin: 0 !important;
+  }
+}
+
+@media (max-width: 720px) and (orientation: portrait) {
+  .toast {
+    inset-inline: 12px !important;
+    left: 12px !important;
+    right: 12px !important;
+    top: max(88px, env(safe-area-inset-top, 0px)) !important;
+    bottom: auto !important;
+    width: calc(100vw - 24px) !important;
+    max-width: none !important;
+    margin: 0 !important;
+    transform: none !important;
+    translate: none !important;
+    --tw-translate-x: 0 !important;
+    --tw-translate-y: 0 !important;
+    pointer-events: none !important;
+  }
+}
+
+.studio-shell .reference-dock-toggle {
+  display: none;
+}
+
+/* Portrait reference manager: compact stack in the composer, expandable
+   floating strip above it so mobile users can inspect and remove each image. */
+@media (max-width: 720px) and (orientation: portrait) {
+  .studio-shell.studio-shell .reference-dock {
+    min-height: 156px !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock:not(.is-expanded) .reference-dock-card {
+    top: calc(10px + min(var(--reference-index, 0), 4) * 18px) !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock-card:nth-of-type(n + 4) {
+    display: block !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock-card:nth-of-type(n + 6) {
+    display: none !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock-toggle {
+    position: absolute !important;
+    top: 5px !important;
+    right: 5px !important;
+    z-index: 24 !important;
+    display: grid !important;
+    place-items: center !important;
+    width: 21px !important;
+    height: 21px !important;
+    min-width: 21px !important;
+    padding: 0 !important;
+    border: 1px solid rgba(232, 228, 246, 0.86) !important;
+    border-radius: 999px !important;
+    background: rgba(255, 255, 255, 0.92) !important;
+    color: #51476e !important;
+    box-shadow: 0 6px 14px rgba(39, 35, 82, 0.14) !important;
+    cursor: pointer !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock-toggle span {
+    font-size: 10px !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock-toggle svg {
+    display: none !important;
+  }
+
+  .studio-shell.studio-shell .composer-card:has(.reference-dock.is-expanded) {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .studio-shell.studio-shell .composer-card:has(.reference-dock.is-expanded) .prompt-zone {
+    grid-column: 1 !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock.is-expanded {
+    position: fixed !important;
+    left: 10px !important;
+    right: 10px !important;
+    bottom: calc(max(10px, env(safe-area-inset-bottom, 0px)) + 244px) !important;
+    z-index: 124 !important;
+    display: block !important;
+    width: calc(100vw - 20px) !important;
+    min-width: 0 !important;
+    max-width: calc(100vw - 20px) !important;
+    height: 116px !important;
+    min-height: 116px !important;
+    padding: 12px 50px 12px 12px !important;
+    overflow: hidden !important;
+    border-radius: 18px !important;
+    border: 1px solid rgba(255, 255, 255, 0.74) !important;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(246, 244, 255, 0.76)),
+      rgba(247, 245, 255, 0.86) !important;
+    box-shadow: 0 18px 42px rgba(49, 43, 91, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+    backdrop-filter: blur(18px) saturate(138%) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(138%) !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock.is-expanded .reference-dock-toggle {
+    top: 12px !important;
+    right: 12px !important;
+    width: 34px !important;
+    min-width: 34px !important;
+    height: 34px !important;
+    border-radius: 12px !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock.is-expanded .reference-dock-toggle span {
+    display: none !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock.is-expanded .reference-dock-toggle svg {
+    display: block !important;
+    width: 16px !important;
+    height: 16px !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock.is-expanded .reference-dock-stack {
+    display: flex !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    padding: 0 0 4px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    pointer-events: auto !important;
+    scroll-snap-type: x proximity !important;
+    scrollbar-width: none !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock.is-expanded .reference-dock-stack::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock.is-expanded .reference-dock-card,
+  .studio-shell.studio-shell .reference-dock.is-expanded .reference-dock-card:nth-of-type(n + 6) {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    display: block !important;
+    flex: 0 0 68px !important;
+    width: 68px !important;
+    min-width: 68px !important;
+    height: 88px !important;
+    margin: 0 !important;
+    border-radius: 14px !important;
+    transform: none !important;
+    scroll-snap-align: start !important;
+    z-index: auto !important;
+    pointer-events: auto !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock.is-expanded .reference-dock-preview {
+    border-radius: 14px !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock.is-expanded .reference-dock-remove {
+    position: absolute !important;
+    top: 5px !important;
+    right: 5px !important;
+    z-index: 4 !important;
+    display: grid !important;
+    place-items: center !important;
+    width: 24px !important;
+    min-width: 24px !important;
+    height: 24px !important;
+    min-height: 24px !important;
+    padding: 0 !important;
+    border: 1px solid rgba(255, 255, 255, 0.78) !important;
+    border-radius: 999px !important;
+    background: rgba(31, 29, 48, 0.72) !important;
+    color: #fff !important;
+    box-shadow: 0 8px 16px rgba(22, 18, 39, 0.24) !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock.is-expanded .reference-dock-remove svg {
+    width: 13px !important;
+    height: 13px !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock.is-expanded > .reference-dock-add {
+    display: none !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock.is-expanded .reference-dock-add-expanded {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    display: grid !important;
+    place-items: center !important;
+    flex: 0 0 68px !important;
+    width: 68px !important;
+    min-width: 68px !important;
+    height: 88px !important;
+    min-height: 88px !important;
+    border-radius: 14px !important;
+    border: 1px dashed rgba(116, 101, 160, 0.34) !important;
+    background: rgba(255, 255, 255, 0.58) !important;
+    box-shadow: none !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transform: none !important;
+  }
+
+  .studio-shell.studio-shell .mobile-reference-panel {
+    position: fixed !important;
+    left: 10px !important;
+    right: 10px !important;
+    bottom: calc(max(10px, env(safe-area-inset-bottom, 0px)) + 244px) !important;
+    z-index: 160 !important;
+    width: calc(100vw - 20px) !important;
+    min-width: 0 !important;
+    max-width: calc(100vw - 20px) !important;
+    padding: 12px !important;
+    border-radius: 18px !important;
+    border: 1px solid rgba(255, 255, 255, 0.74) !important;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(246, 244, 255, 0.8)),
+      rgba(247, 245, 255, 0.88) !important;
+    box-shadow: 0 18px 42px rgba(49, 43, 91, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+    backdrop-filter: blur(18px) saturate(138%) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(138%) !important;
+    pointer-events: auto !important;
+  }
+
+  .studio-shell.studio-shell .mobile-reference-panel.hidden {
+    display: none !important;
+  }
+
+  .studio-shell.studio-shell .mobile-reference-panel-head {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .studio-shell.studio-shell .mobile-reference-panel-head span {
+    color: #28213f !important;
+    font-size: 13px !important;
+    font-weight: 800 !important;
+  }
+
+  .studio-shell.studio-shell .mobile-reference-panel-head button {
+    display: grid !important;
+    place-items: center !important;
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    padding: 0 !important;
+    border: 1px solid rgba(232, 228, 246, 0.86) !important;
+    border-radius: 12px !important;
+    background: rgba(255, 255, 255, 0.9) !important;
+    color: #51476e !important;
+    box-shadow: 0 8px 18px rgba(39, 35, 82, 0.12) !important;
+  }
+
+  .studio-shell.studio-shell .mobile-reference-panel-head svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
+
+  .studio-shell.studio-shell .mobile-reference-strip {
+    display: flex !important;
+    gap: 10px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    padding: 0 2px 4px !important;
+    scroll-snap-type: x proximity !important;
+    scrollbar-width: none !important;
+  }
+
+  .studio-shell.studio-shell .mobile-reference-strip::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .studio-shell.studio-shell .mobile-reference-card,
+  .studio-shell.studio-shell .mobile-reference-add {
+    position: relative !important;
+    flex: 0 0 68px !important;
+    width: 68px !important;
+    min-width: 68px !important;
+    height: 88px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 14px !important;
+    overflow: hidden !important;
+    scroll-snap-align: start !important;
+  }
+
+  .studio-shell.studio-shell .mobile-reference-preview,
+  .studio-shell.studio-shell .mobile-reference-preview img {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    border: 0 !important;
+    border-radius: inherit !important;
+    object-fit: cover !important;
+  }
+
+  .studio-shell.studio-shell .mobile-reference-remove {
+    position: absolute !important;
+    top: 5px !important;
+    right: 5px !important;
+    z-index: 4 !important;
+    display: grid !important;
+    place-items: center !important;
+    width: 24px !important;
+    min-width: 24px !important;
+    height: 24px !important;
+    min-height: 24px !important;
+    padding: 0 !important;
+    border: 1px solid rgba(255, 255, 255, 0.78) !important;
+    border-radius: 999px !important;
+    background: rgba(31, 29, 48, 0.72) !important;
+    color: #fff !important;
+    box-shadow: 0 8px 16px rgba(22, 18, 39, 0.24) !important;
+  }
+
+  .studio-shell.studio-shell .mobile-reference-remove svg {
+    width: 13px !important;
+    height: 13px !important;
+  }
+
+  .studio-shell.studio-shell .mobile-reference-add {
+    display: grid !important;
+    place-items: center !important;
+    border: 1px dashed rgba(116, 101, 160, 0.34) !important;
+    background: rgba(255, 255, 255, 0.58) !important;
+    color: #7d6be8 !important;
+  }
+
+  .studio-shell.studio-shell .mobile-reference-add svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  .studio-shell.studio-shell .mobile-reference-add input {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    margin: -1px !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    clip: rect(0 0 0 0) !important;
+    clip-path: inset(50%) !important;
+    border: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    white-space: nowrap !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock.is-expanded {
+    position: relative !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    z-index: auto !important;
+    display: block !important;
+    grid-column: 1 !important;
+    grid-row: 1 / 3 !important;
+    align-self: stretch !important;
+    width: 44px !important;
+    min-width: 44px !important;
+    max-width: 44px !important;
+    height: auto !important;
+    min-height: 156px !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    border-radius: 14px !important;
+    border: 1px dashed rgba(149, 141, 178, 0.3) !important;
+    background: rgba(255, 255, 255, 0.66) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.62) !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock.is-expanded .reference-dock-stack {
+    position: relative !important;
+    display: block !important;
+    width: 44px !important;
+    min-width: 44px !important;
+    max-width: 44px !important;
+    height: 100% !important;
+    min-height: 100% !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock.is-expanded .reference-dock-card,
+  .studio-shell.studio-shell .reference-dock.is-expanded .reference-dock-card:nth-of-type(n + 6) {
+    position: absolute !important;
+    top: calc(10px + min(var(--reference-index, 0), 4) * 18px) !important;
+    left: 5px !important;
+    display: block !important;
+    width: 34px !important;
+    min-width: 34px !important;
+    height: 44px !important;
+    border-radius: 11px !important;
+    transform: none !important;
+    z-index: calc(8 - min(var(--reference-index, 0), 5)) !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock.is-expanded .reference-dock-card:nth-of-type(n + 6) {
+    display: none !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock.is-expanded .reference-dock-remove,
+  .studio-shell.studio-shell .reference-dock.is-expanded .reference-dock-add-expanded {
+    display: none !important;
+  }
+
+  .studio-shell.studio-shell .reference-dock.is-expanded > .reference-dock-add {
+    display: grid !important;
+  }
+
+  .studio-shell.studio-shell .composer-card:has(.reference-dock.is-expanded) {
+    grid-template-columns: 44px minmax(0, 1fr) !important;
+  }
+
+  .studio-shell.studio-shell .composer-card:has(.reference-dock.is-expanded) .prompt-zone {
+    grid-column: 2 !important;
+  }
+}
 }
 
 /* Make multi-image result rows easier to grab without changing card sizing. */

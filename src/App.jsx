@@ -891,6 +891,19 @@ function App() {
     });
   }
 
+  function isPortraitPhoneViewport() {
+    return window.matchMedia?.("(max-width: 720px) and (orientation: portrait)").matches;
+  }
+
+  function handleReferencePreview(image) {
+    if (isPortraitPhoneViewport() && !referenceDockExpanded) {
+      setReferenceDockExpanded(true);
+      return;
+    }
+
+    openImagePreview(image.dataUrl);
+  }
+
   function renderRatioOptions() {
     return ratioChoices.map(choice => (
       <button
@@ -1679,13 +1692,27 @@ function App() {
             <div
               className={`reference-dock${referenceDockExpanded ? " is-expanded" : ""}`}
               aria-label={`已选择 ${referenceImages.length} 张参考图`}
-              onMouseLeave={() => setReferenceDockExpanded(false)}
+              onMouseLeave={() => {
+                if (!isPortraitPhoneViewport()) {
+                  setReferenceDockExpanded(false);
+                }
+              }}
               style={{
                 ["--reference-count"]: referenceImages.length,
                 ["--reference-expanded-width"]: `${referenceImages.length * 78 + 84}px`
               }}
             >
               <div className="reference-dock-hover-plate" aria-hidden="true" />
+              <button
+                className="reference-dock-toggle"
+                type="button"
+                aria-expanded={referenceDockExpanded}
+                aria-label={referenceDockExpanded ? "收起参考图列表" : `展开 ${referenceImages.length} 张参考图`}
+                onClick={() => setReferenceDockExpanded(prev => !prev)}
+              >
+                <span>{referenceImages.length}</span>
+                <ChevronUp />
+              </button>
               <div className="reference-dock-stack">
                 {referenceImages.map((image, index) => (
                   <figure
@@ -1699,7 +1726,7 @@ function App() {
                       className="reference-dock-preview"
                       type="button"
                       aria-label={`放大浏览参考图 ${image.name || index + 1}`}
-                      onClick={() => openImagePreview(image.dataUrl)}
+                      onClick={() => handleReferencePreview(image)}
                     >
                       <img src={image.dataUrl} alt={image.name} />
                     </button>
@@ -1746,7 +1773,7 @@ function App() {
                   <span>{aspectRatio === "auto" ? "智能比例" : aspectRatio}</span>
                   <ChevronUp />
                 </Button>
-                <div className={`ratio-panel${ratioOpen ? "" : " hidden"}`}>
+                <div className={`ratio-panel desktop-ratio-panel${ratioOpen ? "" : " hidden"}`}>
                   <p>图片比例</p>
                   <div className="ratio-options" aria-label="图片比例">
                     {renderRatioOptions()}
@@ -1782,6 +1809,48 @@ function App() {
           </label>
         </form>
       </section>
+
+      {referenceImages.length > 0 ? (
+        <section className={`mobile-reference-panel${referenceDockExpanded ? "" : " hidden"}`} aria-label="参考图管理">
+          <div className="mobile-reference-panel-head">
+            <span>参考图 {referenceImages.length}</span>
+            <button type="button" aria-label="收起参考图列表" onClick={() => setReferenceDockExpanded(false)}>
+              <ChevronUp />
+            </button>
+          </div>
+          <div className="mobile-reference-strip">
+            {referenceImages.map((image, index) => (
+              <figure className="mobile-reference-card" key={`mobile-${image.id}`}>
+                <button
+                  className="mobile-reference-preview"
+                  type="button"
+                  aria-label={`放大浏览参考图 ${image.name || index + 1}`}
+                  onClick={() => openImagePreview(image.dataUrl)}
+                >
+                  <img src={image.dataUrl} alt={image.name} />
+                </button>
+                <button className="mobile-reference-remove" type="button" aria-label={`移除参考图 ${image.name || index + 1}`} onClick={() => removeReference(image.id)}>
+                  <X />
+                </button>
+              </figure>
+            ))}
+            <label className="mobile-reference-add" title="继续添加参考图">
+              <input type="file" accept="image/*" multiple onChange={async event => {
+                await addReferenceFiles(event.target.files || []);
+                event.target.value = "";
+              }} />
+              <Plus />
+            </label>
+          </div>
+        </section>
+      ) : null}
+
+      <div className={`ratio-panel mobile-ratio-panel${ratioOpen ? "" : " hidden"}`}>
+        <p>图片比例</p>
+        <div className="ratio-options" aria-label="图片比例">
+          {renderRatioOptions()}
+        </div>
+      </div>
 
       <section id="accountPanel" className={`account-panel${accountOpen ? "" : " hidden"}`} aria-label="账号登录">
         <div className="panel-backdrop" onClick={() => setAccountOpen(false)} />
