@@ -2486,3 +2486,145 @@ body:has(.studio-shell .image-preview:not(.hidden))::after,
     height: 18px !important;
   }
 }
+
+/* Make multi-image result rows easier to grab without changing card sizing. */
+.studio-shell .image-grid,
+.studio-shell .concept-grid {
+  padding-bottom: 10px !important;
+  scrollbar-color: rgba(111, 96, 178, 0.78) rgba(229, 225, 246, 0.58) !important;
+  scrollbar-width: auto !important;
+}
+
+.studio-shell .image-grid::-webkit-scrollbar,
+.studio-shell .concept-grid::-webkit-scrollbar {
+  height: 18px !important;
+}
+
+.studio-shell .image-grid::-webkit-scrollbar-track,
+.studio-shell .concept-grid::-webkit-scrollbar-track {
+  background: rgba(229, 225, 246, 0.58) !important;
+  border-radius: 999px !important;
+}
+
+.studio-shell .image-grid::-webkit-scrollbar-thumb,
+.studio-shell .concept-grid::-webkit-scrollbar-thumb {
+  min-width: 64px !important;
+  background: rgba(111, 96, 178, 0.78) !important;
+  border: 4px solid transparent !important;
+  border-radius: 999px !important;
+  background-clip: content-box !important;
+}
+
+.studio-shell .image-grid::-webkit-scrollbar-thumb:hover,
+.studio-shell .concept-grid::-webkit-scrollbar-thumb:hover {
+  background: rgba(96, 78, 164, 0.94) !important;
+  background-clip: content-box !important;
+}
+
+/* Real generated rows can contain more than four items, including all-error
+   batches, so keep every card wide enough to create horizontal overflow. */
+.studio-shell .history-scroll > .history-task .image-grid {
+  width: 100% !important;
+  min-width: 0 !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+}
+
+.studio-shell .history-scroll > .history-task .image-grid .image-card {
+  flex: 0 0 min(360px, 28vw) !important;
+  width: min(360px, 28vw) !important;
+  max-width: min(360px, 28vw) !important;
+  min-width: 260px !important;
+}
+
+.studio-shell .history-scroll > .history-task .image-grid .image-preview-trigger,
+.studio-shell .history-scroll > .history-task .image-grid .image-skeleton,
+.studio-shell .history-scroll > .history-task .image-grid .image-error {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.studio-shell .history-scroll > .history-task:has(.image-grid-scrollbar) {
+  height: 320px !important;
+  min-height: 320px !important;
+}
+
+.studio-shell .history-scroll > .history-task .image-grid-scroll-wrap {
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  display: grid !important;
+  grid-template-rows: minmax(0, 1fr) 22px !important;
+  gap: 10px !important;
+  align-self: stretch !important;
+  overflow: visible !important;
+}
+
+.studio-shell .history-scroll > .history-task .image-grid-scroll-wrap .image-grid {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  padding-bottom: 0 !important;
+  scrollbar-width: none !important;
+}
+
+.studio-shell .history-scroll > .history-task .image-grid-scroll-wrap .image-grid::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.studio-shell .history-scroll > .history-task .image-grid-scrollbar {
+  display: block !important;
+  position: relative !important;
+  z-index: 2 !important;
+  width: 100% !important;
+  height: 22px !important;
+  min-height: 22px !important;
+  margin: 0 !important;
+  padding: 4px !important;
+  cursor: grab !important;
+  background: rgba(237, 232, 255, 0.94) !important;
+  border: 1px solid rgba(141, 121, 222, 0.42) !important;
+  border-radius: 999px !important;
+  box-shadow:
+    0 8px 22px rgba(70, 57, 132, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.74) !important;
+  touch-action: none !important;
+  pointer-events: auto !important;
+}
+
+.studio-shell .history-scroll > .history-task .image-grid-scrollbar:active {
+  cursor: grabbing !important;
+}
+
+.studio-shell .history-scroll > .history-task .image-grid-scrollbar:focus-visible {
+  outline: 3px solid rgba(107, 79, 246, 0.24) !important;
+  outline-offset: 2px !important;
+}
+
+.studio-shell .history-scroll > .history-task .image-grid-scrollbar::before {
+  content: "" !important;
+  position: absolute !important;
+  left: 4px !important;
+  right: 4px !important;
+  top: 50% !important;
+  height: 10px !important;
+  transform: translateY(-50%) !important;
+  border-radius: 999px !important;
+  background: rgba(201, 190, 242, 0.96) !important;
+}
+
+.studio-shell .history-scroll > .history-task .image-grid-scrollbar-thumb {
+  position: absolute !important;
+  top: 4px !important;
+  bottom: 4px !important;
+  min-width: 84px !important;
+  border-radius: 999px !important;
+  border: 3px solid rgba(255, 255, 255, 0.68) !important;
+  background: #6b4ff6 !important;
+  box-shadow:
+    0 4px 12px rgba(79, 61, 149, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32) !important;
+  pointer-events: none !important;
+}

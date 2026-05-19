@@ -67,6 +67,160 @@ const ratioChoices = [
   { value: "21:9", label: "21:9", shape: "r-21-9" }
 ];
 
+function GeneratedImageGrid({ task, renderImageCard }) {
+  const gridRef = useRef(null);
+  const scrollbarTrackRef = useRef(null);
+  const [scrollState, setScrollState] = useState({ max: 0, value: 0, scrollWidth: 0, clientWidth: 0 });
+
+  useEffect(() => {
+    const grid = gridRef.current;
+    if (!grid) {
+      return undefined;
+    }
+
+    const updateScrollState = () => {
+      const max = Math.max(0, grid.scrollWidth - grid.clientWidth);
+      setScrollState({
+        max,
+        value: Math.min(grid.scrollLeft, max),
+        scrollWidth: grid.scrollWidth,
+        clientWidth: grid.clientWidth
+      });
+    };
+
+    updateScrollState();
+    grid.addEventListener("scroll", updateScrollState, { passive: true });
+
+    const resizeObserver = typeof ResizeObserver === "undefined"
+      ? null
+      : new ResizeObserver(updateScrollState);
+    resizeObserver?.observe(grid);
+    Array.from(grid.children).forEach(child => resizeObserver?.observe(child));
+
+    return () => {
+      grid.removeEventListener("scroll", updateScrollState);
+      resizeObserver?.disconnect();
+    };
+  }, [task.images]);
+
+  const scrollGridToTrackPosition = clientX => {
+    const grid = gridRef.current;
+    const track = scrollbarTrackRef.current;
+    if (!grid || !track) {
+      return;
+    }
+
+    const max = Math.max(0, grid.scrollWidth - grid.clientWidth);
+    if (max <= 0) {
+      return;
+    }
+
+    const rect = track.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    const nextValue = ratio * max;
+    grid.scrollLeft = nextValue;
+    setScrollState(prev => ({
+      ...prev,
+      max,
+      value: nextValue,
+      scrollWidth: grid.scrollWidth,
+      clientWidth: grid.clientWidth
+    }));
+  };
+
+  const handleScrollbarPointerDown = event => {
+    event.preventDefault();
+    scrollGridToTrackPosition(event.clientX);
+
+    const handlePointerMove = moveEvent => {
+      scrollGridToTrackPosition(moveEvent.clientX);
+    };
+
+    const handlePointerUp = () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp, { once: true });
+  };
+
+  const handleScrollbarMouseDown = event => {
+    event.preventDefault();
+    scrollGridToTrackPosition(event.clientX);
+  };
+
+  const handleScrollbarKeyDown = event => {
+    if (!["ArrowLeft", "ArrowRight", "PageUp", "PageDown", "Home", "End"].includes(event.key)) {
+      return;
+    }
+
+    event.preventDefault();
+    const grid = gridRef.current;
+    if (!grid) {
+      return;
+    }
+
+    const step = event.key === "PageUp" || event.key === "PageDown"
+      ? grid.clientWidth * 0.8
+      : 80;
+    const nextValue = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? scrollState.max
+        : event.key === "ArrowLeft" || event.key === "PageUp"
+          ? Math.max(0, grid.scrollLeft - step)
+          : Math.min(scrollState.max, grid.scrollLeft + step);
+
+    grid.scrollLeft = nextValue;
+    setScrollState(prev => ({ ...prev, value: nextValue }));
+  };
+
+  const gridClassName = `image-grid count-${Math.min(task.images.length, 4)}${
+    task.images.length > 4 ? " is-overflowing" : ""
+  }`;
+  const showScrollbar = scrollState.max > 1 || task.images.length > 4;
+  const thumbWidthPercent = scrollState.scrollWidth > 0
+    ? Math.min(100, Math.max(16, (scrollState.clientWidth / scrollState.scrollWidth) * 100))
+    : 100;
+  const thumbLeftPercent = scrollState.max > 0
+    ? (scrollState.value / scrollState.max) * (100 - thumbWidthPercent)
+    : 0;
+
+  return (
+    <div className="image-grid-scroll-wrap">
+      <div ref={gridRef} className={gridClassName}>
+        {task.images.map(renderImageCard)}
+      </div>
+      {showScrollbar ? (
+        <div
+          ref={scrollbarTrackRef}
+          className="image-grid-scrollbar"
+          role="scrollbar"
+          tabIndex={0}
+          aria-label="左右滚动查看生成图片"
+          aria-orientation="horizontal"
+          aria-valuemin={0}
+          aria-valuemax={Math.round(scrollState.max)}
+          aria-valuenow={Math.round(scrollState.value)}
+          onPointerDown={handleScrollbarPointerDown}
+          onMouseDown={handleScrollbarMouseDown}
+          onClick={handleScrollbarMouseDown}
+          onKeyDown={handleScrollbarKeyDown}
+        >
+          <span
+            className="image-grid-scrollbar-thumb"
+            style={{
+              width: `${thumbWidthPercent}%`,
+              left: `${thumbLeftPercent}%`
+            }}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function openHistoryDb() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -1228,6 +1382,50 @@ function App() {
     );
   }
 
+  function handleHistoryTaskScrollbarPointerDown(event) {
+    const track = event.currentTarget.querySelector(".image-grid-scrollbar");
+    const grid = event.currentTarget.querySelector(".image-grid");
+    if (!track || !grid) {
+      return;
+    }
+
+    const trackRect = track.getBoundingClientRect();
+    const isInsideTrack = event.clientX >= trackRect.left
+      && event.clientX <= trackRect.right
+      && event.clientY >= trackRect.top
+      && event.clientY <= trackRect.bottom;
+    if (!isInsideTrack) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const moveGrid = clientX => {
+      const max = Math.max(0, grid.scrollWidth - grid.clientWidth);
+      if (max <= 0) {
+        return;
+      }
+
+      const ratio = Math.min(1, Math.max(0, (clientX - trackRect.left) / trackRect.width));
+      grid.scrollLeft = ratio * max;
+    };
+
+    moveGrid(event.clientX);
+
+    const handlePointerMove = moveEvent => {
+      moveGrid(moveEvent.clientX);
+    };
+
+    const handlePointerUp = () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp, { once: true });
+  }
+
   const referenceModeActive = syncReferenceModeState();
 
   return (
@@ -1388,7 +1586,7 @@ function App() {
             ) : null}
             {historyError ? <div className="empty-inline">{historyError}</div> : null}
             {visibleHistory.map(task => (
-              <Card key={task.id} className={`history-task${task.id === selectedId ? " selected" : ""}`} data-id={task.id} onClick={() => {
+              <Card key={task.id} className={`history-task${task.id === selectedId ? " selected" : ""}`} data-id={task.id} onPointerDownCapture={handleHistoryTaskScrollbarPointerDown} onClick={() => {
                 setSelectedId(task.id);
               }}>
                 <CardHeader className="task-head">
@@ -1451,9 +1649,7 @@ function App() {
 
                 <CardContent className="task-content">
                   {renderReferenceChips(task)}
-                  <div className={`image-grid count-${Math.min(task.images.length, 4)}`}>
-                    {task.images.slice(0, 4).map(renderImageCard)}
-                  </div>
+                  <GeneratedImageGrid task={task} renderImageCard={renderImageCard} />
                 </CardContent>
               </Card>
             ))}
