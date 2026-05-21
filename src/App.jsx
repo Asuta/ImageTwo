@@ -904,6 +904,10 @@ function App() {
     openImagePreview(image.dataUrl);
   }
 
+  function stepCount(delta) {
+    setCount(prev => String(Math.max(1, getCountValue(prev) + delta)));
+  }
+
   function renderRatioOptions() {
     return ratioChoices.map(choice => (
       <button
@@ -1789,7 +1793,13 @@ function App() {
 
               <label className="count-control">
                 <span>数量</span>
+                <Button className="count-step count-step-minus" variant="ghost" type="button" aria-label="减少生成数量" onClick={() => stepCount(-1)}>
+                  <span aria-hidden="true">-</span>
+                </Button>
                 <Input type="number" min="1" step="1" value={count} onChange={event => setCount(event.target.value)} />
+                <Button className="count-step count-step-plus" variant="ghost" type="button" aria-label="增加生成数量" onClick={() => stepCount(1)}>
+                  <Plus aria-hidden="true" />
+                </Button>
               </label>
 
               <Button className={`soft-button${referenceImages.length === 0 ? " hidden" : ""}`} variant="outline" type="button" onClick={clearReferences}>

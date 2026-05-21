@@ -4281,3 +4281,535 @@ body:has(.studio-shell .image-preview:not(.hidden))::after,
     inset 0 1px 0 rgba(255, 255, 255, 0.32) !important;
   pointer-events: none !important;
 }
+
+/* Final portrait history repair.
+   This file is imported after styles.css, so keep the mobile layout lock here. */
+@media (max-width: 720px) and (orientation: portrait) {
+  html,
+  body,
+  #root,
+  .studio-shell {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
+  }
+
+  .studio-shell {
+    display: block !important;
+    padding: 0 !important;
+  }
+
+  .studio-shell .sidebar {
+    display: none !important;
+  }
+
+  .studio-shell .topbar {
+    position: fixed !important;
+    top: 10px !important;
+    right: 10px !important;
+    z-index: 95 !important;
+    display: block !important;
+    width: auto !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    pointer-events: none !important;
+  }
+
+  .studio-shell .topbar-actions {
+    display: block !important;
+    width: auto !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    pointer-events: none !important;
+  }
+
+  .studio-shell .topbar-actions > :not(.account-button) {
+    display: none !important;
+  }
+
+  .studio-shell .account-button {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    width: auto !important;
+    min-width: 58px !important;
+    max-width: 96px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    padding: 0 10px !important;
+    border-radius: 999px !important;
+    pointer-events: auto !important;
+    color: #3d375d !important;
+    border: 1px solid rgba(255, 255, 255, 0.78) !important;
+    background: rgba(255, 255, 255, 0.82) !important;
+    box-shadow: 0 10px 24px rgba(52, 43, 105, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+  }
+
+  .studio-shell .account-button .status-dot {
+    display: block !important;
+    width: 9px !important;
+    height: 9px !important;
+    min-width: 9px !important;
+    margin: 0 !important;
+  }
+
+  .studio-shell .account-button span:last-child {
+    display: block !important;
+    max-width: 58px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    font-size: 12px !important;
+    font-weight: 760 !important;
+  }
+
+  .studio-shell .main {
+    position: relative !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    max-height: 100dvh !important;
+    padding: 8px 10px calc(248px + env(safe-area-inset-bottom, 0px)) !important;
+    overflow: hidden !important;
+  }
+
+  .studio-shell .history-feed {
+    display: grid !important;
+    grid-template-rows: auto auto minmax(0, 1fr) !important;
+    gap: 6px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: calc(100dvh - 256px - env(safe-area-inset-bottom, 0px)) !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 8px 10px 10px !important;
+    overflow: hidden !important;
+    border-radius: 18px !important;
+  }
+
+  .studio-shell .history-toolbar {
+    display: grid !important;
+    grid-template-columns: minmax(0, 88px) minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .studio-shell .history-toolbar .eyebrow {
+    display: none !important;
+  }
+
+  .studio-shell .history-toolbar > div:first-child {
+    min-width: 0 !important;
+  }
+
+  .studio-shell .history-toolbar h1 {
+    font-size: 13px !important;
+    line-height: 1.05 !important;
+    margin: 0 !important;
+    max-width: 88px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .studio-shell .history-tools {
+    display: grid !important;
+    grid-template-columns: 34px 34px minmax(0, 1fr) !important;
+    grid-template-rows: 34px !important;
+    gap: 6px !important;
+    width: 100% !important;
+  }
+
+  .studio-shell .history-tools .view-button,
+  .studio-shell .history-tools select {
+    height: 34px !important;
+    min-height: 34px !important;
+    border-radius: 11px !important;
+  }
+
+  .studio-shell .history-tools select {
+    grid-column: 3 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .studio-shell .filter-tabs {
+    display: flex !important;
+    gap: 8px !important;
+    width: calc(100% + 20px) !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    margin: 0 -10px !important;
+    padding: 0 10px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: none !important;
+  }
+
+  .studio-shell .filter-tabs::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .studio-shell .filter-tabs button {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: 78px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 0 12px !important;
+    border-radius: 12px !important;
+  }
+
+  .studio-shell .history-scroll {
+    display: grid !important;
+    grid-auto-rows: max-content !important;
+    gap: 10px !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 2px 18px 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    scrollbar-width: thin !important;
+  }
+
+  .studio-shell .history-task,
+  .studio-shell .history-scroll > .history-task:has(.image-grid-scrollbar),
+  .studio-shell .concept-preview-list .concept-task {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    border-radius: 15px !important;
+    contain: none !important;
+    content-visibility: visible !important;
+  }
+
+  .studio-shell .task-head {
+    display: grid !important;
+    grid-template-columns: 22px minmax(0, 1fr) !important;
+    gap: 8px !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 10px 10px 6px !important;
+  }
+
+  .studio-shell .task-title-area svg {
+    display: none !important;
+  }
+
+  .studio-shell .task-copy-area h2,
+  .studio-shell [data-slot="card-title"],
+  .studio-shell .task-copy-area [data-slot="card-title"] {
+    max-width: 100% !important;
+    font-size: 13px !important;
+    line-height: 1.35 !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+  }
+
+  .studio-shell .tag-row {
+    display: flex !important;
+    gap: 5px !important;
+    margin-top: 6px !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+  }
+
+  .studio-shell .tag-row::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .studio-shell .tag-row [data-slot="badge"] {
+    flex: 0 0 auto !important;
+    min-height: 22px !important;
+    font-size: 10px !important;
+    white-space: nowrap !important;
+  }
+
+  .studio-shell .task-more-actions {
+    grid-column: 1 / -1 !important;
+    display: flex !important;
+    gap: 6px !important;
+    padding: 0 0 0 30px !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+  }
+
+  .studio-shell .task-more-actions::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .studio-shell .task-action-button,
+  .studio-shell .task-delete-button {
+    flex: 0 0 auto !important;
+    width: 34px !important;
+    min-width: 34px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 0 !important;
+    border-radius: 11px !important;
+  }
+
+  .studio-shell .task-action-button span {
+    display: none !important;
+  }
+
+  .studio-shell .task-content,
+  .studio-shell .concept-task .task-content {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 8px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 0 10px 10px !important;
+    overflow: visible !important;
+  }
+
+  .studio-shell .task-reference-block {
+    order: 2 !important;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 6px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+  }
+
+  .studio-shell .task-reference-block p {
+    font-size: 11px !important;
+  }
+
+  .studio-shell .reference-chip-stack {
+    display: flex !important;
+    gap: 6px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+  }
+
+  .studio-shell .reference-chip-stack::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .studio-shell .reference-sample,
+  .studio-shell .reference-chip,
+  .studio-shell .reference-empty,
+  .studio-shell .reference-more {
+    flex: 0 0 44px !important;
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 10px !important;
+  }
+
+  .studio-shell .history-scroll > .history-task .image-grid-scroll-wrap {
+    order: 1 !important;
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+  }
+
+  .studio-shell .history-scroll > .history-task .image-grid,
+  .studio-shell .image-grid,
+  .studio-shell .concept-grid,
+  .studio-shell .image-grid.count-1,
+  .studio-shell .image-grid.count-2,
+  .studio-shell .image-grid.count-3,
+  .studio-shell .image-grid.count-4,
+  .studio-shell .concept-grid.count-1,
+  .studio-shell .concept-grid.count-2,
+  .studio-shell .concept-grid.count-3,
+  .studio-shell .concept-grid.count-4 {
+    order: 1 !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .studio-shell .history-scroll > .history-task .image-grid.count-1,
+  .studio-shell .image-grid.count-1,
+  .studio-shell .concept-grid.count-1 {
+    grid-template-columns: 1fr !important;
+  }
+
+  .studio-shell .history-scroll > .history-task .image-grid .image-card,
+  .studio-shell .image-card,
+  .studio-shell .concept-image,
+  .studio-shell .generated-image-card:not(.is-loading):not(.is-streaming):not(.is-error) {
+    flex: initial !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    aspect-ratio: 1 / 1 !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+  }
+
+  .studio-shell .history-scroll > .history-task .image-grid.count-1 .image-card,
+  .studio-shell .image-grid.count-1 .image-card,
+  .studio-shell .concept-grid.count-1 .concept-image {
+    aspect-ratio: 16 / 11 !important;
+  }
+
+  .studio-shell .history-scroll > .history-task .image-grid .image-preview-trigger,
+  .studio-shell .history-scroll > .history-task .image-grid .image-skeleton,
+  .studio-shell .history-scroll > .history-task .image-grid .image-error,
+  .studio-shell .image-card img,
+  .studio-shell .generated-image-card:not(.is-loading):not(.is-streaming):not(.is-error) img,
+  .studio-shell .concept-image img,
+  .studio-shell .image-preview-trigger,
+  .studio-shell .image-skeleton,
+  .studio-shell .image-error {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    object-fit: cover !important;
+  }
+
+  .studio-shell .image-card figcaption,
+  .studio-shell .concept-image figcaption {
+    min-height: 26px !important;
+    padding: 5px 7px !important;
+    font-size: 10px !important;
+  }
+
+  .studio-shell .history-scroll > .history-task .image-grid-scrollbar {
+    display: none !important;
+  }
+
+  .studio-shell .upload-tile,
+  .studio-shell.studio-shell .reference-dock > .reference-dock-add,
+  .studio-shell.studio-shell .reference-dock.is-expanded > .reference-dock-add {
+    color: #6f4df4 !important;
+    border-color: rgba(126, 91, 255, 0.5) !important;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(239, 233, 255, 0.82)),
+      rgba(247, 244, 255, 0.78) !important;
+  }
+
+  .studio-shell .upload-tile span,
+  .studio-shell .upload-tile svg,
+  .studio-shell.studio-shell .reference-dock > .reference-dock-add svg,
+  .studio-shell.studio-shell .reference-dock.is-expanded > .reference-dock-add svg {
+    color: #6f4df4 !important;
+    stroke: #6f4df4 !important;
+    opacity: 1 !important;
+  }
+
+  .studio-shell .count-control {
+    display: grid !important;
+    grid-template-columns: 44px minmax(0, 1fr) 44px !important;
+    align-items: center !important;
+    gap: 8px !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    padding: 5px !important;
+    border-radius: 15px !important;
+    background: rgba(255, 255, 255, 0.62) !important;
+    border: 1px solid rgba(255, 255, 255, 0.74) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82) !important;
+  }
+
+  .studio-shell .count-control > span:not([aria-hidden="true"]) {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    margin: -1px !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    clip: rect(0 0 0 0) !important;
+    clip-path: inset(50%) !important;
+    white-space: nowrap !important;
+  }
+
+  .studio-shell .count-step {
+    display: grid !important;
+    place-items: center !important;
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 0 !important;
+    border-radius: 12px !important;
+    color: #5b45d6 !important;
+    background: rgba(255, 255, 255, 0.76) !important;
+    border: 1px solid rgba(129, 104, 230, 0.25) !important;
+    box-shadow: 0 8px 18px rgba(77, 63, 146, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+  }
+
+  .studio-shell .count-step span {
+    display: block !important;
+    color: currentColor !important;
+    font-size: 24px !important;
+    font-weight: 760 !important;
+    line-height: 1 !important;
+  }
+
+  .studio-shell .count-step svg {
+    width: 20px !important;
+    height: 20px !important;
+    stroke-width: 2.7 !important;
+  }
+
+  .studio-shell .count-control input {
+    grid-column: 2 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 12px !important;
+    color: #2f3e3b !important;
+    background: rgba(255, 255, 255, 0.38) !important;
+    box-shadow: none !important;
+    text-align: center !important;
+    font-size: 18px !important;
+    font-weight: 800 !important;
+  }
+}
