@@ -1398,7 +1398,7 @@ function App() {
     }
 
     return (
-      <figure key={image.id} className="image-card generated-image-card">
+      <figure key={image.id} className="image-card generated-image-card is-ratio-fit">
         <button className="image-preview-trigger" type="button" onClick={() => openImagePreview(image.url)} aria-label="放大预览生成结果">
           <img src={image.url} alt="生成结果" style={imageStyle} />
         </button>

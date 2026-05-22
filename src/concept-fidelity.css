@@ -4184,22 +4184,22 @@ body:has(.studio-shell .image-preview:not(.hidden))::after,
 }
 
 .studio-shell .history-scroll > .history-task .image-grid .image-card {
-  flex: 0 0 min(360px, 28vw) !important;
-  width: min(360px, 28vw) !important;
-  max-width: min(360px, 28vw) !important;
-  min-width: 260px !important;
+  flex: 0 0 auto !important;
+  width: auto !important;
+  max-width: none !important;
+  min-width: 0 !important;
 }
 
 .studio-shell .history-scroll > .history-task .image-grid .image-preview-trigger,
 .studio-shell .history-scroll > .history-task .image-grid .image-skeleton,
 .studio-shell .history-scroll > .history-task .image-grid .image-error {
-  width: 100% !important;
-  max-width: none !important;
+  width: auto !important;
+  max-width: 100% !important;
 }
 
 .studio-shell .history-scroll > .history-task:has(.image-grid-scrollbar) {
-  height: 320px !important;
-  min-height: 320px !important;
+  height: auto !important;
+  min-height: 0 !important;
 }
 
 .studio-shell .history-scroll > .history-task .image-grid-scroll-wrap {
@@ -4207,8 +4207,8 @@ body:has(.studio-shell .image-preview:not(.hidden))::after,
   width: 100% !important;
   max-width: 100% !important;
   display: grid !important;
-  grid-template-rows: minmax(0, 1fr) 22px !important;
-  gap: 10px !important;
+  grid-template-rows: auto 22px !important;
+  gap: 8px !important;
   align-self: stretch !important;
   overflow: visible !important;
 }
@@ -4217,6 +4217,9 @@ body:has(.studio-shell .image-preview:not(.hidden))::after,
   width: 100% !important;
   max-width: 100% !important;
   min-width: 0 !important;
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: clamp(10px, 1.2vw, 18px) !important;
   padding-bottom: 0 !important;
   scrollbar-width: none !important;
 }
@@ -4280,6 +4283,26 @@ body:has(.studio-shell .image-preview:not(.hidden))::after,
     0 4px 12px rgba(79, 61, 149, 0.28),
     inset 0 1px 0 rgba(255, 255, 255, 0.32) !important;
   pointer-events: none !important;
+}
+
+.studio-shell .history-scroll > .history-task .image-grid .generated-image-card.is-ratio-fit {
+  display: block !important;
+  width: fit-content !important;
+  max-width: min(34vw, 520px) !important;
+  height: auto !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+}
+
+.studio-shell .history-scroll > .history-task .image-grid .generated-image-card.is-ratio-fit .image-preview-trigger,
+.studio-shell .history-scroll > .history-task .image-grid .generated-image-card.is-ratio-fit img {
+  display: block !important;
+  width: auto !important;
+  max-width: min(34vw, 520px) !important;
+  height: auto !important;
+  max-height: 238px !important;
+  min-height: 0 !important;
+  object-fit: contain !important;
 }
 
 /* Final portrait history repair.
