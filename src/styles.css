@@ -3496,9 +3496,24 @@ body.preview-open {
 
 .image-error {
   display: grid;
-  place-items: center;
+  align-content: center;
+  justify-items: center;
+  gap: 6px;
+  padding: 18px;
+  text-align: center;
   color: var(--coral);
+  overflow-wrap: anywhere;
+}
+
+.image-error strong {
   font-weight: 900;
+}
+
+.image-error span {
+  max-width: 100%;
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 800;
 }
 
 .task-actions {

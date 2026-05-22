@@ -1352,6 +1352,8 @@ function App() {
     const imageStyle = {
       "--history-image-scale": HISTORY_IMAGE_SCALE / 100
     };
+    const failureReason = String(image.error || "").trim();
+    const hasFailureReason = failureReason && !/^生成失败[。.]?$/.test(failureReason);
 
     if (image.status === "streaming" && image.url) {
       return (
@@ -1383,8 +1385,11 @@ function App() {
     if (image.status === "error") {
       return (
         <figure key={image.id} className="image-card is-error">
-          <div className="image-error">生成失败</div>
-          <figcaption>{image.error || "请稍后重试"}</figcaption>
+          <div className="image-error">
+            <strong>生成失败</strong>
+            {hasFailureReason ? <span>{failureReason}</span> : null}
+          </div>
+          <figcaption>{hasFailureReason ? failureReason : "请稍后重试"}</figcaption>
         </figure>
       );
     }
