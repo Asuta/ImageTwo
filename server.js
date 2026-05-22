@@ -1676,6 +1676,9 @@ async function handleGenerate(req, res) {
     runGenerationJob({
       requestId: reservation.requestId,
       input,
+      prompt: imagePrompt,
+      aspectRatio,
+      referenceImages,
       quality,
       costCredits: reservation.costCredits,
       remainingCredits: reservation.remainingCredits,
@@ -1708,7 +1711,7 @@ async function handleGenerate(req, res) {
   }
 }
 
-async function runGenerationJob({ requestId, input, quality, costCredits, remainingCredits }) {
+async function runGenerationJob({ requestId, input, prompt, aspectRatio, referenceImages = [], quality, costCredits, remainingCredits }) {
   try {
     const currentJob = generationJobs.get(requestId);
     const providerId = currentJob?.provider?.id || "";
@@ -1724,13 +1727,18 @@ async function runGenerationJob({ requestId, input, quality, costCredits, remain
       ? input
       : [{ role: "user", content: input }];
 
-    const upstream = await fetch(provider.apiUrl || DEFAULT_API_URL, {
+    const upstreamRequest = buildUpstreamRequest(provider, {
+      messages,
+      prompt: prompt || (Array.isArray(input) ? "" : input),
+      aspectRatio,
+      referenceImages,
+      quality
+    });
+
+    const upstream = await fetch(upstreamRequest.url, {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${getProviderSecret(provider)}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(buildUpstreamRequest(provider, messages, quality))
+      headers: upstreamRequest.headers,
+      body: upstreamRequest.body
     });
 
     const { text, payload } = await readUpstreamImageResponse(upstream, requestId);
@@ -1788,22 +1796,131 @@ async function runGenerationJob({ requestId, input, quality, costCredits, remain
   }
 }
 
-function buildUpstreamRequest(provider, messages, quality) {
+function buildUpstreamRequest(provider, { messages, prompt, aspectRatio, referenceImages = [], quality }) {
   const model = provider.model || DEFAULT_MODEL;
   const format = normalizeProviderFormat(provider.apiFormat);
+  const apiUrl = provider.apiUrl || DEFAULT_API_URL;
+  const apiKey = getProviderSecret(provider);
 
   if (format === "responses") {
     return {
-      model,
-      input: messages
+      url: apiUrl,
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model,
+        input: messages
+      })
     };
   }
 
-  return {
+  if (referenceImages.length > 0) {
+    return buildImageEditRequest({
+      apiUrl,
+      apiKey,
+      model,
+      prompt,
+      aspectRatio,
+      referenceImages,
+      quality
+    });
+  }
+
+  return buildImageGenerationRequest({
+    apiUrl,
+    apiKey,
     model,
-    messages,
+    prompt,
+    aspectRatio,
     quality
+  });
+}
+
+function buildImageEditRequest({ apiUrl, apiKey, model, prompt, aspectRatio, referenceImages, quality }) {
+  const form = new FormData();
+  form.append("model", model);
+  form.append("prompt", prompt);
+  form.append("n", "1");
+  form.append("thinking", quality);
+  form.append("response_format", "b64_json");
+
+  form.append("size", mapAspectRatioToImageEditSize(aspectRatio) || "auto");
+
+  referenceImages.forEach((image, index) => {
+    const parsed = parseDataImageUrl(image.dataUrl);
+    if (!parsed?.base64) {
+      throw new Error(`第 ${index + 1} 张参考图不是有效的 data URL。`);
+    }
+
+    const mimeType = `image/${parsed.outputFormat}`;
+    const extension = imageExtensionFromMimeType(mimeType);
+    const bytes = Buffer.from(parsed.base64, "base64");
+    form.append("image[]", new Blob([bytes], { type: mimeType }), `reference-${index + 1}.${extension}`);
+  });
+
+  return {
+    url: deriveImageEditApiUrl(apiUrl),
+    headers: {
+      Authorization: `Bearer ${apiKey}`
+    },
+    body: form
   };
+}
+
+function buildImageGenerationRequest({ apiUrl, apiKey, model, prompt, aspectRatio, quality }) {
+  return {
+    url: deriveImageGenerationApiUrl(apiUrl),
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model,
+      prompt,
+      n: 1,
+      size: mapAspectRatioToImageEditSize(aspectRatio) || "auto",
+      thinking: quality,
+      response_format: "b64_json"
+    })
+  };
+}
+
+function deriveImageGenerationApiUrl(apiUrl) {
+  const value = String(apiUrl || DEFAULT_API_URL).trim();
+  return value
+    .replace(/\/v1\/chat\/completions(\?.*)?$/i, "/v1/images/generations$1")
+    .replace(/\/v1\/responses(\?.*)?$/i, "/v1/images/generations$1")
+    .replace(/\/v1\/images\/edits(\?.*)?$/i, "/v1/images/generations$1");
+}
+
+function deriveImageEditApiUrl(apiUrl) {
+  const value = String(apiUrl || DEFAULT_API_URL).trim();
+  return value
+    .replace(/\/v1\/chat\/completions(\?.*)?$/i, "/v1/images/edits$1")
+    .replace(/\/v1\/responses(\?.*)?$/i, "/v1/images/edits$1");
+}
+
+function mapAspectRatioToImageEditSize(aspectRatio) {
+  if (aspectRatio === "1:1") {
+    return "1024x1024";
+  }
+  if (aspectRatio === "3:2" || aspectRatio === "4:3" || aspectRatio === "16:9" || aspectRatio === "21:9") {
+    return "1536x1024";
+  }
+  if (aspectRatio === "2:3" || aspectRatio === "3:4" || aspectRatio === "9:16" || aspectRatio === "9:21") {
+    return "1024x1536";
+  }
+  return "";
+}
+
+function imageExtensionFromMimeType(mimeType) {
+  const format = getImageFormatFromContentType(mimeType);
+  if (format === "jpeg") {
+    return "jpg";
+  }
+  return format || "png";
 }
 
 async function extractImageResult(payload) {
