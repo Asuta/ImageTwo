@@ -578,6 +578,11 @@ function App() {
     showPreviewRows ? previewRows.slice(0, previewRows.length - history.length) : []
   ), [showPreviewRows, history.length]);
 
+  function promptLoginBeforeGeneration() {
+    showToast("请点击右上角登录后再进行生成");
+    setAccountOpen(true);
+  }
+
   async function loadHistory() {
     setHistoryLoading(true);
     setHistoryError("");
@@ -1095,8 +1100,7 @@ function App() {
 
   async function generateNewTask() {
     if (!currentUser) {
-      showToast("请先登录后再生成");
-      setAccountOpen(true);
+      promptLoginBeforeGeneration();
       return;
     }
 
@@ -1133,8 +1137,7 @@ function App() {
 
   async function generateFromTask(task) {
     if (!currentUser) {
-      showToast("请先登录后再生成");
-      setAccountOpen(true);
+      promptLoginBeforeGeneration();
       return;
     }
 
@@ -1685,7 +1688,7 @@ function App() {
       </main>
 
       <section className="composer" aria-label="生成控制">
-        <form className={`composer-card${isLoggedIn ? "" : " is-disabled"}`} onSubmit={async event => {
+        <form className={`composer-card${isLoggedIn ? "" : " is-disabled"}`} noValidate onSubmit={async event => {
           event.preventDefault();
           await generateNewTask();
         }}>
