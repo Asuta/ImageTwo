@@ -12,7 +12,7 @@
         <header class="admin-header">
           <div>
             <p class="eyebrow">运营后台</p>
-            <h1>卡密与供应商</h1>
+            <h1>Image2 管理中心</h1>
           </div>
           <div class="admin-header-actions">
             <a class="soft-button" href="/">返回前台</a>
@@ -20,7 +20,14 @@
           </div>
         </header>
 
+        <nav class="admin-tabs" aria-label="后台功能切换">
+          <button class="admin-tab active" type="button" data-admin-tab="history">生成历史</button>
+          <button class="admin-tab" type="button" data-admin-tab="keys">卡密管理</button>
+          <button class="admin-tab" type="button" data-admin-tab="providers">供应商配置</button>
+        </nav>
+
         <div class="admin-layout">
+          <section class="admin-tab-panel" data-admin-panel="providers">
           <section class="admin-card admin-card-wide">
             <div class="admin-card-head">
               <div>
@@ -91,7 +98,9 @@
               </div>
             </div>
           </section>
+          </section>
 
+          <section class="admin-tab-panel" data-admin-panel="keys">
           <section class="admin-card">
             <div class="admin-card-head">
               <div>
@@ -170,6 +179,103 @@
               </div>
             </div>
             <div id="auditLogList" class="audit-list"></div>
+          </section>
+          </section>
+
+          <section class="admin-tab-panel active" data-admin-panel="history">
+          <section class="admin-card admin-card-wide generation-history-card">
+            <div class="admin-card-head">
+              <div>
+                <h2>生成历史 / 用户分析</h2>
+                <p>记录每次生成的账号、耗时、提示词、参考图、生成图、供应商和额度消耗。</p>
+              </div>
+              <div class="admin-header-actions">
+                <button id="historyTrimButton" class="soft-button" type="button">清理容量</button>
+                <button id="historyExportCsvButton" class="soft-button" type="button">导出 CSV</button>
+                <button id="historyExportJsonButton" class="soft-button" type="button">导出 JSON</button>
+                <button id="historyReloadButton" class="soft-button" type="button">刷新历史</button>
+              </div>
+            </div>
+
+            <div id="historySummary" class="history-summary-grid"></div>
+
+            <div class="history-filter-panel">
+              <input id="historySearchInput" type="search" placeholder="搜索提示词、邮箱、用户 ID、requestId" />
+              <input id="historyEmailInput" type="search" placeholder="用户邮箱" />
+              <select id="historyRangeFilter">
+                <option value="">全部时间</option>
+                <option value="today">今天</option>
+                <option value="7d">近 7 天</option>
+                <option value="30d">近 30 天</option>
+                <option value="custom">自定义</option>
+              </select>
+              <input id="historyFromInput" type="date" />
+              <input id="historyToInput" type="date" />
+              <select id="historyStatusFilter">
+                <option value="">全部状态</option>
+                <option value="succeeded">成功</option>
+                <option value="failed">失败</option>
+                <option value="running">运行中</option>
+                <option value="pruned">图片已清理</option>
+              </select>
+              <select id="historyModeFilter">
+                <option value="">全部模式</option>
+                <option value="generate">文生图</option>
+                <option value="edit">参考图编辑</option>
+              </select>
+              <select id="historyQualityFilter">
+                <option value="">全部质量</option>
+                <option value="low">low</option>
+                <option value="medium">medium</option>
+                <option value="high">high</option>
+              </select>
+              <select id="historyProviderFilter">
+                <option value="">全部供应商</option>
+              </select>
+            </div>
+
+            <div class="history-analytics-grid">
+              <div class="history-chart-card">
+                <div class="history-chart-head">
+                  <strong>每日生成量</strong>
+                  <span>最近 14 天</span>
+                </div>
+                <div id="historyDailyChart" class="bar-chart"></div>
+              </div>
+              <div class="history-chart-card">
+                <div class="history-chart-head">
+                  <strong>状态占比</strong>
+                  <span>成功、失败、已清理</span>
+                </div>
+                <div id="historyStatusChart" class="donut-chart"></div>
+              </div>
+              <div class="history-chart-card">
+                <div class="history-chart-head">
+                  <strong>Top 用户</strong>
+                  <span>按生成次数</span>
+                </div>
+                <div id="historyTopUsers" class="rank-list"></div>
+              </div>
+              <div class="history-chart-card">
+                <div class="history-chart-head">
+                  <strong>模式与质量</strong>
+                  <span>分布概览</span>
+                </div>
+                <div id="historyModeQuality" class="mini-metrics"></div>
+              </div>
+            </div>
+
+            <div class="history-table-shell">
+              <div id="generationHistoryList" class="generation-history-list"></div>
+              <div class="history-pagination">
+                <button id="historyPrevButton" class="soft-button" type="button">上一页</button>
+                <span id="historyPageInfo">第 1 页</span>
+                <button id="historyNextButton" class="soft-button" type="button">下一页</button>
+              </div>
+            </div>
+
+            <div id="historyDetailPanel" class="history-detail-panel hidden" aria-label="生成历史详情"></div>
+          </section>
           </section>
         </div>
       </div>

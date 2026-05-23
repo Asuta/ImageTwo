@@ -1309,6 +1309,8 @@ function App() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          clientTaskId: task.id,
+          clientImageId: imageId,
           prompt: task.prompt,
           aspectRatio: task.aspectRatio || "auto",
           quality: task.quality || "medium",

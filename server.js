@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,6 +17,9 @@ const DEFAULT_API_URL = process.env.IMAGE2_API_URL || "https://api.bltcy.ai/v1/c
 const DEFAULT_MODEL = process.env.IMAGE2_MODEL || "gpt-image-2";
 const dataDir = process.env.IMAGE2_DATA_DIR || join(__dirname, "data");
 const dataPath = join(dataDir, "image2-data.json");
+const historyAssetsDir = join(dataDir, "history-assets");
+const DEFAULT_HISTORY_MAX_BYTES = 3 * 1024 * 1024 * 1024;
+const HISTORY_MAX_BYTES = Math.max(0, Number.parseInt(process.env.IMAGE2_HISTORY_MAX_BYTES || String(DEFAULT_HISTORY_MAX_BYTES), 10));
 const DEFAULT_SIGNUP_CREDITS = Number.parseInt(process.env.IMAGE2_SIGNUP_CREDITS || "100", 10);
 const LOGIN_CODE_TTL_MS = 10 * 60 * 1000;
 const LOGIN_CODE_COOLDOWN_MS = 60 * 1000;
@@ -41,9 +44,11 @@ const mimeTypes = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
   ".svg": "image/svg+xml; charset=utf-8"
 };
 mkdirSync(dataDir, { recursive: true });
+mkdirSync(historyAssetsDir, { recursive: true });
 ensureDataFile();
 
 function loadLocalEnv() {
@@ -89,6 +94,11 @@ function loadEnvFile(envPath) {
 function sendJson(res, status, payload) {
   res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
   res.end(JSON.stringify(payload));
+}
+
+function sendText(res, status, text, contentType = "text/plain; charset=utf-8") {
+  res.writeHead(status, { "Content-Type": contentType });
+  res.end(text);
 }
 
 function getImageApiKey() {
@@ -152,6 +162,7 @@ function ensureDataFile() {
     creditLogs: [],
     adminLogs: [],
     usageLogs: [],
+    generationHistory: [],
     providers: [createDefaultProvider()],
     activeProviderId: "default-provider"
   });
@@ -169,6 +180,7 @@ function readData() {
       creditLogs: Array.isArray(data.creditLogs) ? data.creditLogs : [],
       adminLogs: Array.isArray(data.adminLogs) ? data.adminLogs : [],
       usageLogs: Array.isArray(data.usageLogs) ? data.usageLogs : [],
+      generationHistory: Array.isArray(data.generationHistory) ? data.generationHistory : [],
       ...readProviderStore(data)
     };
   } catch {
@@ -181,6 +193,7 @@ function readData() {
       creditLogs: [],
       adminLogs: [],
       usageLogs: [],
+      generationHistory: [],
       ...readProviderStore({})
     };
   }
@@ -196,7 +209,8 @@ function writeData(data) {
     giftCards: normalizeGiftCards(Array.isArray(data.giftCards) ? data.giftCards : []),
     creditLogs: Array.isArray(data.creditLogs) ? data.creditLogs : [],
     adminLogs: Array.isArray(data.adminLogs) ? data.adminLogs : [],
-    usageLogs: Array.isArray(data.usageLogs) ? data.usageLogs : []
+    usageLogs: Array.isArray(data.usageLogs) ? data.usageLogs : [],
+    generationHistory: Array.isArray(data.generationHistory) ? data.generationHistory : []
   };
   writeProviderStore(data);
   writeFileSync(tmpPath, JSON.stringify(storableData, null, 2));
@@ -593,6 +607,536 @@ function addAdminLog(data, action, detail = {}) {
     createdAt: new Date().toISOString()
   });
   data.adminLogs = data.adminLogs.slice(0, 1000);
+}
+
+function getHistoryMaxBytes() {
+  return HISTORY_MAX_BYTES;
+}
+
+function createHistoryRecord({
+  requestId,
+  user,
+  mode,
+  prompt,
+  imagePrompt,
+  quality,
+  aspectRatio,
+  provider,
+  costCredits,
+  remainingCredits,
+  referenceImages,
+  clientTaskId,
+  clientImageId
+}) {
+  const now = new Date().toISOString();
+  const data = readData();
+  const existingIndex = data.generationHistory.findIndex(record => record.requestId === requestId);
+  const record = {
+    id: requestId,
+    requestId,
+    clientTaskId: String(clientTaskId || ""),
+    clientImageId: String(clientImageId || ""),
+    userId: user.id,
+    email: user.email,
+    createdAt: now,
+    startedAt: now,
+    completedAt: "",
+    durationMs: null,
+    status: "running",
+    errorMessage: "",
+    mode,
+    prompt,
+    imagePrompt,
+    quality,
+    aspectRatio,
+    model: provider.model || DEFAULT_MODEL,
+    providerId: provider.id || "",
+    providerLabel: provider.label || provider.id || "",
+    costCredits,
+    remainingCredits,
+    referenceCount: referenceImages.length,
+    generatedCount: 0,
+    totalAssetBytes: 0,
+    assetsPruned: false,
+    prunedAt: "",
+    assetSaveFailed: false,
+    assetSaveError: "",
+    assets: {
+      references: [],
+      generated: []
+    }
+  };
+
+  if (existingIndex >= 0) {
+    data.generationHistory[existingIndex] = { ...data.generationHistory[existingIndex], ...record };
+  } else {
+    data.generationHistory.unshift(record);
+  }
+
+  writeData(data);
+  return record;
+}
+
+function updateHistoryRecord(requestId, patch) {
+  const data = readData();
+  const record = data.generationHistory.find(item => item.requestId === requestId);
+  if (!record) {
+    return null;
+  }
+
+  Object.assign(record, patch);
+  if (patch.assets) {
+    record.assets = patch.assets;
+  }
+  writeData(data);
+  return record;
+}
+
+function completeHistoryRecord(requestId, patch = {}) {
+  const data = readData();
+  const record = data.generationHistory.find(item => item.requestId === requestId);
+  if (!record) {
+    return null;
+  }
+
+  const completedAt = new Date().toISOString();
+  Object.assign(record, patch, {
+    completedAt,
+    durationMs: record.startedAt ? Math.max(0, new Date(completedAt).getTime() - new Date(record.startedAt).getTime()) : null
+  });
+  writeData(data);
+  return record;
+}
+
+function failHistoryRecord(requestId, errorMessage) {
+  return completeHistoryRecord(requestId, {
+    status: "failed",
+    errorMessage: String(errorMessage || "生成失败。")
+  });
+}
+
+function getHistoryAssetFolder(createdAt, requestId) {
+  const date = new Date(createdAt || Date.now());
+  const year = Number.isFinite(date.getTime()) ? String(date.getFullYear()) : "unknown";
+  const month = Number.isFinite(date.getTime()) ? String(date.getMonth() + 1).padStart(2, "0") : "00";
+  return join(historyAssetsDir, year, month, requestId);
+}
+
+function getHistoryAssetRelativePath(createdAt, requestId, fileName) {
+  const date = new Date(createdAt || Date.now());
+  const year = Number.isFinite(date.getTime()) ? String(date.getFullYear()) : "unknown";
+  const month = Number.isFinite(date.getTime()) ? String(date.getMonth() + 1).padStart(2, "0") : "00";
+  return `${year}/${month}/${requestId}/${fileName}`;
+}
+
+function writeHistoryImageAsset({ record, kind, index, base64, mimeType, name }) {
+  const cleanBase64 = stripDataUrlPrefix(base64);
+  const bytes = Buffer.from(cleanBase64, "base64");
+  const extension = imageExtensionFromMimeType(mimeType || "image/png");
+  const prefix = kind === "reference" ? "reference" : "generated";
+  const fileName = `${prefix}-${index + 1}.${extension}`;
+  const thumbName = `${prefix}-${index + 1}-thumb.${extension}`;
+  const folder = getHistoryAssetFolder(record.createdAt, record.requestId);
+  mkdirSync(folder, { recursive: true });
+
+  writeFileSync(join(folder, fileName), bytes);
+  writeFileSync(join(folder, thumbName), bytes);
+
+  return {
+    id: `${prefix}-${index + 1}`,
+    kind,
+    name: name || fileName,
+    mimeType: mimeType || `image/${extension}`,
+    bytes: bytes.length,
+    path: getHistoryAssetRelativePath(record.createdAt, record.requestId, fileName),
+    thumbPath: getHistoryAssetRelativePath(record.createdAt, record.requestId, thumbName),
+    createdAt: new Date().toISOString()
+  };
+}
+
+function saveHistoryAssets(requestId, { referenceImages = [], generatedBase64, generatedMimeType }) {
+  const data = readData();
+  const record = data.generationHistory.find(item => item.requestId === requestId);
+  if (!record) {
+    return null;
+  }
+
+  try {
+    const references = referenceImages.map((image, index) => {
+      const parsed = parseDataImageUrl(image.dataUrl);
+      return writeHistoryImageAsset({
+        record,
+        kind: "reference",
+        index,
+        base64: parsed?.base64 || image.dataUrl,
+        mimeType: parsed ? `image/${parsed.outputFormat}` : image.type || "image/png",
+        name: image.name || `reference-${index + 1}`
+      });
+    });
+
+    const generated = generatedBase64 ? [writeHistoryImageAsset({
+      record,
+      kind: "generated",
+      index: 0,
+      base64: generatedBase64,
+      mimeType: generatedMimeType || "image/png",
+      name: "generated-1"
+    })] : [];
+
+    record.assets = { references, generated };
+    record.generatedCount = generated.length;
+    record.totalAssetBytes = calculateRecordAssetBytes(record);
+    record.assetsPruned = false;
+    record.prunedAt = "";
+    record.assetSaveFailed = false;
+    record.assetSaveError = "";
+    writeData(data);
+    return record;
+  } catch (error) {
+    record.assetSaveFailed = true;
+    record.assetSaveError = error instanceof Error ? error.message : String(error);
+    writeData(data);
+    return record;
+  }
+}
+
+function calculateRecordAssetBytes(record) {
+  const assets = [
+    ...(record.assets?.references || []),
+    ...(record.assets?.generated || [])
+  ];
+  return assets.reduce((total, asset) => total + Number(asset.bytes || 0) * 2, 0);
+}
+
+function getHistoryAssetUsage() {
+  return getDirectorySize(historyAssetsDir);
+}
+
+function getDirectorySize(directory) {
+  if (!existsSync(directory)) {
+    return 0;
+  }
+
+  let total = 0;
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) {
+      total += getDirectorySize(path);
+    } else if (entry.isFile()) {
+      total += statSync(path).size;
+    }
+  }
+  return total;
+}
+
+function removeHistoryRecordAssets(record) {
+  const folder = getHistoryAssetFolder(record.createdAt, record.requestId);
+  if (existsSync(folder)) {
+    rmSync(folder, { recursive: true, force: true });
+  }
+}
+
+function trimGenerationHistoryAssets() {
+  const maxBytes = getHistoryMaxBytes();
+  const data = readData();
+  let usedBytes = getHistoryAssetUsage();
+  let prunedRecords = 0;
+
+  if (!maxBytes || usedBytes <= maxBytes) {
+    return { usedBytes, maxBytes, prunedRecords };
+  }
+
+  const candidates = [...data.generationHistory]
+    .filter(record => !record.assetsPruned && hasHistoryAssets(record))
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+  for (const record of candidates) {
+    if (usedBytes <= maxBytes) {
+      break;
+    }
+
+    removeHistoryRecordAssets(record);
+    const stored = data.generationHistory.find(item => item.requestId === record.requestId);
+    if (stored) {
+      stored.assets = { references: [], generated: [] };
+      stored.totalAssetBytes = 0;
+      stored.assetsPruned = true;
+      stored.prunedAt = new Date().toISOString();
+      prunedRecords += 1;
+    }
+    usedBytes = getHistoryAssetUsage();
+  }
+
+  writeData(data);
+  return { usedBytes, maxBytes, prunedRecords };
+}
+
+function hasHistoryAssets(record) {
+  return Boolean((record.assets?.references || []).length || (record.assets?.generated || []).length);
+}
+
+function getHistoryAssetById(record, assetId) {
+  const assets = [
+    ...(record.assets?.references || []),
+    ...(record.assets?.generated || [])
+  ];
+  const [id, variant] = String(assetId || "").endsWith("-thumb")
+    ? [String(assetId).replace(/-thumb$/, ""), "thumb"]
+    : [String(assetId || ""), "original"];
+  const asset = assets.find(item => item.id === id);
+  if (!asset) {
+    return null;
+  }
+  const relativePath = variant === "thumb" ? asset.thumbPath : asset.path;
+  return {
+    asset,
+    filePath: resolve(historyAssetsDir, relativePath || "")
+  };
+}
+
+function publicHistoryRecord(record) {
+  const referenceAssets = record.assets?.references || [];
+  const generatedAssets = record.assets?.generated || [];
+  return {
+    id: record.id || record.requestId,
+    requestId: record.requestId,
+    clientTaskId: record.clientTaskId || "",
+    clientImageId: record.clientImageId || "",
+    userId: record.userId,
+    email: record.email,
+    createdAt: record.createdAt,
+    startedAt: record.startedAt,
+    completedAt: record.completedAt,
+    durationMs: record.durationMs,
+    status: record.status,
+    errorMessage: record.errorMessage,
+    mode: record.mode,
+    prompt: record.prompt,
+    imagePrompt: record.imagePrompt,
+    quality: record.quality,
+    aspectRatio: record.aspectRatio,
+    model: record.model,
+    providerId: record.providerId,
+    providerLabel: record.providerLabel,
+    costCredits: record.costCredits,
+    remainingCredits: record.remainingCredits,
+    referenceCount: record.referenceCount || referenceAssets.length,
+    generatedCount: record.generatedCount || generatedAssets.length,
+    totalAssetBytes: record.totalAssetBytes || 0,
+    assetsPruned: Boolean(record.assetsPruned),
+    prunedAt: record.prunedAt || "",
+    assetSaveFailed: Boolean(record.assetSaveFailed),
+    assetSaveError: record.assetSaveError || "",
+    assets: {
+      references: referenceAssets.map(asset => publicHistoryAsset(record, asset)),
+      generated: generatedAssets.map(asset => publicHistoryAsset(record, asset))
+    }
+  };
+}
+
+function publicHistoryAsset(record, asset) {
+  return {
+    id: asset.id,
+    kind: asset.kind,
+    name: asset.name,
+    mimeType: asset.mimeType,
+    bytes: asset.bytes,
+    url: `/api/admin/generation-history/${encodeURIComponent(record.requestId)}/assets/${encodeURIComponent(asset.id)}`,
+    thumbUrl: `/api/admin/generation-history/${encodeURIComponent(record.requestId)}/assets/${encodeURIComponent(`${asset.id}-thumb`)}`
+  };
+}
+
+function filterGenerationHistory(records, url) {
+  const params = url.searchParams;
+  const q = params.get("q")?.trim().toLowerCase() || "";
+  const userId = params.get("userId")?.trim() || "";
+  const email = params.get("email")?.trim().toLowerCase() || "";
+  const status = params.get("status")?.trim() || "";
+  const mode = params.get("mode")?.trim() || "";
+  const quality = params.get("quality")?.trim() || "";
+  const providerId = params.get("providerId")?.trim() || "";
+  const from = parseFilterDate(params.get("from"));
+  const to = parseFilterDate(params.get("to"), true);
+
+  return records.filter(record => {
+    const createdAt = new Date(record.createdAt).getTime();
+    if (q) {
+      const haystack = [
+        record.prompt,
+        record.imagePrompt,
+        record.email,
+        record.userId,
+        record.requestId,
+        record.providerLabel
+      ].join(" ").toLowerCase();
+      if (!haystack.includes(q)) {
+        return false;
+      }
+    }
+    if (userId && record.userId !== userId) {
+      return false;
+    }
+    if (email && !String(record.email || "").toLowerCase().includes(email)) {
+      return false;
+    }
+    if (status === "pruned" && !record.assetsPruned) {
+      return false;
+    }
+    if (status && status !== "pruned" && record.status !== status) {
+      return false;
+    }
+    if (mode && record.mode !== mode) {
+      return false;
+    }
+    if (quality && record.quality !== quality) {
+      return false;
+    }
+    if (providerId && record.providerId !== providerId) {
+      return false;
+    }
+    if (from && createdAt < from) {
+      return false;
+    }
+    if (to && createdAt > to) {
+      return false;
+    }
+    return true;
+  });
+}
+
+function parseFilterDate(value, endOfDay = false) {
+  if (!value) {
+    return null;
+  }
+  const raw = String(value);
+  const date = raw.includes("T") ? new Date(raw) : new Date(`${raw}T${endOfDay ? "23:59:59.999" : "00:00:00.000"}`);
+  const timestamp = date.getTime();
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function getHistoryAnalytics(records) {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayRecords = records.filter(record => new Date(record.createdAt).getTime() >= todayStart.getTime());
+  const succeeded = records.filter(record => record.status === "succeeded").length;
+  const failed = records.filter(record => record.status === "failed").length;
+  const durations = records.map(record => Number(record.durationMs)).filter(Number.isFinite);
+  const todayUsers = new Set(todayRecords.map(record => record.userId).filter(Boolean));
+  const usageBytes = getHistoryAssetUsage();
+  const maxBytes = getHistoryMaxBytes();
+
+  return {
+    summary: {
+      total: records.length,
+      todayTotal: todayRecords.length,
+      successRate: records.length ? succeeded / records.length : 0,
+      avgDurationMs: durations.length ? Math.round(durations.reduce((sum, value) => sum + value, 0) / durations.length) : 0,
+      activeUsersToday: todayUsers.size,
+      creditsToday: todayRecords.reduce((sum, record) => sum + Number(record.costCredits || 0), 0),
+      assetBytes: usageBytes,
+      assetMaxBytes: maxBytes,
+      assetPercent: maxBytes ? Math.min(1, usageBytes / maxBytes) : 0,
+      pruned: records.filter(record => record.assetsPruned).length,
+      succeeded,
+      failed
+    },
+    daily: buildDailyChart(records),
+    status: countBy(records, record => record.assetsPruned ? "pruned" : record.status || "unknown"),
+    topUsers: getTopUsers(records),
+    modes: countBy(records, record => record.mode || "unknown"),
+    qualities: countBy(records, record => record.quality || "unknown"),
+    avgDurationDaily: buildDailyAverage(records)
+  };
+}
+
+function buildDailyChart(records) {
+  const counts = new Map();
+  for (const record of records) {
+    const day = String(record.createdAt || "").slice(0, 10) || "unknown";
+    counts.set(day, (counts.get(day) || 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-14)
+    .map(([date, count]) => ({ date, count }));
+}
+
+function buildDailyAverage(records) {
+  const buckets = new Map();
+  for (const record of records) {
+    const duration = Number(record.durationMs);
+    if (!Number.isFinite(duration)) {
+      continue;
+    }
+    const day = String(record.createdAt || "").slice(0, 10) || "unknown";
+    const bucket = buckets.get(day) || { total: 0, count: 0 };
+    bucket.total += duration;
+    bucket.count += 1;
+    buckets.set(day, bucket);
+  }
+  return [...buckets.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-14)
+    .map(([date, bucket]) => ({ date, avgDurationMs: Math.round(bucket.total / bucket.count) }));
+}
+
+function countBy(records, getKey) {
+  const counts = new Map();
+  for (const record of records) {
+    const key = getKey(record);
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  return [...counts.entries()].map(([key, count]) => ({ key, count }));
+}
+
+function getTopUsers(records) {
+  const users = new Map();
+  for (const record of records) {
+    const key = record.email || record.userId || "unknown";
+    const existing = users.get(key) || { email: record.email || "", userId: record.userId || "", count: 0, credits: 0 };
+    existing.count += 1;
+    existing.credits += Number(record.costCredits || 0);
+    users.set(key, existing);
+  }
+  return [...users.values()].sort((a, b) => b.count - a.count).slice(0, 8);
+}
+
+function getPagination(url) {
+  const page = Math.max(1, Number.parseInt(url.searchParams.get("page") || "1", 10));
+  const pageSize = Math.min(100, Math.max(1, Number.parseInt(url.searchParams.get("pageSize") || "24", 10)));
+  return { page, pageSize };
+}
+
+function buildGenerationHistoryCsv(records) {
+  const headers = [
+    "requestId",
+    "email",
+    "userId",
+    "createdAt",
+    "completedAt",
+    "durationMs",
+    "status",
+    "mode",
+    "quality",
+    "aspectRatio",
+    "model",
+    "providerLabel",
+    "costCredits",
+    "remainingCredits",
+    "referenceCount",
+    "generatedCount",
+    "totalAssetBytes",
+    "assetsPruned",
+    "prompt",
+    "errorMessage"
+  ];
+  const rows = records.map(record => headers.map(header => csvCell(record[header])));
+  return [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
+}
+
+function csvCell(value) {
+  const text = String(value ?? "");
+  return `"${text.replaceAll('"', '""')}"`;
 }
 
 function isAdminRequest(req) {
@@ -1316,6 +1860,70 @@ async function handleAdmin(req, res, url) {
     return;
   }
 
+  if (req.method === "GET" && url.pathname === "/api/admin/generation-history") {
+    const data = readData();
+    const filtered = filterGenerationHistory(data.generationHistory, url)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const { page, pageSize } = getPagination(url);
+    const offset = (page - 1) * pageSize;
+    sendJson(res, 200, {
+      records: filtered.slice(offset, offset + pageSize).map(publicHistoryRecord),
+      total: filtered.length,
+      page,
+      pageSize,
+      analytics: getHistoryAnalytics(filtered),
+      providers: data.providers.map(publicProviderSummary)
+    });
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/admin/generation-history/trim") {
+    const result = trimGenerationHistoryAssets();
+    sendJson(res, 200, result);
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/admin/generation-history/export") {
+    const data = readData();
+    const filtered = filterGenerationHistory(data.generationHistory, url)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const format = url.searchParams.get("format") === "csv" ? "csv" : "json";
+    if (format === "csv") {
+      sendText(res, 200, buildGenerationHistoryCsv(filtered), "text/csv; charset=utf-8");
+      return;
+    }
+    sendText(res, 200, JSON.stringify(filtered.map(publicHistoryRecord), null, 2), "application/json; charset=utf-8");
+    return;
+  }
+
+  const historyAssetMatch = /^\/api\/admin\/generation-history\/([^/]+)\/assets\/([^/]+)$/.exec(url.pathname);
+  if (req.method === "GET" && historyAssetMatch) {
+    const requestId = decodeURIComponent(historyAssetMatch[1]);
+    const assetId = decodeURIComponent(historyAssetMatch[2]);
+    const data = readData();
+    const record = data.generationHistory.find(item => item.requestId === requestId);
+    const assetFile = record ? getHistoryAssetById(record, assetId) : null;
+    if (!record || !assetFile || !assetFile.filePath.startsWith(resolve(historyAssetsDir)) || !existsSync(assetFile.filePath)) {
+      sendJson(res, 404, { error: "历史图片不存在或已被清理。" });
+      return;
+    }
+    serveFile(res, assetFile.filePath);
+    return;
+  }
+
+  const historyDetailMatch = /^\/api\/admin\/generation-history\/([^/]+)$/.exec(url.pathname);
+  if (req.method === "GET" && historyDetailMatch) {
+    const requestId = decodeURIComponent(historyDetailMatch[1]);
+    const data = readData();
+    const record = data.generationHistory.find(item => item.requestId === requestId);
+    if (!record) {
+      sendJson(res, 404, { error: "生成历史不存在。" });
+      return;
+    }
+    sendJson(res, 200, { record: publicHistoryRecord(record) });
+    return;
+  }
+
   sendJson(res, 404, { error: "没有找到管理接口。" });
 }
 
@@ -1610,6 +2218,8 @@ async function handleGenerate(req, res) {
 
     const body = JSON.parse(await readBody(req) || "{}");
     const prompt = String(body.prompt || "").trim();
+    const clientTaskId = String(body.clientTaskId || "").trim();
+    const clientImageId = String(body.clientImageId || "").trim();
     const quality = qualityOptions.has(body.quality) ? body.quality : "medium";
     const aspectRatio = aspectRatioOptions.has(body.aspectRatio) ? body.aspectRatio : "auto";
     const mode = body.mode === "edit" ? "edit" : "generate";
@@ -1673,6 +2283,22 @@ async function handleGenerate(req, res) {
       error: ""
     });
 
+    createHistoryRecord({
+      requestId: reservation.requestId,
+      user: sessionUser.user,
+      mode,
+      prompt,
+      imagePrompt,
+      quality,
+      aspectRatio,
+      provider,
+      costCredits: reservation.costCredits,
+      remainingCredits: reservation.remainingCredits,
+      referenceImages,
+      clientTaskId,
+      clientImageId
+    });
+
     runGenerationJob({
       requestId: reservation.requestId,
       input,
@@ -1698,6 +2324,7 @@ async function handleGenerate(req, res) {
         "failed",
         error instanceof Error ? error.message : String(error)
       );
+      failHistoryRecord(reservation.requestId, error instanceof Error ? error.message : String(error));
       updateJob(reservation.requestId, {
         status: "failed",
         error: error instanceof Error ? error.message : String(error)
@@ -1746,6 +2373,7 @@ async function runGenerationJob({ requestId, input, prompt, aspectRatio, referen
     if (!upstream.ok) {
       const detail = payload?.error?.message || text;
       const usage = finishUsage(requestId, "failed", detail);
+      failHistoryRecord(requestId, detail);
       updateJob(requestId, {
         status: "failed",
         error: "图片接口返回错误。",
@@ -1761,6 +2389,7 @@ async function runGenerationJob({ requestId, input, prompt, aspectRatio, referen
     if (!base64) {
       const detail = "接口返回成功，但没有找到图片结果。";
       const usage = finishUsage(requestId, "failed", detail);
+      failHistoryRecord(requestId, detail);
       updateJob(requestId, {
         status: "failed",
         error: "接口返回成功，但没有找到图片结果。",
@@ -1772,6 +2401,23 @@ async function runGenerationJob({ requestId, input, prompt, aspectRatio, referen
 
     const usage = finishUsage(requestId, "succeeded");
     const outputFormat = imageResult.outputFormat || "png";
+    const mimeType = `image/${outputFormat}`;
+    const savedRecord = saveHistoryAssets(requestId, {
+      referenceImages,
+      generatedBase64: base64,
+      generatedMimeType: mimeType
+    });
+    completeHistoryRecord(requestId, {
+      status: "succeeded",
+      errorMessage: "",
+      model: payload.model || provider.model || DEFAULT_MODEL,
+      providerId: provider.id || "",
+      providerLabel: provider.label || provider.id || "",
+      remainingCredits: usage?.remainingCredits ?? remainingCredits,
+      generatedCount: savedRecord?.generatedCount ?? 1,
+      totalAssetBytes: savedRecord?.totalAssetBytes ?? 0
+    });
+    trimGenerationHistoryAssets();
     updateJob(requestId, {
       status: "succeeded",
       id: payload.id,
@@ -1779,7 +2425,7 @@ async function runGenerationJob({ requestId, input, prompt, aspectRatio, referen
       model: payload.model || provider.model || DEFAULT_MODEL,
       imageStatus: imageResult.status,
       outputFormat,
-      mimeType: `image/${outputFormat}`,
+      mimeType,
       imageBase64: base64,
       costCredits,
       remainingCredits: usage?.remainingCredits ?? remainingCredits
@@ -1787,6 +2433,7 @@ async function runGenerationJob({ requestId, input, prompt, aspectRatio, referen
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     const usage = finishUsage(requestId, "failed", detail);
+    failHistoryRecord(requestId, detail);
     updateJob(requestId, {
       status: "failed",
       error: "生成失败。",
