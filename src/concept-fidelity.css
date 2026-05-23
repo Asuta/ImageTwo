@@ -4862,3 +4862,54 @@ body:has(.studio-shell .image-preview:not(.hidden))::after,
     font-weight: 800 !important;
   }
 }
+
+/* Ratio-fit generated rows need to define the history-card height themselves.
+   The general history performance pass fixes cards at 248px and uses paint
+   containment, which can let the next row cover the bottom of taller images. */
+.studio-shell .history-scroll > .history-task:has(.generated-image-card.is-ratio-fit),
+.studio-shell .history-scroll > .history-task:has(.image-card.is-loading),
+.studio-shell .history-scroll > .history-task:has(.image-card.is-streaming) {
+  height: auto !important;
+  min-height: 330px !important;
+  overflow: visible !important;
+  contain: none !important;
+  content-visibility: visible !important;
+  contain-intrinsic-size: auto !important;
+}
+
+.studio-shell .history-scroll > .history-task:has(.generated-image-card.is-ratio-fit) .task-content,
+.studio-shell .history-scroll > .history-task:has(.image-card.is-loading) .task-content,
+.studio-shell .history-scroll > .history-task:has(.image-card.is-streaming) .task-content {
+  align-items: start !important;
+  padding-bottom: 34px !important;
+}
+
+.studio-shell .history-scroll > .history-task:has(.generated-image-card.is-ratio-fit) .image-grid-scroll-wrap,
+.studio-shell .history-scroll > .history-task:has(.image-card.is-loading) .image-grid-scroll-wrap,
+.studio-shell .history-scroll > .history-task:has(.image-card.is-streaming) .image-grid-scroll-wrap {
+  align-self: start !important;
+  padding-bottom: 8px !important;
+}
+
+.studio-shell .history-scroll > .history-task .image-grid .image-card.is-loading,
+.studio-shell .history-scroll > .history-task .image-grid .image-card.is-streaming:not(.generated-image-card) {
+  flex: 0 0 min(320px, 26vw) !important;
+  width: min(320px, 26vw) !important;
+  max-width: min(320px, 26vw) !important;
+  min-width: 220px !important;
+  height: 238px !important;
+  min-height: 238px !important;
+  overflow: hidden !important;
+}
+
+.studio-shell .history-scroll > .history-task .image-grid .image-card.is-loading .image-skeleton,
+.studio-shell .history-scroll > .history-task .image-grid .image-card.is-streaming:not(.generated-image-card) .image-skeleton {
+  display: grid !important;
+  place-items: center !important;
+  width: 100% !important;
+  max-width: none !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
