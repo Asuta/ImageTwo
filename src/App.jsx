@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ChevronLeft,
+  ChevronRight,
   ChevronUp,
   Copy,
   CreditCard,
@@ -193,6 +195,8 @@ const translations = {
     "imagePreview.section": "图片预览",
     "imagePreview.alt": "放大的生成结果",
     "imagePreview.controls": "预览控制",
+    "imagePreview.previous": "上一张",
+    "imagePreview.next": "下一张",
     "imagePreview.zoomOut": "缩小",
     "imagePreview.zoomIn": "放大",
     "toast.scriptError": "页面脚本错误：{message}",
@@ -356,6 +360,8 @@ const translations = {
     "imagePreview.section": "Image preview",
     "imagePreview.alt": "Enlarged generated result",
     "imagePreview.controls": "Preview controls",
+    "imagePreview.previous": "Previous image",
+    "imagePreview.next": "Next image",
     "imagePreview.zoomOut": "Zoom out",
     "imagePreview.zoomIn": "Zoom in",
     "toast.scriptError": "Page script error: {message}",
@@ -534,7 +540,7 @@ function GeneratedImageGrid({ task, renderImageCard, scrollLabel }) {
   return (
     <div className="image-grid-scroll-wrap">
       <div ref={gridRef} className={gridClassName}>
-        {task.images.map(renderImageCard)}
+        {task.images.map(image => renderImageCard(image, task))}
       </div>
       {showScrollbar ? (
         <div
@@ -805,6 +811,8 @@ function App() {
   const [preview, setPreview] = useState({
     isOpen: false,
     src: "",
+    items: [],
+    index: 0,
     scale: 1,
     x: 0,
     y: 0,
@@ -862,6 +870,21 @@ function App() {
         setAccountOpen(false);
         setRatioOpen(false);
         setHistoryOpen(false);
+        return;
+      }
+
+      if (!preview.isOpen || preview.items.length < 2) {
+        return;
+      }
+
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        navigatePreview(-1);
+      }
+
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        navigatePreview(1);
       }
     };
 
@@ -880,7 +903,7 @@ function App() {
       document.removeEventListener("keydown", onKeyDown);
       document.removeEventListener("click", onClick);
     };
-  }, []);
+  }, [preview.isOpen, preview.items.length]);
 
   useEffect(() => {
     return () => {
@@ -1274,7 +1297,11 @@ function App() {
       return;
     }
 
-    openImagePreview(image.dataUrl);
+    const index = referenceImages.findIndex(item => item.id === image.id);
+    openImagePreview(image.dataUrl, {
+      items: referenceImages.map(item => item.dataUrl),
+      index: Math.max(0, index)
+    });
   }
 
   function stepCount(delta) {
@@ -1580,14 +1607,16 @@ function App() {
     showToast(t("toast.promptCopied"));
   }
 
-  function openImagePreview(src) {
-    if (!src) {
-      return;
-    }
+  function getPreviewImageSources(images = []) {
+    return images
+      .map(image => typeof image === "string" ? image : image?.url)
+      .filter(Boolean);
+  }
 
-    setPreview({
-      isOpen: true,
-      src,
+  function resetPreviewView(nextPreview) {
+    setPreviewScaleLabel("100%");
+    return {
+      ...nextPreview,
       scale: 1,
       x: 0,
       y: 0,
@@ -1596,13 +1625,46 @@ function App() {
       dragStartY: 0,
       originX: 0,
       originY: 0
-    });
-    setPreviewScaleLabel("100%");
+    };
+  }
+
+  function openImagePreview(src, options = {}) {
+    if (!src) {
+      return;
+    }
+
+    const items = getPreviewImageSources(options.items);
+    const galleryItems = items.length > 0 ? items : [src];
+    const matchedIndex = galleryItems.findIndex(item => item === src);
+    const index = Number.isInteger(options.index) ? options.index : matchedIndex;
+    const normalizedIndex = Math.min(Math.max(index >= 0 ? index : 0, 0), galleryItems.length - 1);
+
+    setPreview(resetPreviewView({
+      isOpen: true,
+      src: galleryItems[normalizedIndex],
+      items: galleryItems,
+      index: normalizedIndex
+    }));
   }
 
   function closeImagePreview() {
-    setPreview(prev => ({ ...prev, isOpen: false, src: "", isDragging: false, scale: 1, x: 0, y: 0 }));
+    setPreview(prev => resetPreviewView({ ...prev, isOpen: false, src: "", items: [], index: 0 }));
     setPreviewScaleLabel("100%");
+  }
+
+  function navigatePreview(direction) {
+    setPreview(prev => {
+      if (!prev.items.length) {
+        return prev;
+      }
+
+      const nextIndex = (prev.index + direction + prev.items.length) % prev.items.length;
+      return resetPreviewView({
+        ...prev,
+        src: prev.items[nextIndex],
+        index: nextIndex
+      });
+    });
   }
 
   function clampPreviewScale(value) {
@@ -1702,7 +1764,15 @@ function App() {
           <div className={`image-grid concept-grid count-${Math.min(images.length, 4)}`}>
             {images.map((src, index) => (
               <figure key={`${row.title}-image-${index}`} className={`image-card concept-image ${row.theme}${row.loading && index === 0 ? " concept-loading-image" : ""}`}>
-                <img src={src} alt={t("references.exampleGeneratedAlt")} />
+                <button
+                  className="image-preview-trigger"
+                  type="button"
+                  aria-label={t("generation.previewResult")}
+                  onClick={() => openImagePreview(src, { items: images, index })}
+                  disabled={row.loading}
+                >
+                  <img src={src} alt={t("references.exampleGeneratedAlt")} />
+                </button>
                 {row.loading && index === 0 ? (
                   <div className="concept-progress">
                     <span className="aurora-flow aurora-flow-a" aria-hidden="true" />
@@ -1721,7 +1791,7 @@ function App() {
     );
   }
 
-  function renderImageCard(image) {
+  function renderImageCard(image, task) {
     const imageStyle = {
       "--history-image-scale": HISTORY_IMAGE_SCALE / 100
     };
@@ -1731,7 +1801,7 @@ function App() {
     if (image.status === "streaming" && image.url) {
       return (
         <figure key={image.id} className="image-card generated-image-card is-streaming">
-          <button className="image-preview-trigger" type="button" onClick={() => openImagePreview(image.url)} aria-label={t("generation.previewResult")}>
+          <button className="image-preview-trigger" type="button" onClick={() => openImagePreview(image.url, { items: task.images, index: task.images.findIndex(item => item.id === image.id) })} aria-label={t("generation.previewResult")}>
             <img src={image.url} alt={t("generation.loadingAlt")} style={imageStyle} />
           </button>
           <figcaption>{t("generation.receivingImage")}</figcaption>
@@ -1769,7 +1839,7 @@ function App() {
 
     return (
       <figure key={image.id} className="image-card generated-image-card is-ratio-fit">
-        <button className="image-preview-trigger" type="button" onClick={() => openImagePreview(image.url)} aria-label={t("generation.previewResult")}>
+        <button className="image-preview-trigger" type="button" onClick={() => openImagePreview(image.url, { items: task.images, index: task.images.findIndex(item => item.id === image.id) })} aria-label={t("generation.previewResult")}>
           <img src={image.url} alt={t("generation.resultAlt")} style={imageStyle} />
         </button>
         <figcaption>{t("generation.savedLocal")}</figcaption>
@@ -2232,7 +2302,10 @@ function App() {
                   className="mobile-reference-preview"
                   type="button"
                   aria-label={t("composer.previewReference", { name: image.name || index + 1 })}
-                  onClick={() => openImagePreview(image.dataUrl)}
+                  onClick={() => openImagePreview(image.dataUrl, {
+                    items: referenceImages.map(item => item.dataUrl),
+                    index
+                  })}
                 >
                   <img src={image.dataUrl} alt={image.name} />
                 </button>
@@ -2396,6 +2469,22 @@ function App() {
             />
           ) : null}
         </div>
+        {preview.items.length > 1 ? (
+          <>
+            <Button className="preview-nav preview-nav-prev" variant="secondary" size="icon" type="button" aria-label={t("imagePreview.previous")} onClick={event => {
+              event.stopPropagation();
+              navigatePreview(-1);
+            }}>
+              <ChevronLeft />
+            </Button>
+            <Button className="preview-nav preview-nav-next" variant="secondary" size="icon" type="button" aria-label={t("imagePreview.next")} onClick={event => {
+              event.stopPropagation();
+              navigatePreview(1);
+            }}>
+              <ChevronRight />
+            </Button>
+          </>
+        ) : null}
         <div className="preview-toolbar" aria-label={t("imagePreview.controls")} onClick={event => event.stopPropagation()}>
           <Button className="preview-tool" variant="secondary" size="icon" type="button" aria-label={t("imagePreview.zoomOut")} onClick={() => zoomPreview(-0.2)}><ZoomOut /></Button>
           <button className="preview-tool preview-scale" type="button" onClick={resetPreviewZoom}>{previewScaleLabel}</button>
