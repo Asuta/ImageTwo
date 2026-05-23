@@ -1919,12 +1919,19 @@ function App() {
             >
               <span>{t("language.toggle")}</span>
             </Button>
-            <Button className="glass-button" variant="outline" type="button" aria-label={t("theme.toggle")} onClick={() => {
+            <Button
+              className="glass-button top-icon-button"
+              variant="outline"
+              size="icon"
+              type="button"
+              aria-label={theme === "dark" ? t("theme.light") : t("theme.dark")}
+              title={theme === "dark" ? t("theme.light") : t("theme.dark")}
+              onClick={() => {
               const nextTheme = theme === "dark" ? "light" : "dark";
               setThemeState(nextTheme);
-            }}>
+              }}
+            >
               {theme === "dark" ? <Sun data-icon="inline-start" /> : <Moon data-icon="inline-start" />}
-              <span>{theme === "dark" ? t("theme.light") : t("theme.dark")}</span>
             </Button>
             <Dialog open={clearHistoryConfirmOpen} onOpenChange={setClearHistoryConfirmOpen}>
               <DialogTrigger asChild>
