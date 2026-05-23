@@ -3330,6 +3330,55 @@ h1 {
   transform: scale(calc(var(--history-image-scale, 1) * 1.015));
 }
 
+.image-download-button,
+.preview-download-button {
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  color: rgba(255, 255, 255, 0.94);
+  background: rgba(17, 21, 32, 0.68);
+  box-shadow: 0 12px 34px rgba(15, 14, 28, 0.28);
+  backdrop-filter: blur(14px);
+  cursor: pointer;
+  display: inline-grid;
+  place-items: center;
+  transition: opacity 160ms ease, transform 160ms ease, background 160ms ease, border-color 160ms ease;
+}
+
+.image-download-button {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 3;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  opacity: 0;
+  transform: translateY(5px) scale(0.96);
+  pointer-events: none;
+}
+
+.image-download-button svg,
+.preview-download-button svg {
+  width: 17px;
+  height: 17px;
+  stroke-width: 2.2;
+}
+
+.image-card:hover .image-download-button,
+.image-card:focus-within .image-download-button,
+.image-download-button:focus-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.image-download-button:hover,
+.image-download-button:focus-visible,
+.preview-download-button:hover,
+.preview-download-button:focus-visible {
+  border-color: rgba(255, 255, 255, 0.56);
+  background: rgba(104, 82, 238, 0.88);
+}
+
 .image-card img {
   object-fit: contain;
   background: var(--image-bg);
@@ -3424,6 +3473,14 @@ body.preview-open {
   touch-action: none;
 }
 
+.preview-image-wrap {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  max-width: min(92vw, 1320px);
+  max-height: calc(100svh - 120px);
+}
+
 .preview-stage img {
   max-width: min(92vw, 1320px);
   max-height: calc(100svh - 120px);
@@ -3465,7 +3522,8 @@ body.preview-open {
 
 .preview-tool,
 .preview-close,
-.preview-nav {
+.preview-nav,
+.preview-download-button {
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 8px;
   color: #f8fffb;
@@ -3517,9 +3575,15 @@ body.preview-open {
   right: max(24px, env(safe-area-inset-right));
 }
 
+.preview-download-button {
+  min-width: 38px;
+  min-height: 32px;
+}
+
 .preview-tool:hover,
 .preview-close:hover,
-.preview-nav:hover {
+.preview-nav:hover,
+.preview-download-button:hover {
   background: rgba(255, 255, 255, 0.16);
 }
 

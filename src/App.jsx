@@ -5,6 +5,7 @@ import {
   ChevronUp,
   Copy,
   CreditCard,
+  Download,
   Eraser,
   Bell,
   Folder,
@@ -199,6 +200,7 @@ const translations = {
     "imagePreview.next": "下一张",
     "imagePreview.zoomOut": "缩小",
     "imagePreview.zoomIn": "放大",
+    "imagePreview.download": "下载图片",
     "toast.scriptError": "页面脚本错误：{message}",
     "toast.asyncError": "页面异步错误：{message}",
     "toast.unknownError": "未知错误",
@@ -364,6 +366,7 @@ const translations = {
     "imagePreview.next": "Next image",
     "imagePreview.zoomOut": "Zoom out",
     "imagePreview.zoomIn": "Zoom in",
+    "imagePreview.download": "Download image",
     "toast.scriptError": "Page script error: {message}",
     "toast.asyncError": "Page async error: {message}",
     "toast.unknownError": "Unknown error",
@@ -813,6 +816,8 @@ function App() {
     src: "",
     items: [],
     index: 0,
+    downloadNames: [],
+    downloadName: "",
     scale: 1,
     x: 0,
     y: 0,
@@ -1613,6 +1618,56 @@ function App() {
       .filter(Boolean);
   }
 
+  function getImageDownloadName(image) {
+    const rawExtension = image?.outputFormat || image?.mimeType?.split("/").pop() || "";
+    const extension = String(rawExtension).replace(/^jpeg$/i, "jpg").replace(/[^a-z0-9]/gi, "").toLowerCase() || "png";
+    return `image2-${image?.requestId || image?.id || Date.now()}.${extension}`;
+  }
+
+  function getPreviewDownloadNames(images = []) {
+    return images
+      .map((image, index) => typeof image === "string" ? `image2-preview-${index + 1}.png` : getImageDownloadName(image))
+      .filter(Boolean);
+  }
+
+  function downloadImage(src, filename) {
+    if (!src) {
+      return;
+    }
+
+    const anchor = document.createElement("a");
+    anchor.href = src;
+    anchor.download = filename || `image2-${Date.now()}.png`;
+    anchor.rel = "noopener";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  }
+
+  function handleDownloadClick(event, src, filename) {
+    event.preventDefault();
+    event.stopPropagation();
+    downloadImage(src, filename);
+  }
+
+  function renderDownloadButton(src, filename, className = "image-download-button") {
+    if (!src) {
+      return null;
+    }
+
+    return (
+      <button
+        className={className}
+        type="button"
+        aria-label={t("imagePreview.download")}
+        title={t("imagePreview.download")}
+        onClick={event => handleDownloadClick(event, src, filename)}
+      >
+        <Download aria-hidden="true" />
+      </button>
+    );
+  }
+
   function resetPreviewView(nextPreview) {
     setPreviewScaleLabel("100%");
     return {
@@ -1634,6 +1689,7 @@ function App() {
     }
 
     const items = getPreviewImageSources(options.items);
+    const downloadNames = getPreviewDownloadNames(options.items);
     const galleryItems = items.length > 0 ? items : [src];
     const matchedIndex = galleryItems.findIndex(item => item === src);
     const index = Number.isInteger(options.index) ? options.index : matchedIndex;
@@ -1643,12 +1699,14 @@ function App() {
       isOpen: true,
       src: galleryItems[normalizedIndex],
       items: galleryItems,
-      index: normalizedIndex
+      downloadNames,
+      index: normalizedIndex,
+      downloadName: downloadNames[normalizedIndex] || options.downloadName || `image2-preview-${normalizedIndex + 1}.png`
     }));
   }
 
   function closeImagePreview() {
-    setPreview(prev => resetPreviewView({ ...prev, isOpen: false, src: "", items: [], index: 0 }));
+    setPreview(prev => resetPreviewView({ ...prev, isOpen: false, src: "", items: [], downloadNames: [], index: 0, downloadName: "" }));
     setPreviewScaleLabel("100%");
   }
 
@@ -1662,7 +1720,8 @@ function App() {
       return resetPreviewView({
         ...prev,
         src: prev.items[nextIndex],
-        index: nextIndex
+        index: nextIndex,
+        downloadName: prev.downloadNames?.[nextIndex] || `image2-preview-${nextIndex + 1}.png`
       });
     });
   }
@@ -1797,13 +1856,20 @@ function App() {
     };
     const failureReason = String(image.error || "").trim();
     const hasFailureReason = failureReason && !/^生成失败[。.]?$/.test(failureReason);
+    const downloadName = getImageDownloadName(image);
+    const previewOptions = {
+      items: task.images,
+      index: task.images.findIndex(item => item.id === image.id),
+      downloadName
+    };
 
     if (image.status === "streaming" && image.url) {
       return (
         <figure key={image.id} className="image-card generated-image-card is-streaming">
-          <button className="image-preview-trigger" type="button" onClick={() => openImagePreview(image.url, { items: task.images, index: task.images.findIndex(item => item.id === image.id) })} aria-label={t("generation.previewResult")}>
+          <button className="image-preview-trigger" type="button" onClick={() => openImagePreview(image.url, previewOptions)} aria-label={t("generation.previewResult")}>
             <img src={image.url} alt={t("generation.loadingAlt")} style={imageStyle} />
           </button>
+          {renderDownloadButton(image.url, downloadName)}
           <figcaption>{t("generation.receivingImage")}</figcaption>
         </figure>
       );
@@ -1839,9 +1905,10 @@ function App() {
 
     return (
       <figure key={image.id} className="image-card generated-image-card is-ratio-fit">
-        <button className="image-preview-trigger" type="button" onClick={() => openImagePreview(image.url, { items: task.images, index: task.images.findIndex(item => item.id === image.id) })} aria-label={t("generation.previewResult")}>
+        <button className="image-preview-trigger" type="button" onClick={() => openImagePreview(image.url, previewOptions)} aria-label={t("generation.previewResult")}>
           <img src={image.url} alt={t("generation.resultAlt")} style={imageStyle} />
         </button>
+        {renderDownloadButton(image.url, downloadName)}
         <figcaption>{t("generation.savedLocal")}</figcaption>
       </figure>
     );
@@ -2421,52 +2488,54 @@ function App() {
         <div className="preview-backdrop" data-close-preview />
         <div className="preview-stage" onClick={handlePreviewStageClick} onWheel={handlePreviewWheel}>
           {preview.src ? (
-            <img
-              ref={previewImageRef}
-              src={preview.src}
-              alt={t("imagePreview.alt")}
-              draggable="false"
-              style={{ transform: `translate(${preview.x}px, ${preview.y}px) scale(${preview.scale})` }}
-              onPointerDown={event => {
-                if (!preview.isOpen) {
-                  return;
-                }
+            <div className="preview-image-wrap">
+              <img
+                ref={previewImageRef}
+                src={preview.src}
+                alt={t("imagePreview.alt")}
+                draggable="false"
+                style={{ transform: `translate(${preview.x}px, ${preview.y}px) scale(${preview.scale})` }}
+                onPointerDown={event => {
+                  if (!preview.isOpen) {
+                    return;
+                  }
 
-                event.preventDefault();
-                setPreview(prev => ({
-                  ...prev,
-                  isDragging: true,
-                  dragStartX: event.clientX,
-                  dragStartY: event.clientY,
-                  originX: prev.x,
-                  originY: prev.y
-                }));
-                event.currentTarget.setPointerCapture(event.pointerId);
-                event.currentTarget.classList.add("is-dragging");
-              }}
-              onPointerMove={event => {
-                if (!preview.isDragging) {
-                  return;
-                }
+                  event.preventDefault();
+                  setPreview(prev => ({
+                    ...prev,
+                    isDragging: true,
+                    dragStartX: event.clientX,
+                    dragStartY: event.clientY,
+                    originX: prev.x,
+                    originY: prev.y
+                  }));
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                  event.currentTarget.classList.add("is-dragging");
+                }}
+                onPointerMove={event => {
+                  if (!preview.isDragging) {
+                    return;
+                  }
 
-                setPreview(prev => ({
-                  ...prev,
-                  x: prev.originX + event.clientX - prev.dragStartX,
-                  y: prev.originY + event.clientY - prev.dragStartY
-                }));
-              }}
-              onPointerUp={event => {
-                setPreview(prev => ({ ...prev, isDragging: false }));
-                event.currentTarget.classList.remove("is-dragging");
-                if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-                  event.currentTarget.releasePointerCapture(event.pointerId);
-                }
-              }}
-              onPointerCancel={event => {
-                setPreview(prev => ({ ...prev, isDragging: false }));
-                event.currentTarget.classList.remove("is-dragging");
-              }}
-            />
+                  setPreview(prev => ({
+                    ...prev,
+                    x: prev.originX + event.clientX - prev.dragStartX,
+                    y: prev.originY + event.clientY - prev.dragStartY
+                  }));
+                }}
+                onPointerUp={event => {
+                  setPreview(prev => ({ ...prev, isDragging: false }));
+                  event.currentTarget.classList.remove("is-dragging");
+                  if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                    event.currentTarget.releasePointerCapture(event.pointerId);
+                  }
+                }}
+                onPointerCancel={event => {
+                  setPreview(prev => ({ ...prev, isDragging: false }));
+                  event.currentTarget.classList.remove("is-dragging");
+                }}
+              />
+            </div>
           ) : null}
         </div>
         {preview.items.length > 1 ? (
@@ -2489,6 +2558,7 @@ function App() {
           <Button className="preview-tool" variant="secondary" size="icon" type="button" aria-label={t("imagePreview.zoomOut")} onClick={() => zoomPreview(-0.2)}><ZoomOut /></Button>
           <button className="preview-tool preview-scale" type="button" onClick={resetPreviewZoom}>{previewScaleLabel}</button>
           <Button className="preview-tool" variant="secondary" size="icon" type="button" aria-label={t("imagePreview.zoomIn")} onClick={() => zoomPreview(0.2)}><ZoomIn /></Button>
+          {renderDownloadButton(preview.src, preview.downloadName, "preview-tool preview-download-button")}
         </div>
         <Button className="preview-close" variant="secondary" size="icon" type="button" aria-label={t("common.close")} onClick={closeImagePreview}><X /></Button>
       </section>
