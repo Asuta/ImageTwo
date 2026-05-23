@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, s
 import { homedir } from "node:os";
 import { extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import sharp from "sharp";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const publicDir = join(__dirname, "public");
@@ -20,6 +21,7 @@ const dataPath = join(dataDir, "image2-data.json");
 const historyAssetsDir = join(dataDir, "history-assets");
 const DEFAULT_HISTORY_MAX_BYTES = 3 * 1024 * 1024 * 1024;
 const HISTORY_MAX_BYTES = Math.max(0, Number.parseInt(process.env.IMAGE2_HISTORY_MAX_BYTES || String(DEFAULT_HISTORY_MAX_BYTES), 10));
+const HISTORY_THUMB_SIZE = Math.max(64, Number.parseInt(process.env.IMAGE2_HISTORY_THUMB_SIZE || "256", 10));
 const DEFAULT_SIGNUP_CREDITS = Number.parseInt(process.env.IMAGE2_SIGNUP_CREDITS || "100", 10);
 const LOGIN_CODE_TTL_MS = 10 * 60 * 1000;
 const LOGIN_CODE_COOLDOWN_MS = 60 * 1000;
@@ -729,18 +731,19 @@ function getHistoryAssetRelativePath(createdAt, requestId, fileName) {
   return `${year}/${month}/${requestId}/${fileName}`;
 }
 
-function writeHistoryImageAsset({ record, kind, index, base64, mimeType, name }) {
+async function writeHistoryImageAsset({ record, kind, index, base64, mimeType, name }) {
   const cleanBase64 = stripDataUrlPrefix(base64);
   const bytes = Buffer.from(cleanBase64, "base64");
   const extension = imageExtensionFromMimeType(mimeType || "image/png");
   const prefix = kind === "reference" ? "reference" : "generated";
   const fileName = `${prefix}-${index + 1}.${extension}`;
-  const thumbName = `${prefix}-${index + 1}-thumb.${extension}`;
+  const thumbName = `${prefix}-${index + 1}-thumb.webp`;
   const folder = getHistoryAssetFolder(record.createdAt, record.requestId);
   mkdirSync(folder, { recursive: true });
 
   writeFileSync(join(folder, fileName), bytes);
-  writeFileSync(join(folder, thumbName), bytes);
+  const thumbBytes = await createHistoryThumbnail(bytes);
+  writeFileSync(join(folder, thumbName), thumbBytes);
 
   return {
     id: `${prefix}-${index + 1}`,
@@ -748,13 +751,32 @@ function writeHistoryImageAsset({ record, kind, index, base64, mimeType, name })
     name: name || fileName,
     mimeType: mimeType || `image/${extension}`,
     bytes: bytes.length,
+    thumbBytes: thumbBytes.length,
+    thumbMimeType: "image/webp",
     path: getHistoryAssetRelativePath(record.createdAt, record.requestId, fileName),
     thumbPath: getHistoryAssetRelativePath(record.createdAt, record.requestId, thumbName),
     createdAt: new Date().toISOString()
   };
 }
 
-function saveHistoryAssets(requestId, { referenceImages = [], generatedBase64, generatedMimeType }) {
+async function createHistoryThumbnail(bytes) {
+  try {
+    return await sharp(bytes, { failOn: "none" })
+      .rotate()
+      .resize({
+        width: HISTORY_THUMB_SIZE,
+        height: HISTORY_THUMB_SIZE,
+        fit: "inside",
+        withoutEnlargement: true
+      })
+      .webp({ quality: 72, effort: 4 })
+      .toBuffer();
+  } catch {
+    return bytes;
+  }
+}
+
+async function saveHistoryAssets(requestId, { referenceImages = [], generatedBase64, generatedMimeType }) {
   const data = readData();
   const record = data.generationHistory.find(item => item.requestId === requestId);
   if (!record) {
@@ -762,19 +784,20 @@ function saveHistoryAssets(requestId, { referenceImages = [], generatedBase64, g
   }
 
   try {
-    const references = referenceImages.map((image, index) => {
+    const references = [];
+    for (const [index, image] of referenceImages.entries()) {
       const parsed = parseDataImageUrl(image.dataUrl);
-      return writeHistoryImageAsset({
+      references.push(await writeHistoryImageAsset({
         record,
         kind: "reference",
         index,
         base64: parsed?.base64 || image.dataUrl,
         mimeType: parsed ? `image/${parsed.outputFormat}` : image.type || "image/png",
         name: image.name || `reference-${index + 1}`
-      });
-    });
+      }));
+    }
 
-    const generated = generatedBase64 ? [writeHistoryImageAsset({
+    const generated = generatedBase64 ? [await writeHistoryImageAsset({
       record,
       kind: "generated",
       index: 0,
@@ -805,7 +828,9 @@ function calculateRecordAssetBytes(record) {
     ...(record.assets?.references || []),
     ...(record.assets?.generated || [])
   ];
-  return assets.reduce((total, asset) => total + Number(asset.bytes || 0) * 2, 0);
+  return assets.reduce((total, asset) => (
+    total + Number(asset.bytes || 0) + Number(asset.thumbBytes || asset.bytes || 0)
+  ), 0);
 }
 
 function getHistoryAssetUsage() {
@@ -941,6 +966,8 @@ function publicHistoryAsset(record, asset) {
     name: asset.name,
     mimeType: asset.mimeType,
     bytes: asset.bytes,
+    thumbBytes: asset.thumbBytes || 0,
+    thumbMimeType: asset.thumbMimeType || "image/webp",
     url: `/api/admin/generation-history/${encodeURIComponent(record.requestId)}/assets/${encodeURIComponent(asset.id)}`,
     thumbUrl: `/api/admin/generation-history/${encodeURIComponent(record.requestId)}/assets/${encodeURIComponent(`${asset.id}-thumb`)}`
   };
@@ -2402,7 +2429,7 @@ async function runGenerationJob({ requestId, input, prompt, aspectRatio, referen
     const usage = finishUsage(requestId, "succeeded");
     const outputFormat = imageResult.outputFormat || "png";
     const mimeType = `image/${outputFormat}`;
-    const savedRecord = saveHistoryAssets(requestId, {
+    const savedRecord = await saveHistoryAssets(requestId, {
       referenceImages,
       generatedBase64: base64,
       generatedMimeType: mimeType
