@@ -4200,6 +4200,7 @@ body:has(.studio-shell .image-preview:not(.hidden))::after,
 .studio-shell .history-scroll > .history-task:has(.image-grid-scrollbar) {
   height: auto !important;
   min-height: 0 !important;
+  padding-bottom: 22px !important;
 }
 
 .studio-shell .history-scroll > .history-task .image-grid-scroll-wrap {
@@ -4207,10 +4208,11 @@ body:has(.studio-shell .image-preview:not(.hidden))::after,
   width: 100% !important;
   max-width: 100% !important;
   display: grid !important;
-  grid-template-rows: auto 18px !important;
-  gap: 10px !important;
+  grid-template-rows: auto 8px !important;
+  gap: 14px !important;
   align-self: stretch !important;
   overflow: visible !important;
+  padding-bottom: 6px !important;
 }
 
 .studio-shell .history-scroll > .history-task .image-grid-scroll-wrap .image-grid {
@@ -4233,22 +4235,20 @@ body:has(.studio-shell .image-preview:not(.hidden))::after,
 .studio-shell .history-scroll > .history-task .image-grid-scrollbar {
   display: block !important;
   position: relative !important;
-  z-index: 2 !important;
+  z-index: 3 !important;
   width: 100% !important;
-  height: 18px !important;
-  min-height: 18px !important;
+  height: 8px !important;
+  min-height: 8px !important;
   margin: 0 !important;
-  padding: 5px !important;
+  padding: 0 !important;
   cursor: grab !important;
-  background: rgba(255, 255, 255, 0.42) !important;
-  border: 1px solid rgba(144, 132, 201, 0.22) !important;
+  background: rgba(223, 218, 242, 0.9) !important;
+  border: 0 !important;
   border-radius: 999px !important;
-  box-shadow:
-    0 10px 24px rgba(70, 57, 132, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.72) !important;
+  box-shadow: none !important;
   touch-action: none !important;
   pointer-events: auto !important;
-  backdrop-filter: blur(12px) !important;
+  backdrop-filter: none !important;
 }
 
 .studio-shell .history-scroll > .history-task .image-grid-scrollbar:active {
@@ -4261,54 +4261,34 @@ body:has(.studio-shell .image-preview:not(.hidden))::after,
 }
 
 .studio-shell .history-scroll > .history-task .image-grid-scrollbar::before {
-  content: "" !important;
-  position: absolute !important;
-  left: 5px !important;
-  right: 5px !important;
-  top: 50% !important;
-  height: 6px !important;
-  transform: translateY(-50%) !important;
-  border-radius: 999px !important;
-  background:
-    linear-gradient(90deg, rgba(227, 222, 247, 0.92), rgba(215, 209, 240, 0.78)) !important;
-  box-shadow: inset 0 1px 1px rgba(109, 95, 166, 0.08) !important;
+  content: none !important;
 }
 
 .studio-shell .history-scroll > .history-task .image-grid-scrollbar-thumb {
   position: absolute !important;
-  top: 5px !important;
-  bottom: 5px !important;
+  top: 0 !important;
+  bottom: 0 !important;
   min-width: 72px !important;
   border-radius: 999px !important;
   border: 0 !important;
-  background:
-    linear-gradient(90deg, #7d62f2, #967aff) !important;
-  box-shadow:
-    0 3px 10px rgba(91, 70, 181, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.36) !important;
+  background: #8b6cff !important;
+  box-shadow: none !important;
   pointer-events: none !important;
 }
 
 :root[data-theme="dark"] .studio-shell .history-scroll > .history-task .image-grid-scrollbar {
-  background: rgba(26, 30, 43, 0.62) !important;
-  border-color: rgba(216, 205, 255, 0.12) !important;
-  box-shadow:
-    0 10px 24px rgba(0, 0, 0, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+  background: rgba(66, 70, 92, 0.82) !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
 }
 
 :root[data-theme="dark"] .studio-shell .history-scroll > .history-task .image-grid-scrollbar::before {
-  background:
-    linear-gradient(90deg, rgba(70, 76, 104, 0.68), rgba(52, 58, 84, 0.84)) !important;
-  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.26) !important;
+  content: none !important;
 }
 
 :root[data-theme="dark"] .studio-shell .history-scroll > .history-task .image-grid-scrollbar-thumb {
-  background:
-    linear-gradient(90deg, #9a7cff, #c1adff) !important;
-  box-shadow:
-    0 4px 12px rgba(125, 96, 255, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.28) !important;
+  background: #a992ff !important;
+  box-shadow: none !important;
 }
 
 .studio-shell .history-scroll > .history-task .image-grid .generated-image-card.is-ratio-fit {
@@ -4870,7 +4850,7 @@ body:has(.studio-shell .image-preview:not(.hidden))::after,
 .studio-shell .history-scroll > .history-task:has(.image-card.is-loading),
 .studio-shell .history-scroll > .history-task:has(.image-card.is-streaming) {
   height: auto !important;
-  min-height: 330px !important;
+  min-height: 356px !important;
   overflow: visible !important;
   contain: none !important;
   content-visibility: visible !important;
@@ -4881,14 +4861,14 @@ body:has(.studio-shell .image-preview:not(.hidden))::after,
 .studio-shell .history-scroll > .history-task:has(.image-card.is-loading) .task-content,
 .studio-shell .history-scroll > .history-task:has(.image-card.is-streaming) .task-content {
   align-items: start !important;
-  padding-bottom: 34px !important;
+  padding-bottom: 46px !important;
 }
 
 .studio-shell .history-scroll > .history-task:has(.generated-image-card.is-ratio-fit) .image-grid-scroll-wrap,
 .studio-shell .history-scroll > .history-task:has(.image-card.is-loading) .image-grid-scroll-wrap,
 .studio-shell .history-scroll > .history-task:has(.image-card.is-streaming) .image-grid-scroll-wrap {
   align-self: start !important;
-  padding-bottom: 8px !important;
+  padding-bottom: 14px !important;
 }
 
 .studio-shell .history-scroll > .history-task .image-grid .image-card.is-loading,
