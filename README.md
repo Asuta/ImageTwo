@@ -41,7 +41,8 @@ IMAGE2_ADMIN_KEY=change_this_admin_key
 IMAGE2_DATA_DIR=./data
 IMAGE2_SIGNUP_CREDITS=100
 IMAGE2_SECURE_COOKIES=false
-RESEND_API_KEY=
+SENDCLOUD_API_USER=
+SENDCLOUD_API_KEY=
 MAIL_FROM=
 HOST=0.0.0.0
 PORT=5173
@@ -59,7 +60,7 @@ pnpm start
 http://localhost:5173
 ```
 
-首次使用直接在网页中输入邮箱，点击“发送验证码”。如果没有配置 `RESEND_API_KEY` 和 `MAIL_FROM`，本地开发模式会把验证码返回到页面提示并打印到服务器日志；生产环境建议配置 Resend 发信。
+首次使用直接在网页中输入邮箱，点击“发送验证码”。如果没有配置 `SENDCLOUD_API_USER`、`SENDCLOUD_API_KEY` 和 `MAIL_FROM`，本地开发模式会把验证码返回到页面提示并打印到服务器日志；生产环境建议配置 SendCloud 发信。
 
 创建礼品卡：
 

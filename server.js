@@ -1272,33 +1272,54 @@ function normalizePartialBase64(base64) {
 }
 
 async function sendLoginCodeEmail(email, code) {
+  const sendCloudApiUser = process.env.SENDCLOUD_API_USER;
+  const sendCloudApiKey = process.env.SENDCLOUD_API_KEY;
+  const mailFrom = process.env.MAIL_FROM;
+
   if (
-    process.env.RESEND_API_KEY === "dev-disabled" ||
-    process.env.MAIL_FROM === "dev-disabled" ||
-    !process.env.RESEND_API_KEY ||
-    !process.env.MAIL_FROM
+    sendCloudApiUser === "dev-disabled" ||
+    sendCloudApiKey === "dev-disabled" ||
+    mailFrom === "dev-disabled" ||
+    !sendCloudApiUser ||
+    !sendCloudApiKey ||
+    !mailFrom
   ) {
     console.log(`[dev] Image2 login code for ${email}: ${code}`);
     return { delivered: false, devCode: code };
   }
 
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      from: process.env.MAIL_FROM,
-      to: email,
-      subject: "你的 Image2 登录验证码",
-      text: `你的 Image2 登录验证码是：${code}\n\n验证码 10 分钟内有效，请勿转发给他人。`
-    })
+  const params = new URLSearchParams({
+    apiUser: sendCloudApiUser,
+    apiKey: sendCloudApiKey,
+    from: mailFrom,
+    fromName: "Image2",
+    to: email,
+    subject: "你的 Image2 登录验证码",
+    plain: `你的 Image2 登录验证码是：${code}\n\n验证码 10 分钟内有效，请勿转发给他人。`
   });
 
+  const response = await fetch("https://api.sendcloud.net/apiv2/mail/send", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: params
+  });
+
+  const responseBody = await response.text();
   if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(`邮件发送失败：${detail}`);
+    throw new Error(`邮件发送失败：${responseBody}`);
+  }
+
+  let result = null;
+  try {
+    result = JSON.parse(responseBody);
+  } catch {
+    throw new Error(`邮件发送失败：SendCloud 返回了无法解析的响应：${responseBody}`);
+  }
+
+  if (result?.result === false) {
+    throw new Error(`邮件发送失败：${result.message || responseBody}`);
   }
 
   return { delivered: true };
