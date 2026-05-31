@@ -55,6 +55,10 @@ const GENERATION_POLL_INTERVAL_MS = 2500;
 const GENERATION_POLL_TIMEOUT_MS = 5 * 60 * 1000;
 const HISTORY_LOAD_TIMEOUT_MS = 3500;
 const HISTORY_IMAGE_SCALE = 100;
+const LOGIN_CODE_COOLDOWN_SECONDS = 60;
+const LOGIN_CODE_LENGTH = 6;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const LOGIN_CODE_PATTERN = /^\d{6}$/;
 const GIFT_CARD_SHOP_URL = "https://pay.ldxp.cn/shop/2C8QL88T";
 const DEFAULT_LANGUAGE = "zh";
 const SUPPORTED_LANGUAGES = ["zh", "en"];
@@ -192,7 +196,11 @@ const translations = {
     "account.code": "验证码",
     "account.codePlaceholder": "6 位数字",
     "account.sendCode": "发送验证码",
+    "account.resendCode": "重新发送",
+    "account.sendingCode": "发送中",
+    "account.sendCodeCooldown": "{seconds}s",
     "account.login": "登录",
+    "account.loggingIn": "登录中",
     "imagePreview.section": "图片预览",
     "imagePreview.alt": "放大的生成结果",
     "imagePreview.controls": "预览控制",
@@ -207,6 +215,7 @@ const translations = {
     "toast.historyUnavailable": "本地历史暂不可用，已进入空白创作状态",
     "toast.historyCleared": "已清空当前浏览器的本地历史",
     "toast.emailRequired": "请先输入邮箱",
+    "toast.emailInvalid": "请输入有效邮箱",
     "toast.codeSendFailed": "验证码发送失败。",
     "toast.devCode": "开发验证码：{code}",
     "toast.codeSent": "验证码已发送，请检查邮箱",
@@ -358,7 +367,11 @@ const translations = {
     "account.code": "Code",
     "account.codePlaceholder": "6 digits",
     "account.sendCode": "Send code",
+    "account.resendCode": "Resend",
+    "account.sendingCode": "Sending",
+    "account.sendCodeCooldown": "{seconds}s",
     "account.login": "Log in",
+    "account.loggingIn": "Logging in",
     "imagePreview.section": "Image preview",
     "imagePreview.alt": "Enlarged generated result",
     "imagePreview.controls": "Preview controls",
@@ -373,6 +386,7 @@ const translations = {
     "toast.historyUnavailable": "Local history is unavailable. Starting with a blank workspace.",
     "toast.historyCleared": "Local history has been cleared in this browser",
     "toast.emailRequired": "Enter your email first",
+    "toast.emailInvalid": "Enter a valid email",
     "toast.codeSendFailed": "Failed to send verification code.",
     "toast.devCode": "Development code: {code}",
     "toast.codeSent": "Code sent. Check your email.",
@@ -805,7 +819,6 @@ function App() {
   const [referenceImages, setReferenceImages] = useState([]);
   const [referenceDockExpanded, setReferenceDockExpanded] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
-  const [loginCodeRequested, setLoginCodeRequested] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [ratioOpen, setRatioOpen] = useState(false);
   const [theme, setThemeState] = useState(getThemeFromStorage());
@@ -830,6 +843,10 @@ function App() {
   const [previewScaleLabel, setPreviewScaleLabel] = useState("100%");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
+  const [loginCodeSent, setLoginCodeSent] = useState(false);
+  const [loginCodeCooldown, setLoginCodeCooldown] = useState(0);
+  const [loginCodeSending, setLoginCodeSending] = useState(false);
+  const [loginSubmitting, setLoginSubmitting] = useState(false);
   const [giftKey, setGiftKey] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -946,8 +963,33 @@ function App() {
     toastTimerRef.current = window.setTimeout(() => setToast(""), 2600);
   }, [toast]);
 
+  useEffect(() => {
+    if (loginCodeCooldown <= 0) {
+      return undefined;
+    }
+
+    const timerId = window.setTimeout(() => {
+      setLoginCodeCooldown(seconds => Math.max(0, seconds - 1));
+    }, 1000);
+
+    return () => window.clearTimeout(timerId);
+  }, [loginCodeCooldown]);
+
   const isLoggedIn = Boolean(currentUser);
   const t = (key, values) => formatMessage(translations[language]?.[key] || translations[DEFAULT_LANGUAGE][key] || key, values);
+  const trimmedEmail = email.trim();
+  const trimmedCode = code.trim();
+  const isLoginEmailValid = EMAIL_PATTERN.test(trimmedEmail);
+  const isLoginCodeValid = LOGIN_CODE_PATTERN.test(trimmedCode);
+  const canSendLoginCode = isLoginEmailValid && !loginCodeSending && loginCodeCooldown <= 0;
+  const canSubmitLogin = isLoginEmailValid && isLoginCodeValid && !loginSubmitting;
+  const sendLoginCodeLabel = loginCodeSending
+    ? t("account.sendingCode")
+    : loginCodeCooldown > 0
+      ? t("account.sendCodeCooldown", { seconds: loginCodeCooldown })
+      : loginCodeSent
+        ? t("account.resendCode")
+        : t("account.sendCode");
   const visibleHistory = useMemo(() => history, [history]);
   const showPreviewRows = !historyLoading && history.length < previewRows.length;
   const supplementalPreviewRows = useMemo(() => (
@@ -1129,7 +1171,15 @@ function App() {
       showToast(t("toast.emailRequired"));
       return;
     }
+    if (!EMAIL_PATTERN.test(nextEmail)) {
+      showToast(t("toast.emailInvalid"));
+      return;
+    }
+    if (loginCodeSending || loginCodeCooldown > 0) {
+      return;
+    }
 
+    setLoginCodeSending(true);
     try {
       const response = await fetch("/api/auth/request-code", {
         method: "POST",
@@ -1138,16 +1188,43 @@ function App() {
       });
       const payload = await response.json();
       if (!response.ok) {
+        if (response.status === 429) {
+          setLoginCodeCooldown(LOGIN_CODE_COOLDOWN_SECONDS);
+        }
         throw new Error(payload.detail || payload.error || t("toast.codeSendFailed"));
       }
 
-      setLoginCodeRequested(true);
+      setLoginCodeSent(true);
+      setLoginCodeCooldown(LOGIN_CODE_COOLDOWN_SECONDS);
       if (payload.devCode) {
         setCode(payload.devCode);
       }
       showToast(payload.devCode ? t("toast.devCode", { code: payload.devCode }) : t("toast.codeSent"));
     } catch (error) {
       showToast(error instanceof Error ? error.message : String(error));
+    } finally {
+      setLoginCodeSending(false);
+    }
+  }
+
+  function updateLoginCode(value) {
+    setCode(value.replace(/\D/g, "").slice(0, LOGIN_CODE_LENGTH));
+  }
+
+  function updateLoginEmail(value) {
+    setEmail(value);
+    setCode("");
+    setLoginCodeSent(false);
+  }
+
+  function handleLoginKeyDown(event) {
+    if (event.key !== "Enter") {
+      return;
+    }
+
+    event.preventDefault();
+    if (canSubmitLogin) {
+      loginWithCode();
     }
   }
 
@@ -1158,7 +1235,15 @@ function App() {
       showToast(t("toast.emailCodeRequired"));
       return;
     }
+    if (!EMAIL_PATTERN.test(nextEmail) || !LOGIN_CODE_PATTERN.test(nextCode)) {
+      showToast(t("toast.emailCodeRequired"));
+      return;
+    }
+    if (loginSubmitting) {
+      return;
+    }
 
+    setLoginSubmitting(true);
     try {
       const response = await fetch("/api/auth/verify-code", {
         method: "POST",
@@ -1171,19 +1256,25 @@ function App() {
       }
 
       setCode("");
-      setLoginCodeRequested(false);
+      setLoginCodeSent(false);
+      setLoginCodeCooldown(0);
       setCurrentUser(payload.user);
       setAccountOpen(false);
       showToast(t("toast.loginSuccess"));
     } catch (error) {
       showToast(error instanceof Error ? error.message : String(error));
+    } finally {
+      setLoginSubmitting(false);
     }
   }
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
     setCurrentUser(null);
-    setLoginCodeRequested(false);
+    setLoginCodeSent(false);
+    setLoginCodeCooldown(0);
+    setLoginCodeSending(false);
+    setLoginSubmitting(false);
     setEmail("");
     setCode("");
     setGiftKey("");
@@ -2459,20 +2550,22 @@ function App() {
             <div className="account-panel-body">
               <label className="account-control">
                 <span>{t("account.email")}</span>
-                <Input value={email} onChange={event => setEmail(event.target.value)} type="email" autoComplete="email" placeholder="you@example.com" />
+                <Input value={email} onChange={event => updateLoginEmail(event.target.value)} onKeyDown={handleLoginKeyDown} type="email" autoComplete="email" placeholder="you@example.com" />
               </label>
-              <label className={`account-control${loginCodeRequested ? "" : " hidden"}`}>
+              <label className="account-control">
                 <span>{t("account.code")}</span>
-                <Input value={code} onChange={event => setCode(event.target.value)} type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder={t("account.codePlaceholder")} />
+                <div className="code-input-row">
+                  <Input value={code} onChange={event => updateLoginCode(event.target.value)} onKeyDown={handleLoginKeyDown} type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={LOGIN_CODE_LENGTH} placeholder={t("account.codePlaceholder")} />
+                  <Button className="code-send-button" variant="secondary" type="button" onClick={sendLoginCode} disabled={!canSendLoginCode}>
+                    <Send data-icon="inline-start" />
+                    <span>{sendLoginCodeLabel}</span>
+                  </Button>
+                </div>
               </label>
               <div className="panel-actions">
-                <Button className={`soft-button${loginCodeRequested ? " hidden" : ""}`} variant="secondary" type="button" onClick={sendLoginCode}>
-                  <Send data-icon="inline-start" />
-                  <span>{t("account.sendCode")}</span>
-                </Button>
-                <Button className={`soft-button${loginCodeRequested ? "" : " hidden"}`} type="button" onClick={loginWithCode}>
+                <Button className="soft-button" type="button" onClick={loginWithCode} disabled={!canSubmitLogin}>
                   <Sparkles data-icon="inline-start" />
-                  <span>{t("account.login")}</span>
+                  <span>{loginSubmitting ? t("account.loggingIn") : t("account.login")}</span>
                 </Button>
               </div>
             </div>

@@ -5254,6 +5254,14 @@ select {
     min-height: 40px;
   }
 
+  .code-input-row {
+    grid-template-columns: 1fr;
+  }
+
+  .code-send-button {
+    width: 100%;
+  }
+
   .soft-button {
     justify-content: center;
   }
@@ -7425,6 +7433,53 @@ select {
     inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
 }
 
+.studio-shell .code-input-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 8px !important;
+  align-items: center !important;
+}
+
+.studio-shell .code-input-row input {
+  min-width: 0 !important;
+}
+
+.studio-shell .code-send-button {
+  height: 44px !important;
+  min-width: 118px !important;
+  border-radius: 13px !important;
+  border-color: rgba(127, 97, 255, 0.2) !important;
+  padding: 0 13px !important;
+  gap: 6px !important;
+  color: #6e55e8 !important;
+  background: rgba(255, 255, 255, 0.76) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.74) !important;
+}
+
+.studio-shell .code-send-button:hover:not(:disabled) {
+  border-color: rgba(127, 97, 255, 0.34) !important;
+  background: rgba(248, 245, 255, 0.96) !important;
+}
+
+.studio-shell .code-send-button:disabled {
+  cursor: not-allowed !important;
+  color: rgba(94, 89, 116, 0.62) !important;
+  border-color: rgba(120, 111, 154, 0.12) !important;
+  background: rgba(238, 235, 247, 0.72) !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+}
+
+@media (max-width: 520px) {
+  .studio-shell .code-input-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .studio-shell .code-send-button {
+    width: 100% !important;
+  }
+}
+
 .studio-shell .buy-gift-card-button {
   height: 34px !important;
   border-radius: 12px !important;
@@ -7447,6 +7502,19 @@ select {
   color: #fff !important;
   border-color: rgba(255, 255, 255, 0.64) !important;
   box-shadow: 0 16px 32px rgba(118, 89, 244, 0.26) !important;
+}
+
+.studio-shell .panel-actions .soft-button:disabled {
+  cursor: not-allowed !important;
+  color: rgba(94, 89, 116, 0.66) !important;
+  border-color: rgba(120, 111, 154, 0.12) !important;
+  background: linear-gradient(135deg, rgba(225, 221, 236, 0.92), rgba(206, 199, 226, 0.9)) !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+}
+
+.studio-shell .panel-actions .soft-button:disabled svg {
+  opacity: 0.62 !important;
 }
 
 .studio-shell .panel-actions .soft-button.hidden {
@@ -7561,6 +7629,26 @@ select {
     inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
 }
 
+:root[data-theme="dark"] .studio-shell .code-send-button {
+  color: #e7e1ff !important;
+  border-color: rgba(157, 132, 255, 0.34) !important;
+  background: rgba(103, 78, 195, 0.28) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .code-send-button:hover:not(:disabled) {
+  color: #ffffff !important;
+  border-color: rgba(147, 229, 215, 0.42) !important;
+  background: rgba(126, 220, 204, 0.18) !important;
+}
+
+:root[data-theme="dark"] .studio-shell .code-send-button:disabled {
+  color: rgba(207, 200, 234, 0.52) !important;
+  border-color: rgba(214, 205, 245, 0.12) !important;
+  background: rgba(255, 255, 255, 0.055) !important;
+  box-shadow: none !important;
+}
+
 :root[data-theme="dark"] .studio-shell .buy-gift-card-button {
   color: #e7e1ff !important;
   border-color: rgba(157, 132, 255, 0.34) !important;
@@ -7585,6 +7673,14 @@ select {
 
 :root[data-theme="dark"] .studio-shell .panel-actions .soft-button:hover {
   filter: brightness(1.06);
+}
+
+:root[data-theme="dark"] .studio-shell .panel-actions .soft-button:disabled {
+  color: rgba(207, 200, 234, 0.52) !important;
+  border-color: rgba(214, 205, 245, 0.12) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  box-shadow: none !important;
+  filter: none !important;
 }
 
 :root[data-theme="dark"] .studio-shell .panel-actions .soft-button[variant="outline"],
