@@ -51,6 +51,7 @@ import { Textarea } from "@/components/ui/textarea";
 const DB_NAME = "image2-local-history";
 const DB_VERSION = 1;
 const MAX_LOCAL_IMAGES = 300;
+const MAX_GENERATION_COUNT = 8;
 const GENERATION_POLL_INTERVAL_MS = 2500;
 const GENERATION_POLL_TIMEOUT_MS = 5 * 60 * 1000;
 const HISTORY_LOAD_TIMEOUT_MS = 3500;
@@ -710,7 +711,11 @@ function formatTime(date = new Date(), language = DEFAULT_LANGUAGE) {
 
 function getCountValue(value) {
   const num = Number.parseInt(value, 10);
-  return Number.isFinite(num) && num > 0 ? num : 1;
+  if (!Number.isFinite(num)) {
+    return 1;
+  }
+
+  return Math.min(MAX_GENERATION_COUNT, Math.max(1, num));
 }
 
 function getRatioLabel(value, t) {
@@ -1401,7 +1406,11 @@ function App() {
   }
 
   function stepCount(delta) {
-    setCount(prev => String(Math.max(1, getCountValue(prev) + delta)));
+    setCount(prev => String(getCountValue(getCountValue(prev) + delta)));
+  }
+
+  function handleCountChange(event) {
+    setCount(String(getCountValue(event.target.value)));
   }
 
   function renderRatioOptions() {
@@ -1672,7 +1681,7 @@ function App() {
     setPrompt(task.prompt);
     setAspectRatio(task.aspectRatio || "auto");
     setQuality(task.quality || "medium");
-    setCount(String(task.count || 1));
+    setCount(String(getCountValue(task.count || 1)));
     if (task.referenceImages?.length) {
       setReferenceImages(task.referenceImages);
     } else {
@@ -2418,9 +2427,9 @@ function App() {
                 <Button className="count-step count-step-minus" variant="ghost" type="button" aria-label={t("count.decrease")} onClick={() => stepCount(-1)}>
                   <span aria-hidden="true">-</span>
                 </Button>
-                <Input type="number" min="1" step="1" value={count} onChange={event => setCount(event.target.value)} />
+                <Input type="number" min="1" max={MAX_GENERATION_COUNT} step="1" value={count} onChange={handleCountChange} />
                 <Button className="count-step count-step-plus" variant="ghost" type="button" aria-label={t("count.increase")} onClick={() => stepCount(1)}>
-                  <Plus aria-hidden="true" />
+                  <span aria-hidden="true">+</span>
                 </Button>
               </label>
 
