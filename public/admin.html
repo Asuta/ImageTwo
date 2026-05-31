@@ -32,7 +32,7 @@
             <div class="admin-card-head">
               <div>
                 <h2>供应商配置</h2>
-                <p>这里管理当前启用的图片服务商，以及 OpenAI Response / Compilation 两种接口格式。</p>
+                <p>这里管理当前启用的图片服务商，以及不同供应商的图片接口格式。</p>
               </div>
               <div class="admin-header-actions">
                 <button id="providerReloadButton" class="soft-button" type="button">刷新供应商</button>
@@ -68,6 +68,7 @@
                   <select id="providerApiFormat">
                     <option value="compilation">Compilation</option>
                     <option value="responses">OpenAI Response</option>
+                    <option value="responses-edits">Response + Image Edit</option>
                   </select>
                 </label>
                 <label class="provider-switch">

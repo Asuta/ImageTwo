@@ -1,6 +1,6 @@
 # Image2 生成请求格式说明
 
-这份文档说明用户每次点击“生成”时，Image2 实际发送的请求格式，以及后端如何组装上游 `https://nowcoding.ai/v1/responses` 请求。
+这份文档说明用户每次点击“生成”时，Image2 实际发送的请求格式，以及后端如何按供应商格式组装上游图片请求。
 
 ## 1. 请求链路
 
@@ -8,10 +8,10 @@
 
 ```text
 浏览器前端 -> 本地/公网 Image2 服务 POST /api/generate
-Image2 服务 -> nowcoding Responses API POST https://nowcoding.ai/v1/responses
+Image2 服务 -> 当前启用供应商图片接口
 ```
 
-如果生成数量是 `N`，前端会并行发送 `N` 次 `POST /api/generate`。每一次本地请求都会触发一次独立的上游 `POST /v1/responses`，并单独扣减额度。
+如果生成数量是 `N`，前端会并行发送 `N` 次 `POST /api/generate`。每一次本地请求都会触发一次独立的上游图片请求，并单独扣减额度。
 
 ## 2. 前端发送给 Image2 服务
 
@@ -192,6 +192,12 @@ Image2 服务会把用户提示词包装成 `imagePrompt`。
 
 ## 5. 后端发送给上游 API
 
+上游请求取决于后台供应商的 `apiFormat`：
+
+- `responses`：文生图和参考图都走配置的 Responses 地址，参考图会作为 `input_image` 放进 JSON。
+- `responses-edits`：文生图走配置的 Responses 地址；带参考图时切换到同域名的 `/v1/images/edits`，用 multipart 上传 `image` 字段。AI Hub 这类供应商使用此格式。
+- `compilation`：文生图走 `/v1/images/generations`，参考图走 `/v1/images/edits`，参考图字段名沿用 `image[]`。
+
 请求地址：
 
 ```http
@@ -257,6 +263,28 @@ Content-Type: application/json
 ```
 
 图片比例只通过 prompt 文本表达。
+
+`responses-edits` 供应商的参考图编辑会改走图片编辑端点。以上面的 `https://aihub2api.cloud/v1/responses` 为例，带参考图时后端会请求：
+
+```http
+POST https://aihub2api.cloud/v1/images/edits
+Authorization: Bearer <PROVIDER_API_KEY>
+Content-Type: multipart/form-data
+```
+
+表单字段：
+
+```text
+model=gpt-image-2
+prompt=<服务端提示词>
+n=1
+thinking=medium
+response_format=b64_json
+size=auto 或 1024x1024 / 1536x1024 / 1024x1536
+image=<参考图文件>
+```
+
+多张参考图会重复追加 `image` 字段。
 
 ## 6. 上游响应格式
 

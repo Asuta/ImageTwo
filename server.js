@@ -33,7 +33,7 @@ const ADMIN_COOKIE_NAME = "image2_admin";
 const qualityOptions = new Set(["low", "medium", "high"]);
 const aspectRatioOptions = new Set(["auto", "9:21", "9:16", "2:3", "3:4", "1:1", "4:3", "3:2", "16:9", "21:9"]);
 const giftCardStatuses = new Set(["active", "disabled", "redeemed", "revoked"]);
-const providerFormats = new Set(["responses", "compilation"]);
+const providerFormats = new Set(["responses", "responses-edits", "compilation"]);
 const generationJobs = new Map();
 const JOB_TTL_MS = 15 * 60 * 1000;
 const PARTIAL_IMAGE_MIN_BASE64_CHARS = 1600;
@@ -360,6 +360,16 @@ function normalizeProviderFormat(value) {
   }
 
   if (
+    normalized === "responses-edits" ||
+    normalized === "response-edits" ||
+    normalized === "openai-responses-edits" ||
+    normalized === "aihub-responses" ||
+    normalized === "aihub"
+  ) {
+    return "responses-edits";
+  }
+
+  if (
     normalized === "compilation" ||
     normalized === "completions" ||
     normalized === "completion" ||
@@ -377,7 +387,14 @@ function detectProviderFormat(apiUrl) {
 }
 
 function getProviderFormatLabel(value) {
-  return normalizeProviderFormat(value) === "responses" ? "OpenAI Response" : "Compilation";
+  const format = normalizeProviderFormat(value);
+  if (format === "responses") {
+    return "OpenAI Response";
+  }
+  if (format === "responses-edits") {
+    return "Response + Image Edit";
+  }
+  return "Compilation";
 }
 
 function getProviderSecret(provider) {
@@ -1986,7 +2003,7 @@ async function testProviderConnection(provider) {
   }
 
   const format = normalizeProviderFormat(provider.apiFormat);
-  if (format === "responses") {
+  if (format === "responses" || format === "responses-edits") {
     const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
@@ -2002,7 +2019,7 @@ async function testProviderConnection(provider) {
     return {
       ok: response.ok,
       status: response.status,
-      detail: response.ok ? "OpenAI Response 格式测试成功。" : text.slice(0, 400)
+      detail: response.ok ? `${getProviderFormatLabel(format)} 格式测试成功。` : text.slice(0, 400)
     };
   }
 
@@ -2497,7 +2514,7 @@ function buildUpstreamRequest(provider, { messages, prompt, aspectRatio, referen
   const apiUrl = provider.apiUrl || DEFAULT_API_URL;
   const apiKey = getProviderSecret(provider);
 
-  if (format === "responses") {
+  if (format === "responses" || (format === "responses-edits" && referenceImages.length === 0)) {
     return {
       url: apiUrl,
       headers: {
@@ -2519,7 +2536,8 @@ function buildUpstreamRequest(provider, { messages, prompt, aspectRatio, referen
       prompt,
       aspectRatio,
       referenceImages,
-      quality
+      quality,
+      imageFieldName: format === "responses-edits" ? "image" : "image[]"
     });
   }
 
@@ -2533,7 +2551,7 @@ function buildUpstreamRequest(provider, { messages, prompt, aspectRatio, referen
   });
 }
 
-function buildImageEditRequest({ apiUrl, apiKey, model, prompt, aspectRatio, referenceImages, quality }) {
+function buildImageEditRequest({ apiUrl, apiKey, model, prompt, aspectRatio, referenceImages, quality, imageFieldName = "image[]" }) {
   const form = new FormData();
   form.append("model", model);
   form.append("prompt", prompt);
@@ -2552,7 +2570,7 @@ function buildImageEditRequest({ apiUrl, apiKey, model, prompt, aspectRatio, ref
     const mimeType = `image/${parsed.outputFormat}`;
     const extension = imageExtensionFromMimeType(mimeType);
     const bytes = Buffer.from(parsed.base64, "base64");
-    form.append("image[]", new Blob([bytes], { type: mimeType }), `reference-${index + 1}.${extension}`);
+    form.append(imageFieldName, new Blob([bytes], { type: mimeType }), `reference-${index + 1}.${extension}`);
   });
 
   return {
