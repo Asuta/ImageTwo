@@ -1288,6 +1288,81 @@ function normalizePartialBase64(base64) {
   return alignedLength > 0 ? cleanBase64.slice(0, alignedLength) : "";
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function buildLoginCodeEmail({ code }) {
+  const safeCode = escapeHtml(code);
+  const plain = [
+    `你的 Image2 登录验证码是：${code}`,
+    "",
+    "验证码将在 10 分钟后失效。为保障账号与作品安全，请勿将验证码转发或透露给他人。",
+    "",
+    "如果这不是你本人发起的登录请求，可以忽略这封邮件。"
+  ].join("\n");
+
+  const html = `<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <meta name="supported-color-schemes" content="light">
+    <title>Image2 登录验证码</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f4f1eb;color:#1d1a16;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',Arial,sans-serif;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">你的 Image2 登录验证码是 ${safeCode}，10 分钟内有效。</div>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f1eb;margin:0;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#fffdf8;border:1px solid #e6dccf;border-radius:20px;overflow:hidden;box-shadow:0 18px 48px rgba(55,45,31,0.10);">
+            <tr>
+              <td style="padding:34px 34px 18px 34px;background:#16221c;">
+                <div style="font-size:13px;line-height:1.4;letter-spacing:0.16em;text-transform:uppercase;color:#b9d8c0;font-weight:700;">Image2</div>
+                <h1 style="margin:14px 0 0 0;font-size:26px;line-height:1.35;color:#fffaf0;font-weight:700;letter-spacing:0;">登录验证码</h1>
+                <p style="margin:10px 0 0 0;font-size:15px;line-height:1.7;color:#d7e4d8;">请使用以下验证码完成本次登录验证。</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:34px;">
+                <p style="margin:0 0 18px 0;font-size:16px;line-height:1.8;color:#3a332a;">你好，</p>
+                <p style="margin:0 0 24px 0;font-size:16px;line-height:1.8;color:#3a332a;">你正在登录 Image2。请在页面中输入下方验证码完成验证：</p>
+                <div style="margin:0 0 26px 0;padding:24px 18px;background:#f7f2e8;border:1px solid #e8dac6;border-radius:16px;text-align:center;">
+                  <div style="font-size:12px;line-height:1.4;letter-spacing:0.18em;text-transform:uppercase;color:#806c54;font-weight:700;">Verification Code</div>
+                  <div style="margin-top:10px;font-size:38px;line-height:1.1;letter-spacing:0.18em;color:#1f2f26;font-weight:800;font-family:'SFMono-Regular','Cascadia Code','Roboto Mono',Consolas,monospace;">${safeCode}</div>
+                </div>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 24px 0;background:#fbf8f1;border-radius:14px;border:1px solid #eee5d6;">
+                  <tr>
+                    <td style="padding:16px 18px;font-size:14px;line-height:1.8;color:#665847;">
+                      <strong style="color:#312a22;">有效时间：</strong>10 分钟<br>
+                      <strong style="color:#312a22;">安全提示：</strong>请勿将验证码转发或透露给任何人。
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin:0;font-size:14px;line-height:1.8;color:#746657;">如果这不是你本人发起的登录请求，可以忽略这封邮件；你的账号不会因此产生变更。</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 34px 30px 34px;border-top:1px solid #eee5d6;background:#fffaf1;">
+                <p style="margin:0;font-size:12px;line-height:1.7;color:#948675;">这是一封系统自动发送的邮件，请勿直接回复。</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+
+  return { plain, html };
+}
+
 async function sendLoginCodeEmail(email, code) {
   const sendCloudApiUser = process.env.SENDCLOUD_API_USER;
   const sendCloudApiKey = process.env.SENDCLOUD_API_KEY;
@@ -1305,6 +1380,7 @@ async function sendLoginCodeEmail(email, code) {
     return { delivered: false, devCode: code };
   }
 
+  const emailContent = buildLoginCodeEmail({ code });
   const params = new URLSearchParams({
     apiUser: sendCloudApiUser,
     apiKey: sendCloudApiKey,
@@ -1312,7 +1388,8 @@ async function sendLoginCodeEmail(email, code) {
     fromName: "Image2",
     to: email,
     subject: "你的 Image2 登录验证码",
-    plain: `你的 Image2 登录验证码是：${code}\n\n验证码 10 分钟内有效，请勿转发给他人。`
+    plain: emailContent.plain,
+    html: emailContent.html
   });
 
   const response = await fetch("https://api.sendcloud.net/apiv2/mail/send", {
