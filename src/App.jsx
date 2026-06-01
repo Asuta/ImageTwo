@@ -134,8 +134,10 @@ const translations = {
     "history.count": "{count} 张",
     "history.points": "{count} 点",
     "history.balance": "余额 {count}",
+    "history.usePrompt": "使用提示词",
     "history.reedit": "重新编辑",
     "history.regenerate": "再次生成",
+    "history.copy": "复制",
     "history.copyPrompt": "复制提示词",
     "history.delete": "删除",
     "history.deleteDialog": "确认删除历史记录",
@@ -235,6 +237,7 @@ const translations = {
     "toast.referenceExpired": "刷新后参考图原始数据已失效，请重新上传",
     "toast.submittedFromHistory": "已按该历史记录再次提交生成",
     "toast.reused": "已复用提示词和参数",
+    "toast.promptUsed": "已填入底部输入栏",
     "toast.deleted": "已删除本地历史记录",
     "toast.promptCopied": "提示词已复制",
     "toast.someFailed": "{failed} 张生成失败，{generated} 张已保存到本地",
@@ -304,8 +307,10 @@ const translations = {
     "history.count": "{count} images",
     "history.points": "{count} credits",
     "history.balance": "Balance {count}",
+    "history.usePrompt": "Use prompt",
     "history.reedit": "Edit again",
     "history.regenerate": "Generate again",
+    "history.copy": "Copy",
     "history.copyPrompt": "Copy prompt",
     "history.delete": "Delete",
     "history.deleteDialog": "Confirm history deletion",
@@ -405,6 +410,7 @@ const translations = {
     "toast.referenceExpired": "Original reference data expired after refresh. Please upload it again.",
     "toast.submittedFromHistory": "Generation submitted from this history record",
     "toast.reused": "Prompt and settings reused",
+    "toast.promptUsed": "Prompt inserted into the composer",
     "toast.deleted": "Local history record deleted",
     "toast.promptCopied": "Prompt copied",
     "toast.someFailed": "{failed} failed, {generated} saved locally",
@@ -860,6 +866,7 @@ function App() {
   const [placeholderDialogOpen, setPlaceholderDialogOpen] = useState(false);
   const [placeholderFeature, setPlaceholderFeature] = useState("");
   const historyRef = useRef([]);
+  const promptTextareaRef = useRef(null);
   const previewImageRef = useRef(null);
   const toastTimerRef = useRef(null);
 
@@ -1688,6 +1695,16 @@ function App() {
     showToast(t("toast.reused"));
   }
 
+  function usePromptFromTask(task) {
+    setDeleteConfirmId(null);
+    setSelectedId(task.id);
+    setPrompt(task.prompt);
+    window.requestAnimationFrame(() => {
+      promptTextareaRef.current?.focus();
+    });
+    showToast(t("toast.promptUsed"));
+  }
+
   async function deleteTask(task) {
     await deleteTaskFromDb(task.id);
     task.images.forEach(image => {
@@ -2241,7 +2258,19 @@ function App() {
                     <ChevronUp />
                   </div>
                   <div className="task-copy-area">
-                    <CardTitle>{getTaskTitle(task.prompt)}</CardTitle>
+                    <div className="task-prompt-line">
+                      <CardTitle>{getTaskTitle(task.prompt)}</CardTitle>
+                      <div className="prompt-hover-actions" onClick={event => event.stopPropagation()}>
+                        <Button className="prompt-hover-button" variant="ghost" type="button" title={t("history.usePrompt")} aria-label={t("history.usePrompt")} onClick={() => usePromptFromTask(task)}>
+                          <WandSparkles data-icon="inline-start" />
+                          <span>{t("history.usePrompt")}</span>
+                        </Button>
+                        <Button className="prompt-hover-button" variant="ghost" type="button" title={t("history.copyPrompt")} aria-label={t("history.copyPrompt")} onClick={() => copyPromptFromTask(task)}>
+                          <Copy data-icon="inline-start" />
+                          <span>{t("history.copy")}</span>
+                        </Button>
+                      </div>
+                    </div>
                     <div className="tag-row">
                       <Badge variant="secondary">{task.model || "gpt-image-2"}</Badge>
                       <Badge variant="secondary">{task.mode === "edit" ? t("history.editMode") : t("history.generateMode")}</Badge>
@@ -2261,9 +2290,6 @@ function App() {
                     <Button className="task-action-button" variant="ghost" type="button" title={t("history.regenerate")} aria-label={t("history.regenerate")} onClick={() => generateFromTask(task)}>
                       <RotateCcw data-icon="inline-start" />
                       <span>{t("history.regenerate")}</span>
-                    </Button>
-                    <Button className="task-action-button compact" variant="ghost" type="button" title={t("history.copyPrompt")} aria-label={t("history.copyPrompt")} onClick={() => copyPromptFromTask(task)}>
-                      <Copy />
                     </Button>
                     <div className="delete-action-wrap">
                       <Button
@@ -2389,6 +2415,7 @@ function App() {
           <div className="prompt-zone">
             <div className="prompt-top">
               <Textarea
+                ref={promptTextareaRef}
                 className="prompt-textarea"
                 value={prompt}
                 onChange={event => setPrompt(event.target.value)}
