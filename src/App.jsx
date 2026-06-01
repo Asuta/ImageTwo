@@ -174,7 +174,6 @@ const translations = {
     "composer.removeReference": "移除参考图",
     "composer.addReference": "继续添加参考图",
     "composer.placeholder": "请输入你的创意，例如：雨后城市里的未来感产品海报，干净构图，高级广告摄影",
-    "composer.clearReferences": "清空参考图",
     "composer.edit": "编辑",
     "composer.generate": "生成",
     "composer.advanced": "高级",
@@ -345,7 +344,6 @@ const translations = {
     "composer.removeReference": "Remove reference image",
     "composer.addReference": "Add more reference images",
     "composer.placeholder": "Describe your idea, for example: a futuristic product poster in a rain-washed city, clean composition, premium advertising photography",
-    "composer.clearReferences": "Clear references",
     "composer.edit": "Edit",
     "composer.generate": "Generate",
     "composer.advanced": "Advanced",
@@ -2433,10 +2431,6 @@ function App() {
                 </Button>
               </label>
 
-              <Button className={`soft-button${referenceImages.length === 0 ? " hidden" : ""}`} variant="outline" type="button" onClick={clearReferences}>
-                <X data-icon="inline-start" />
-                <span>{t("composer.clearReferences")}</span>
-              </Button>
             </div>
           </div>
 
