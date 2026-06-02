@@ -1400,7 +1400,7 @@ function getMailProvider() {
       return "tencent-ses";
     }
     if (hasAnyTencentSesConfig()) {
-      throw new Error("腾讯云邮件推送配置不完整，请检查 TENCENT_SES_SECRET_ID、TENCENT_SES_SECRET_KEY、TENCENT_SES_REGION、TENCENT_SES_FROM 和 TENCENT_SES_TEMPLATE_ID。");
+      throw new Error("腾讯云邮件推送配置不完整，请检查 TENCENT_SES_SECRET_ID、TENCENT_SES_SECRET_KEY、TENCENT_SES_REGION 和 TENCENT_SES_FROM。");
     }
     if (hasSendCloudConfig()) {
       return "sendcloud";
@@ -1409,7 +1409,7 @@ function getMailProvider() {
   }
 
   if (provider === "tencent-ses" && !hasTencentSesConfig()) {
-    throw new Error("腾讯云邮件推送配置不完整，请检查 TENCENT_SES_SECRET_ID、TENCENT_SES_SECRET_KEY、TENCENT_SES_REGION、TENCENT_SES_FROM 和 TENCENT_SES_TEMPLATE_ID。");
+    throw new Error("腾讯云邮件推送配置不完整，请检查 TENCENT_SES_SECRET_ID、TENCENT_SES_SECRET_KEY、TENCENT_SES_REGION 和 TENCENT_SES_FROM。");
   }
 
   if (provider === "sendcloud" && !hasSendCloudConfig()) {
@@ -1424,8 +1424,7 @@ function hasTencentSesConfig() {
     process.env.TENCENT_SES_SECRET_ID &&
     process.env.TENCENT_SES_SECRET_KEY &&
     process.env.TENCENT_SES_REGION &&
-    process.env.TENCENT_SES_FROM &&
-    process.env.TENCENT_SES_TEMPLATE_ID
+    process.env.TENCENT_SES_FROM
   );
 }
 
@@ -1435,6 +1434,7 @@ function hasAnyTencentSesConfig() {
     process.env.TENCENT_SES_SECRET_KEY ||
     process.env.TENCENT_SES_REGION ||
     process.env.TENCENT_SES_FROM ||
+    process.env.TENCENT_SES_CONTENT_MODE ||
     process.env.TENCENT_SES_TEMPLATE_ID ||
     process.env.TENCENT_SES_REPLY_TO ||
     process.env.TENCENT_SES_ENDPOINT
@@ -1505,27 +1505,23 @@ async function sendTencentSesLoginCodeEmail(email, code) {
   const region = process.env.TENCENT_SES_REGION;
   const secretId = process.env.TENCENT_SES_SECRET_ID;
   const secretKey = process.env.TENCENT_SES_SECRET_KEY;
-  const templateDataKey = process.env.TENCENT_SES_TEMPLATE_DATA_KEY || "code";
-  const templateId = Number(process.env.TENCENT_SES_TEMPLATE_ID);
-  if (!Number.isSafeInteger(templateId) || templateId <= 0) {
-    throw new Error("TENCENT_SES_TEMPLATE_ID 必须是腾讯云邮件推送模板的数字 ID。");
-  }
-
+  const contentMode = getTencentSesContentMode();
+  const emailContent = buildLoginCodeEmail({ code });
   const payload = {
     FromEmailAddress: process.env.TENCENT_SES_FROM,
     Destination: [email],
     Subject: "你的 Image2 登录验证码",
-    Template: {
-      TemplateID: templateId,
-      TemplateData: JSON.stringify({
-        [templateDataKey]: code,
-        code,
-        productName: "Image2",
-        ttlMinutes: String(Math.round(LOGIN_CODE_TTL_MS / 60 / 1000))
-      })
-    },
     TriggerType: 1
   };
+
+  if (contentMode === "template") {
+    payload.Template = buildTencentSesTemplatePayload(code);
+  } else {
+    payload.Simple = {
+      Html: Buffer.from(emailContent.html, "utf8").toString("base64"),
+      Text: Buffer.from(emailContent.plain, "utf8").toString("base64")
+    };
+  }
 
   if (process.env.TENCENT_SES_REPLY_TO) {
     payload.ReplyToAddresses = process.env.TENCENT_SES_REPLY_TO;
@@ -1565,6 +1561,35 @@ async function sendTencentSesLoginCodeEmail(email, code) {
   }
 
   return { delivered: true, messageId: result?.Response?.MessageId };
+}
+
+function getTencentSesContentMode() {
+  const mode = String(process.env.TENCENT_SES_CONTENT_MODE || "simple").trim().toLowerCase();
+  if (mode === "simple" || mode === "html") {
+    return "simple";
+  }
+  if (mode === "template") {
+    return "template";
+  }
+  throw new Error(`未知腾讯云邮件内容模式：${mode}`);
+}
+
+function buildTencentSesTemplatePayload(code) {
+  const templateDataKey = process.env.TENCENT_SES_TEMPLATE_DATA_KEY || "code";
+  const templateId = Number(process.env.TENCENT_SES_TEMPLATE_ID);
+  if (!Number.isSafeInteger(templateId) || templateId <= 0) {
+    throw new Error("TENCENT_SES_TEMPLATE_ID 必须是腾讯云邮件推送模板的数字 ID。");
+  }
+
+  return {
+    TemplateID: templateId,
+    TemplateData: JSON.stringify({
+      [templateDataKey]: code,
+      code,
+      productName: "Image2",
+      ttlMinutes: String(Math.round(LOGIN_CODE_TTL_MS / 60 / 1000))
+    })
+  };
 }
 
 function createTencentCloudApiHeaders({ action, body, endpoint, region, secretId, secretKey, service, timestamp, version }) {

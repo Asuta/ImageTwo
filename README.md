@@ -46,6 +46,7 @@ TENCENT_SES_SECRET_ID=
 TENCENT_SES_SECRET_KEY=
 TENCENT_SES_REGION=ap-guangzhou
 TENCENT_SES_FROM=noreply@www.happyimage.art
+TENCENT_SES_CONTENT_MODE=simple
 TENCENT_SES_TEMPLATE_ID=
 TENCENT_SES_TEMPLATE_DATA_KEY=code
 SENDCLOUD_API_USER=
@@ -70,8 +71,9 @@ http://localhost:5173
 首次使用直接在网页中输入邮箱，点击“发送验证码”。生产环境推荐配置腾讯云邮件推送：
 
 - `IMAGE2_MAIL_PROVIDER=auto` 会优先使用腾讯云邮件推送；如果未配置腾讯云但配置了 SendCloud，则继续使用 SendCloud。
-- 腾讯云邮件推送需要配置 `TENCENT_SES_SECRET_ID`、`TENCENT_SES_SECRET_KEY`、`TENCENT_SES_REGION`、`TENCENT_SES_FROM` 和 `TENCENT_SES_TEMPLATE_ID`。
-- 腾讯云邮件模板中建议放一个验证码变量，例如 `{{code}}`；默认 `TENCENT_SES_TEMPLATE_DATA_KEY=code` 会把验证码传给这个变量。
+- 腾讯云邮件推送需要配置 `TENCENT_SES_SECRET_ID`、`TENCENT_SES_SECRET_KEY`、`TENCENT_SES_REGION` 和 `TENCENT_SES_FROM`。
+- `TENCENT_SES_CONTENT_MODE=simple` 时，服务会直接使用项目里的验证码 HTML/纯文本内容发信，不需要腾讯云模板 ID。
+- 如果腾讯云账号不支持 Simple 内容模式，可改用 `TENCENT_SES_CONTENT_MODE=template` 并配置 `TENCENT_SES_TEMPLATE_ID`；模板中建议放一个验证码变量，例如 `{{code}}`，默认 `TENCENT_SES_TEMPLATE_DATA_KEY=code` 会把验证码传给这个变量。
 - `TENCENT_SES_REGION` 使用腾讯云邮件推送支持的地域，例如 `ap-guangzhou` 或 `ap-hongkong`。
 
 如果没有配置任何生产发信平台，本地开发模式会把验证码返回到页面提示并打印到服务器日志。兼容旧配置时也可以继续使用 SendCloud：配置 `SENDCLOUD_API_USER`、`SENDCLOUD_API_KEY` 和 `MAIL_FROM`。
