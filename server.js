@@ -1419,6 +1419,14 @@ function getMailProvider() {
   return provider;
 }
 
+function safeMailProviderName() {
+  try {
+    return getMailProvider();
+  } catch {
+    return String(process.env.IMAGE2_MAIL_PROVIDER || "auto").trim().toLowerCase() || "auto";
+  }
+}
+
 function hasTencentSesConfig() {
   return Boolean(
     process.env.TENCENT_SES_SECRET_ID &&
@@ -2398,6 +2406,10 @@ async function handleAuth(req, res, url) {
         devCode: process.env.IMAGE2_SHOW_DEV_CODES === "true" ? delivery.devCode : undefined
       });
     } catch (error) {
+      console.error("[auth] login code email delivery failed", {
+        provider: safeMailProviderName(),
+        message: error instanceof Error ? error.message : String(error)
+      });
       sendJson(res, 500, {
         error: "验证码邮件发送失败。",
         detail: error instanceof Error ? error.message : String(error)
