@@ -14,7 +14,7 @@
 - 前端工具函数：`src/lib/utils.js`，`@/*` 别名指向 `src/*`。
 - Vite 配置：`vite.config.js`。开发时 `/api` 代理到 `http://127.0.0.1:5180`，并为 `/admin` 提供本地页面 fallback。
 - 后端服务：`server.js`。包含 API 路由、认证、额度、礼品卡、管理员接口、静态资源服务和生产监听逻辑。
-- 本地开发 API 启动脚本：`scripts/dev-api.mjs`，默认设置 `PORT=5180`、`HOST=127.0.0.1`，并禁用真实邮件发送。
+- 本地开发 API 启动脚本：`scripts/dev-api.mjs`，默认设置 `PORT=5180`、`HOST=127.0.0.1`、`IMAGE2_MAIL_PROVIDER=dev`，并禁用真实邮件发送。
 - 静态后台页面：`public/admin*.html`、`public/admin*.js`。
 - 文档：`README.md`、`docs/request-format.md`、`docs/ubuntu-commercial-proxy-plan.md`。
 - 构建输出和运行数据：`dist/`、`data/`、`generated/`、`output/`、`tmp/` 均不应作为源代码修改目标。
@@ -33,9 +33,11 @@
 
 - 运行配置优先级：系统环境变量优先，其次是 `IMAGE2_ENV_FILE` 指定文件或用户目录 `.image2.env`，最后是项目根目录 `.env`。
 - 不要提交 `.env`、`.env.*`、`data/`、生成图片、日志或临时调试输出；这些已在 `.gitignore` 中排除。
-- `IMAGE2_API_KEY` / `NOWCODING_API_KEY`、`IMAGE2_ADMIN_KEY`、SendCloud 凭证等都属于敏感信息，不要写入文档、测试输出或提交内容。
+- `IMAGE2_API_KEY` / `NOWCODING_API_KEY`、`IMAGE2_ADMIN_KEY`、腾讯云邮件推送 Secret、SendCloud 凭证等都属于敏感信息，不要写入文档、测试输出或提交内容。
+- 验证码邮件发信平台由 `IMAGE2_MAIL_PROVIDER` 控制；`auto` 会优先使用腾讯云邮件推送配置，再回退到 SendCloud，未配置时走开发验证码输出。
+- 腾讯云邮件推送需要 `TENCENT_SES_SECRET_ID`、`TENCENT_SES_SECRET_KEY`、`TENCENT_SES_REGION`、`TENCENT_SES_FROM`、`TENCENT_SES_TEMPLATE_ID`；模板变量默认使用 `{{code}}`，可通过 `TENCENT_SES_TEMPLATE_DATA_KEY` 调整。
 - 用户、session、礼品卡、额度和生成历史默认写入 `IMAGE2_DATA_DIR` 下的数据文件。修改数据结构时，要兼容已有本地数据或写清迁移方式。
-- 本地环境不能发送真实邮箱验证码。测试登录相关流程时使用 `pnpm run dev:api`，不要依赖真实邮件。
+- 本地环境不能发送真实邮箱验证码。测试登录相关流程时使用 `pnpm run dev:api`，不要依赖真实邮件；该脚本会强制 `IMAGE2_MAIL_PROVIDER=dev`，避免全局 `.image2.env` 中的生产邮件配置被误用。
 
 ## 代码约定
 

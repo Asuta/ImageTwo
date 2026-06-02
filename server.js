@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { extname, join, resolve } from "node:path";
@@ -1364,21 +1364,102 @@ function buildLoginCodeEmail({ code }) {
 }
 
 async function sendLoginCodeEmail(email, code) {
+  const provider = getMailProvider();
+  if (provider === "tencent-ses") {
+    return sendTencentSesLoginCodeEmail(email, code);
+  }
+
+  if (provider === "sendcloud") {
+    return sendSendCloudLoginCodeEmail(email, code);
+  }
+
+  console.log(`[dev] Image2 login code for ${email}: ${code}`);
+  return { delivered: false, devCode: code };
+}
+
+function getMailProvider() {
+  const requestedProvider = String(process.env.IMAGE2_MAIL_PROVIDER || "auto").trim().toLowerCase();
+  const providerAliases = new Map([
+    ["auto", "auto"],
+    ["dev", "dev"],
+    ["local", "dev"],
+    ["disabled", "dev"],
+    ["sendcloud", "sendcloud"],
+    ["tencent", "tencent-ses"],
+    ["tencent-ses", "tencent-ses"],
+    ["tencent_ses", "tencent-ses"],
+    ["ses", "tencent-ses"]
+  ]);
+  const provider = providerAliases.get(requestedProvider);
+  if (!provider) {
+    throw new Error(`未知邮件发送平台：${requestedProvider}`);
+  }
+
+  if (provider === "auto") {
+    if (hasTencentSesConfig()) {
+      return "tencent-ses";
+    }
+    if (hasAnyTencentSesConfig()) {
+      throw new Error("腾讯云邮件推送配置不完整，请检查 TENCENT_SES_SECRET_ID、TENCENT_SES_SECRET_KEY、TENCENT_SES_REGION、TENCENT_SES_FROM 和 TENCENT_SES_TEMPLATE_ID。");
+    }
+    if (hasSendCloudConfig()) {
+      return "sendcloud";
+    }
+    return "dev";
+  }
+
+  if (provider === "tencent-ses" && !hasTencentSesConfig()) {
+    throw new Error("腾讯云邮件推送配置不完整，请检查 TENCENT_SES_SECRET_ID、TENCENT_SES_SECRET_KEY、TENCENT_SES_REGION、TENCENT_SES_FROM 和 TENCENT_SES_TEMPLATE_ID。");
+  }
+
+  if (provider === "sendcloud" && !hasSendCloudConfig()) {
+    throw new Error("SendCloud 配置不完整，请检查 SENDCLOUD_API_USER、SENDCLOUD_API_KEY 和 MAIL_FROM。");
+  }
+
+  return provider;
+}
+
+function hasTencentSesConfig() {
+  return Boolean(
+    process.env.TENCENT_SES_SECRET_ID &&
+    process.env.TENCENT_SES_SECRET_KEY &&
+    process.env.TENCENT_SES_REGION &&
+    process.env.TENCENT_SES_FROM &&
+    process.env.TENCENT_SES_TEMPLATE_ID
+  );
+}
+
+function hasAnyTencentSesConfig() {
+  return Boolean(
+    process.env.TENCENT_SES_SECRET_ID ||
+    process.env.TENCENT_SES_SECRET_KEY ||
+    process.env.TENCENT_SES_REGION ||
+    process.env.TENCENT_SES_FROM ||
+    process.env.TENCENT_SES_TEMPLATE_ID ||
+    process.env.TENCENT_SES_REPLY_TO ||
+    process.env.TENCENT_SES_ENDPOINT
+  );
+}
+
+function hasSendCloudConfig() {
   const sendCloudApiUser = process.env.SENDCLOUD_API_USER;
   const sendCloudApiKey = process.env.SENDCLOUD_API_KEY;
   const mailFrom = process.env.MAIL_FROM;
 
-  if (
+  return !(
     sendCloudApiUser === "dev-disabled" ||
     sendCloudApiKey === "dev-disabled" ||
     mailFrom === "dev-disabled" ||
     !sendCloudApiUser ||
     !sendCloudApiKey ||
     !mailFrom
-  ) {
-    console.log(`[dev] Image2 login code for ${email}: ${code}`);
-    return { delivered: false, devCode: code };
-  }
+  );
+}
+
+async function sendSendCloudLoginCodeEmail(email, code) {
+  const sendCloudApiUser = process.env.SENDCLOUD_API_USER;
+  const sendCloudApiKey = process.env.SENDCLOUD_API_KEY;
+  const mailFrom = process.env.MAIL_FROM;
 
   const emailContent = buildLoginCodeEmail({ code });
   const params = new URLSearchParams({
@@ -1417,6 +1498,124 @@ async function sendLoginCodeEmail(email, code) {
   }
 
   return { delivered: true };
+}
+
+async function sendTencentSesLoginCodeEmail(email, code) {
+  const endpoint = process.env.TENCENT_SES_ENDPOINT || "ses.tencentcloudapi.com";
+  const region = process.env.TENCENT_SES_REGION;
+  const secretId = process.env.TENCENT_SES_SECRET_ID;
+  const secretKey = process.env.TENCENT_SES_SECRET_KEY;
+  const templateDataKey = process.env.TENCENT_SES_TEMPLATE_DATA_KEY || "code";
+  const templateId = Number(process.env.TENCENT_SES_TEMPLATE_ID);
+  if (!Number.isSafeInteger(templateId) || templateId <= 0) {
+    throw new Error("TENCENT_SES_TEMPLATE_ID 必须是腾讯云邮件推送模板的数字 ID。");
+  }
+
+  const payload = {
+    FromEmailAddress: process.env.TENCENT_SES_FROM,
+    Destination: [email],
+    Subject: "你的 Image2 登录验证码",
+    Template: {
+      TemplateID: templateId,
+      TemplateData: JSON.stringify({
+        [templateDataKey]: code,
+        code,
+        productName: "Image2",
+        ttlMinutes: String(Math.round(LOGIN_CODE_TTL_MS / 60 / 1000))
+      })
+    },
+    TriggerType: 1
+  };
+
+  if (process.env.TENCENT_SES_REPLY_TO) {
+    payload.ReplyToAddresses = process.env.TENCENT_SES_REPLY_TO;
+  }
+
+  const body = JSON.stringify(payload);
+  const timestamp = Math.floor(Date.now() / 1000);
+  const headers = createTencentCloudApiHeaders({
+    action: "SendEmail",
+    body,
+    endpoint,
+    region,
+    secretId,
+    secretKey,
+    service: "ses",
+    timestamp,
+    version: "2020-10-02"
+  });
+
+  const response = await fetch(`https://${endpoint}`, {
+    method: "POST",
+    headers,
+    body
+  });
+  const responseBody = await response.text();
+  let result = null;
+  try {
+    result = JSON.parse(responseBody);
+  } catch {
+    throw new Error(`腾讯云邮件推送返回了无法解析的响应：${responseBody}`);
+  }
+
+  if (!response.ok || result?.Response?.Error) {
+    const error = result?.Response?.Error;
+    const message = error ? `${error.Code}: ${error.Message}` : responseBody;
+    throw new Error(`腾讯云邮件推送发送失败：${message}`);
+  }
+
+  return { delivered: true, messageId: result?.Response?.MessageId };
+}
+
+function createTencentCloudApiHeaders({ action, body, endpoint, region, secretId, secretKey, service, timestamp, version }) {
+  const algorithm = "TC3-HMAC-SHA256";
+  const date = new Date(timestamp * 1000).toISOString().slice(0, 10);
+  const contentType = "application/json; charset=utf-8";
+  const signedHeaders = "content-type;host";
+  const canonicalHeaders = `content-type:${contentType}\nhost:${endpoint}\n`;
+  const hashedRequestPayload = sha256Hex(body);
+  const canonicalRequest = [
+    "POST",
+    "/",
+    "",
+    canonicalHeaders,
+    signedHeaders,
+    hashedRequestPayload
+  ].join("\n");
+  const credentialScope = `${date}/${service}/tc3_request`;
+  const stringToSign = [
+    algorithm,
+    String(timestamp),
+    credentialScope,
+    sha256Hex(canonicalRequest)
+  ].join("\n");
+  const secretDate = hmacSha256(`TC3${secretKey}`, date);
+  const secretService = hmacSha256(secretDate, service);
+  const secretSigning = hmacSha256(secretService, "tc3_request");
+  const signature = hmacSha256Hex(secretSigning, stringToSign);
+  const authorization = `${algorithm} Credential=${secretId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+
+  return {
+    Authorization: authorization,
+    "Content-Type": contentType,
+    Host: endpoint,
+    "X-TC-Action": action,
+    "X-TC-Region": region,
+    "X-TC-Timestamp": String(timestamp),
+    "X-TC-Version": version
+  };
+}
+
+function sha256Hex(value) {
+  return createHash("sha256").update(value, "utf8").digest("hex");
+}
+
+function hmacSha256(key, value) {
+  return createHmac("sha256", key).update(value, "utf8").digest();
+}
+
+function hmacSha256Hex(key, value) {
+  return createHmac("sha256", key).update(value, "utf8").digest("hex");
 }
 
 function reserveCredits({ userId, prompt, quality, mode, imageCount }) {
