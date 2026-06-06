@@ -33,7 +33,7 @@ const ADMIN_COOKIE_NAME = "image2_admin";
 const qualityOptions = new Set(["low", "medium", "high"]);
 const aspectRatioOptions = new Set(["auto", "9:21", "9:16", "2:3", "3:4", "1:1", "4:3", "3:2", "16:9", "21:9"]);
 const giftCardStatuses = new Set(["active", "disabled", "redeemed", "revoked"]);
-const providerFormats = new Set(["responses", "responses-edits", "compilation", "right-code"]);
+const providerFormats = new Set(["responses", "responses-edits", "compilation", "right-code", "ai-pixel"]);
 const generationJobs = new Map();
 const JOB_TTL_MS = 15 * 60 * 1000;
 const PARTIAL_IMAGE_MIN_BASE64_CHARS = 1600;
@@ -389,6 +389,15 @@ function normalizeProviderFormat(value) {
     return "right-code";
   }
 
+  if (
+    normalized === "ai-pixel" ||
+    normalized === "aipixel" ||
+    normalized === "ai-pixel-images" ||
+    normalized === "openai-images"
+  ) {
+    return "ai-pixel";
+  }
+
   return providerFormats.has(normalized) ? normalized : "compilation";
 }
 
@@ -396,6 +405,9 @@ function detectProviderFormat(apiUrl) {
   const value = String(apiUrl || "");
   if (/right\.codes\/draw/i.test(value)) {
     return "right-code";
+  }
+  if (/ai-pixel\.online/i.test(value)) {
+    return "ai-pixel";
   }
   return /\/v1\/responses(\?|$)/i.test(value) ? "responses" : "compilation";
 }
@@ -410,6 +422,9 @@ function getProviderFormatLabel(value) {
   }
   if (format === "right-code") {
     return "Right Code Draw";
+  }
+  if (format === "ai-pixel") {
+    return "AI Pixel Images";
   }
   return "Compilation";
 }
@@ -2386,6 +2401,27 @@ async function testProviderConnection(provider) {
     };
   }
 
+  if (format === "ai-pixel") {
+    const upstreamRequest = buildAiPixelImageRequest({
+      apiUrl,
+      apiKey,
+      model: provider.model || DEFAULT_MODEL,
+      prompt: "Create a simple test image of a blue square on a white background. No text.",
+      aspectRatio: "1:1"
+    });
+    const response = await fetch(upstreamRequest.url, {
+      method: "POST",
+      headers: upstreamRequest.headers,
+      body: upstreamRequest.body
+    });
+    const text = await response.text();
+    return {
+      ok: response.ok,
+      status: response.status,
+      detail: response.ok ? "AI Pixel Images 格式测试成功。" : text.slice(0, 400)
+    };
+  }
+
   if (format === "responses" || format === "responses-edits") {
     const response = await fetch(apiUrl, {
       method: "POST",
@@ -2913,6 +2949,20 @@ function buildUpstreamRequest(provider, { messages, prompt, aspectRatio, referen
     });
   }
 
+  if (format === "ai-pixel") {
+    if (referenceImages.length > 0) {
+      throw new Error("AI Pixel Images 格式暂不支持参考图生成，请改用普通文生图或切换支持参考图的供应商。");
+    }
+
+    return buildAiPixelImageRequest({
+      apiUrl,
+      apiKey,
+      model,
+      prompt,
+      aspectRatio
+    });
+  }
+
   if (format === "responses" || (format === "responses-edits" && referenceImages.length === 0)) {
     return {
       url: apiUrl,
@@ -2964,6 +3014,23 @@ function buildRightCodeImageRequest({ apiUrl, apiKey, model, prompt, aspectRatio
       size: mapAspectRatioToImageEditSize(aspectRatio) || "auto",
       quality,
       response_format: "url"
+    })
+  };
+}
+
+function buildAiPixelImageRequest({ apiUrl, apiKey, model, prompt, aspectRatio }) {
+  return {
+    url: deriveAiPixelImageGenerationApiUrl(apiUrl),
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model,
+      prompt,
+      size: mapAspectRatioToImageEditSize(aspectRatio) || "1024x1024",
+      response_format: "b64_json",
+      n: 1
     })
   };
 }
@@ -3027,6 +3094,17 @@ function deriveImageGenerationApiUrl(apiUrl) {
 
 function deriveRightCodeImageGenerationApiUrl(apiUrl) {
   const value = String(apiUrl || "https://www.right.codes/draw").trim().replace(/\/$/, "");
+  if (/\/v1\/images\/generations(\?.*)?$/i.test(value)) {
+    return value;
+  }
+  if (/\/v1\/images\/edits(\?.*)?$/i.test(value)) {
+    return value.replace(/\/v1\/images\/edits(\?.*)?$/i, "/v1/images/generations$1");
+  }
+  return `${value}/v1/images/generations`;
+}
+
+function deriveAiPixelImageGenerationApiUrl(apiUrl) {
+  const value = String(apiUrl || "https://ai-pixel.online").trim().replace(/\/$/, "");
   if (/\/v1\/images\/generations(\?.*)?$/i.test(value)) {
     return value;
   }
