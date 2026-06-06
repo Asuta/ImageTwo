@@ -2950,16 +2950,13 @@ function buildUpstreamRequest(provider, { messages, prompt, aspectRatio, referen
   }
 
   if (format === "ai-pixel") {
-    if (referenceImages.length > 0) {
-      throw new Error("AI Pixel Images 格式暂不支持参考图生成，请改用普通文生图或切换支持参考图的供应商。");
-    }
-
     return buildAiPixelImageRequest({
       apiUrl,
       apiKey,
       model,
       prompt,
-      aspectRatio
+      aspectRatio,
+      referenceImages
     });
   }
 
@@ -3018,7 +3015,7 @@ function buildRightCodeImageRequest({ apiUrl, apiKey, model, prompt, aspectRatio
   };
 }
 
-function buildAiPixelImageRequest({ apiUrl, apiKey, model, prompt, aspectRatio }) {
+function buildAiPixelImageRequest({ apiUrl, apiKey, model, prompt, aspectRatio, referenceImages = [] }) {
   return {
     url: deriveAiPixelImageGenerationApiUrl(apiUrl),
     headers: {
@@ -3028,6 +3025,7 @@ function buildAiPixelImageRequest({ apiUrl, apiKey, model, prompt, aspectRatio }
     body: JSON.stringify({
       model,
       prompt,
+      image: referenceImages.map(image => image.dataUrl),
       size: mapAspectRatioToImageEditSize(aspectRatio) || "1024x1024",
       response_format: "b64_json",
       n: 1
