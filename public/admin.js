@@ -606,7 +606,10 @@ function renderGenerationHistoryList() {
           ${renderAssetThumbs(references, "参考图", record.assetsPruned)}
           ${renderAssetThumbs(generated, "生成图", record.assetsPruned)}
         </div>
-        <button class="soft-button" type="button" data-history-detail="${escapeHtml(record.requestId)}">详情</button>
+        <div class="history-row-actions">
+          <button class="soft-button" type="button" data-history-detail="${escapeHtml(record.requestId)}">详情</button>
+          <button class="soft-button danger" type="button" data-history-delete="${escapeHtml(record.requestId)}">删除</button>
+        </div>
       </article>
     `;
   }).join("");
@@ -863,6 +866,7 @@ async function showHistoryDetail(requestId) {
       return;
     }
     historyDetailPanel.classList.remove("hidden");
+    historyDetailPanel.dataset.requestId = requestId;
     historyDetailPanel.innerHTML = `
       <div class="history-detail-head">
         <div>
@@ -902,6 +906,40 @@ async function showHistoryDetail(requestId) {
     `;
   } catch (error) {
     showToast(error instanceof Error ? error.message : String(error));
+  }
+}
+
+async function deleteHistoryRecord(requestId, button) {
+  const record = adminState.generationHistory.find(item => item.requestId === requestId);
+  const label = record?.email || record?.userId || requestId;
+  if (!window.confirm(`确认删除这条生成历史吗？\n${label}\n${requestId}\n\n对应的参考图和生成图文件也会一起删除。`)) {
+    return;
+  }
+
+  try {
+    if (button) {
+      button.disabled = true;
+      button.textContent = "删除中";
+    }
+    await adminFetch(`/api/admin/generation-history/${encodeURIComponent(requestId)}`, { method: "DELETE" });
+    if (historyDetailPanel.dataset.requestId === requestId) {
+      historyDetailPanel.classList.add("hidden");
+      historyDetailPanel.innerHTML = "";
+      historyDetailPanel.dataset.requestId = "";
+    }
+    const currentPageCount = adminState.generationHistory.length;
+    if (currentPageCount <= 1 && adminState.historyPage > 1) {
+      adminState.historyPage -= 1;
+    }
+    await loadGenerationHistory();
+    showToast("生成历史已删除");
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : String(error));
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "删除";
+    }
   }
 }
 
@@ -987,15 +1025,22 @@ historyNextButton.addEventListener("click", () => {
   }
 });
 generationHistoryList.addEventListener("click", event => {
-  const button = event.target.closest("[data-history-detail]");
-  if (button) {
-    showHistoryDetail(button.dataset.historyDetail);
+  const detailButton = event.target.closest("[data-history-detail]");
+  if (detailButton) {
+    showHistoryDetail(detailButton.dataset.historyDetail);
+    return;
+  }
+
+  const deleteButton = event.target.closest("[data-history-delete]");
+  if (deleteButton) {
+    deleteHistoryRecord(deleteButton.dataset.historyDelete, deleteButton);
   }
 });
 historyDetailPanel.addEventListener("click", event => {
   if (event.target.closest("[data-history-close]")) {
     historyDetailPanel.classList.add("hidden");
     historyDetailPanel.innerHTML = "";
+    historyDetailPanel.dataset.requestId = "";
   }
 });
 createdGiftCards.addEventListener("click", async event => {

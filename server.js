@@ -878,6 +878,26 @@ function removeHistoryRecordAssets(record) {
   }
 }
 
+function deleteGenerationHistoryRecord(requestId) {
+  const data = readData();
+  const index = data.generationHistory.findIndex(record => record.requestId === requestId);
+  if (index < 0) {
+    return null;
+  }
+
+  const [record] = data.generationHistory.splice(index, 1);
+  removeHistoryRecordAssets(record);
+  addAdminLog(data, "generation_history_delete", {
+    requestId: record.requestId,
+    userId: record.userId,
+    email: record.email,
+    status: record.status,
+    totalAssetBytes: record.totalAssetBytes || 0
+  });
+  writeData(data);
+  return record;
+}
+
 function trimGenerationHistoryAssets() {
   const maxBytes = getHistoryMaxBytes();
   const data = readData();
@@ -2286,6 +2306,20 @@ async function handleAdmin(req, res, url) {
   }
 
   const historyDetailMatch = /^\/api\/admin\/generation-history\/([^/]+)$/.exec(url.pathname);
+  if (req.method === "DELETE" && historyDetailMatch) {
+    const requestId = decodeURIComponent(historyDetailMatch[1]);
+    const record = deleteGenerationHistoryRecord(requestId);
+    if (!record) {
+      sendJson(res, 404, { error: "生成历史不存在。" });
+      return;
+    }
+    sendJson(res, 200, {
+      ok: true,
+      deleted: publicHistoryRecord(record)
+    });
+    return;
+  }
+
   if (req.method === "GET" && historyDetailMatch) {
     const requestId = decodeURIComponent(historyDetailMatch[1]);
     const data = readData();

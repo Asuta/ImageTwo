@@ -2094,6 +2094,20 @@ select {
   flex-wrap: wrap;
 }
 
+.history-row-actions {
+  display: grid;
+  gap: 8px;
+  justify-items: stretch;
+}
+
+.history-row-actions .soft-button {
+  justify-content: center;
+}
+
+.history-row-actions .soft-button.danger {
+  color: var(--coral);
+}
+
 .history-thumb {
   width: 48px;
   height: 48px;
