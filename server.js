@@ -2950,13 +2950,23 @@ function buildUpstreamRequest(provider, { messages, prompt, aspectRatio, referen
   }
 
   if (format === "ai-pixel") {
+    if (referenceImages.length > 0) {
+      return buildAiPixelImageEditRequest({
+        apiUrl,
+        apiKey,
+        model,
+        prompt,
+        aspectRatio,
+        referenceImages
+      });
+    }
+
     return buildAiPixelImageRequest({
       apiUrl,
       apiKey,
       model,
       prompt,
-      aspectRatio,
-      referenceImages
+      aspectRatio
     });
   }
 
@@ -3015,7 +3025,7 @@ function buildRightCodeImageRequest({ apiUrl, apiKey, model, prompt, aspectRatio
   };
 }
 
-function buildAiPixelImageRequest({ apiUrl, apiKey, model, prompt, aspectRatio, referenceImages = [] }) {
+function buildAiPixelImageRequest({ apiUrl, apiKey, model, prompt, aspectRatio }) {
   return {
     url: deriveAiPixelImageGenerationApiUrl(apiUrl),
     headers: {
@@ -3025,11 +3035,39 @@ function buildAiPixelImageRequest({ apiUrl, apiKey, model, prompt, aspectRatio, 
     body: JSON.stringify({
       model,
       prompt,
-      image: referenceImages.map(image => image.dataUrl),
       size: mapAspectRatioToImageEditSize(aspectRatio) || "1024x1024",
       response_format: "b64_json",
       n: 1
     })
+  };
+}
+
+function buildAiPixelImageEditRequest({ apiUrl, apiKey, model, prompt, aspectRatio, referenceImages }) {
+  const form = new FormData();
+  form.append("model", model);
+  form.append("prompt", prompt);
+  form.append("n", "1");
+  form.append("response_format", "b64_json");
+  form.append("size", mapAspectRatioToImageEditSize(aspectRatio) || "1024x1024");
+
+  referenceImages.forEach((image, index) => {
+    const parsed = parseDataImageUrl(image.dataUrl);
+    if (!parsed?.base64) {
+      throw new Error(`第 ${index + 1} 张参考图不是有效的 data URL。`);
+    }
+
+    const mimeType = `image/${parsed.outputFormat}`;
+    const extension = imageExtensionFromMimeType(mimeType);
+    const bytes = Buffer.from(parsed.base64, "base64");
+    form.append("image[]", new Blob([bytes], { type: mimeType }), `reference-${index + 1}.${extension}`);
+  });
+
+  return {
+    url: deriveAiPixelImageEditApiUrl(apiUrl),
+    headers: {
+      Authorization: `Bearer ${apiKey}`
+    },
+    body: form
   };
 }
 
@@ -3110,6 +3148,17 @@ function deriveAiPixelImageGenerationApiUrl(apiUrl) {
     return value.replace(/\/v1\/images\/edits(\?.*)?$/i, "/v1/images/generations$1");
   }
   return `${value}/v1/images/generations`;
+}
+
+function deriveAiPixelImageEditApiUrl(apiUrl) {
+  const value = String(apiUrl || "https://ai-pixel.online").trim().replace(/\/$/, "");
+  if (/\/v1\/images\/edits(\?.*)?$/i.test(value)) {
+    return value;
+  }
+  if (/\/v1\/images\/generations(\?.*)?$/i.test(value)) {
+    return value.replace(/\/v1\/images\/generations(\?.*)?$/i, "/v1/images/edits$1");
+  }
+  return `${value}/v1/images/edits`;
 }
 
 function deriveImageEditApiUrl(apiUrl) {
