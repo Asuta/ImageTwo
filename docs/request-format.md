@@ -197,6 +197,7 @@ Image2 服务会把用户提示词包装成 `imagePrompt`。
 - `responses`：文生图和参考图都走配置的 Responses 地址，参考图会作为 `input_image` 放进 JSON。
 - `responses-edits`：文生图走配置的 Responses 地址；带参考图时切换到同域名的 `/v1/images/edits`，用 multipart 上传 `image` 字段。AI Hub 这类供应商使用此格式。
 - `compilation`：文生图走 `/v1/images/generations`，参考图走 `/v1/images/edits`，参考图字段名沿用 `image[]`。
+- `right-code`：文生图和参考图都走 Right Code 绘图接口 `/v1/images/generations`，用 JSON 的 `image` 数组传参考图。后台供应商地址可填写 `https://www.right.codes/draw`。
 
 请求地址：
 
@@ -285,6 +286,31 @@ image=<参考图文件>
 ```
 
 多张参考图会重复追加 `image` 字段。
+
+`right-code` 供应商会请求：
+
+```http
+POST https://www.right.codes/draw/v1/images/generations
+Authorization: Bearer <PROVIDER_API_KEY>
+Content-Type: application/json
+```
+
+请求体：
+
+```json
+{
+  "model": "gpt-image-2",
+  "prompt": "<服务端提示词>",
+  "image": [
+    "data:image/png;base64,..."
+  ],
+  "size": "auto 或 1024x1024 / 1536x1024 / 1024x1536",
+  "quality": "medium",
+  "response_format": "url"
+}
+```
+
+无参考图时 `image` 为空数组。Right Code 返回 `data[0].url` 时，服务端会下载图片并转换成项目内部使用的 base64 响应。
 
 ## 6. 上游响应格式
 

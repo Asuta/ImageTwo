@@ -33,7 +33,7 @@ const ADMIN_COOKIE_NAME = "image2_admin";
 const qualityOptions = new Set(["low", "medium", "high"]);
 const aspectRatioOptions = new Set(["auto", "9:21", "9:16", "2:3", "3:4", "1:1", "4:3", "3:2", "16:9", "21:9"]);
 const giftCardStatuses = new Set(["active", "disabled", "redeemed", "revoked"]);
-const providerFormats = new Set(["responses", "responses-edits", "compilation"]);
+const providerFormats = new Set(["responses", "responses-edits", "compilation", "right-code"]);
 const generationJobs = new Map();
 const JOB_TTL_MS = 15 * 60 * 1000;
 const PARTIAL_IMAGE_MIN_BASE64_CHARS = 1600;
@@ -379,11 +379,25 @@ function normalizeProviderFormat(value) {
     return "compilation";
   }
 
+  if (
+    normalized === "right-code" ||
+    normalized === "rightcode" ||
+    normalized === "right-codes" ||
+    normalized === "rightcodes" ||
+    normalized === "rc-draw"
+  ) {
+    return "right-code";
+  }
+
   return providerFormats.has(normalized) ? normalized : "compilation";
 }
 
 function detectProviderFormat(apiUrl) {
-  return /\/v1\/responses(\?|$)/i.test(String(apiUrl || "")) ? "responses" : "compilation";
+  const value = String(apiUrl || "");
+  if (/right\.codes\/draw/i.test(value)) {
+    return "right-code";
+  }
+  return /\/v1\/responses(\?|$)/i.test(value) ? "responses" : "compilation";
 }
 
 function getProviderFormatLabel(value) {
@@ -393,6 +407,9 @@ function getProviderFormatLabel(value) {
   }
   if (format === "responses-edits") {
     return "Response + Image Edit";
+  }
+  if (format === "right-code") {
+    return "Right Code Draw";
   }
   return "Compilation";
 }
@@ -2346,6 +2363,29 @@ async function testProviderConnection(provider) {
   }
 
   const format = normalizeProviderFormat(provider.apiFormat);
+  if (format === "right-code") {
+    const upstreamRequest = buildRightCodeImageRequest({
+      apiUrl,
+      apiKey,
+      model: provider.model || DEFAULT_MODEL,
+      prompt: "Generate a minimal image test response. Return only the image.",
+      aspectRatio: "1:1",
+      referenceImages: [],
+      quality: "medium"
+    });
+    const response = await fetch(upstreamRequest.url, {
+      method: "POST",
+      headers: upstreamRequest.headers,
+      body: upstreamRequest.body
+    });
+    const text = await response.text();
+    return {
+      ok: response.ok,
+      status: response.status,
+      detail: response.ok ? "Right Code Draw 格式测试成功。" : text.slice(0, 400)
+    };
+  }
+
   if (format === "responses" || format === "responses-edits") {
     const response = await fetch(apiUrl, {
       method: "POST",
@@ -2861,6 +2901,18 @@ function buildUpstreamRequest(provider, { messages, prompt, aspectRatio, referen
   const apiUrl = provider.apiUrl || DEFAULT_API_URL;
   const apiKey = getProviderSecret(provider);
 
+  if (format === "right-code") {
+    return buildRightCodeImageRequest({
+      apiUrl,
+      apiKey,
+      model,
+      prompt,
+      aspectRatio,
+      referenceImages,
+      quality
+    });
+  }
+
   if (format === "responses" || (format === "responses-edits" && referenceImages.length === 0)) {
     return {
       url: apiUrl,
@@ -2896,6 +2948,24 @@ function buildUpstreamRequest(provider, { messages, prompt, aspectRatio, referen
     aspectRatio,
     quality
   });
+}
+
+function buildRightCodeImageRequest({ apiUrl, apiKey, model, prompt, aspectRatio, referenceImages, quality }) {
+  return {
+    url: deriveRightCodeImageGenerationApiUrl(apiUrl),
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model,
+      prompt,
+      image: referenceImages.map(image => image.dataUrl),
+      size: mapAspectRatioToImageEditSize(aspectRatio) || "auto",
+      quality,
+      response_format: "url"
+    })
+  };
 }
 
 function buildImageEditRequest({ apiUrl, apiKey, model, prompt, aspectRatio, referenceImages, quality, imageFieldName = "image[]" }) {
@@ -2955,6 +3025,17 @@ function deriveImageGenerationApiUrl(apiUrl) {
     .replace(/\/v1\/images\/edits(\?.*)?$/i, "/v1/images/generations$1");
 }
 
+function deriveRightCodeImageGenerationApiUrl(apiUrl) {
+  const value = String(apiUrl || "https://www.right.codes/draw").trim().replace(/\/$/, "");
+  if (/\/v1\/images\/generations(\?.*)?$/i.test(value)) {
+    return value;
+  }
+  if (/\/v1\/images\/edits(\?.*)?$/i.test(value)) {
+    return value.replace(/\/v1\/images\/edits(\?.*)?$/i, "/v1/images/generations$1");
+  }
+  return `${value}/v1/images/generations`;
+}
+
 function deriveImageEditApiUrl(apiUrl) {
   const value = String(apiUrl || DEFAULT_API_URL).trim();
   return value
@@ -3011,6 +3092,8 @@ async function extractImageResult(payload) {
         status: "succeeded"
       };
     }
+
+    return fetchImageAsBase64(imageItem.url);
   }
 
   const choiceContent = payload?.choices?.[0]?.message?.content;
