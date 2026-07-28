@@ -8,7 +8,13 @@ let databasePromise;
 function makeFallbackSnapshot({ nodes, viewport, settings, updatedAt }) {
   return {
     nodes: nodes.map(node => {
-      const { url: _runtimeUrl, assetBlob: _assetBlob, ...serializableNode } = node;
+      const {
+        url: _runtimeUrl,
+        annotationUrl: _annotationRuntimeUrl,
+        assetBlob: _assetBlob,
+        annotationBlob: _annotationBlob,
+        ...serializableNode
+      } = node;
       return serializableNode;
     }),
     viewport,
@@ -98,14 +104,16 @@ export async function loadCanvasSnapshot() {
   if (fallback && fallbackUpdatedAt >= databaseUpdatedAt) {
     const databaseNodes = new Map(nodes.map(node => [node.id, node]));
     const recoveredNodes = fallback.nodes.flatMap(node => {
-      if (node.type !== "upload") {
-        return [node];
-      }
       const storedNode = databaseNodes.get(node.id);
-      if (!storedNode?.assetBlob) {
+      if (node.type === "upload" && !storedNode?.assetBlob) {
         return [];
       }
-      return [{ ...storedNode, ...node, assetBlob: storedNode.assetBlob }];
+      return [{
+        ...storedNode,
+        ...node,
+        assetBlob: storedNode?.assetBlob,
+        annotationBlob: storedNode?.annotationBlob
+      }];
     });
     return {
       nodes: recoveredNodes.sort((left, right) => new Date(left.createdAt) - new Date(right.createdAt)),
@@ -132,7 +140,7 @@ export async function saveCanvasSnapshot({ nodes, viewport, settings }) {
 
   nodeStore.clear();
   nodes.forEach(node => {
-    const { url: _runtimeUrl, ...storableNode } = node;
+    const { url: _runtimeUrl, annotationUrl: _annotationRuntimeUrl, ...storableNode } = node;
     nodeStore.put(storableNode);
   });
 

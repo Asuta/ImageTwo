@@ -4,15 +4,20 @@ import {
   Bot,
   ChevronDown,
   CirclePlus,
+  Clapperboard,
   Copy,
+  CopyPlus,
+  Crop,
   Download,
   Focus,
   GitBranch,
   Grid3X3,
   Hand,
+  HelpCircle,
   Image,
   ImagePlus,
   Link2,
+  LayoutGrid,
   LoaderCircle,
   LocateFixed,
   MapPin,
@@ -22,18 +27,22 @@ import {
   MoreHorizontal,
   MousePointer2,
   PanelLeftClose,
+  Paintbrush,
   Plus,
   Redo2,
   RotateCcw,
   Send,
+  Scissors,
   Sparkles,
   Trash2,
   Type,
+  Unlink,
   Undo2,
   Upload,
   X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import AnnotationEditor from "@/components/canvas/AnnotationEditor";
 import { loadCanvasSnapshot, saveCanvasSnapshot } from "@/lib/canvas-db";
 
 const MIN_ZOOM = 0.2;
@@ -42,6 +51,10 @@ const MAX_REFERENCE_IMAGES = 8;
 const MAX_GENERATION_COUNT = 8;
 const SAVE_DEBOUNCE_MS = 500;
 const MAX_UNDO_STEPS = 40;
+const MENTION_PATTERN = /@\[[^\]]+\]\(canvas:([^)]+)\)/g;
+const RESIZE_HANDLES = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
+const CONNECTION_HANDLE_OFFSET = 26;
+const CONNECTION_SNAP_RADIUS_PX = 34;
 
 const ratioOptions = ["auto", "9:21", "9:16", "2:3", "3:4", "1:1", "4:3", "3:2", "16:9", "21:9"];
 
@@ -330,6 +343,16 @@ function CanvasWorkspace({
   const [redoStack, setRedoStack] = useState([]);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
+  const [nodeMoreOpen, setNodeMoreOpen] = useState(false);
+  const [selectedEdgeId, setSelectedEdgeId] = useState("");
+  const [selectionBox, setSelectionBox] = useState(null);
+  const [connectionDraft, setConnectionDraft] = useState(null);
+  const [gridVisible, setGridVisible] = useState(true);
+  const [linksVisible, setLinksVisible] = useState(true);
+  const [minimapVisible, setMinimapVisible] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [annotationNodeId, setAnnotationNodeId] = useState("");
+  const [mentionMenuOpen, setMentionMenuOpen] = useState(false);
 
   const stageRef = useRef(null);
   const promptRef = useRef(null);
@@ -341,6 +364,7 @@ function CanvasWorkspace({
   const settingsRef = useRef({ prompt, aspectRatio, quality, count });
   const interactionRef = useRef(null);
   const didInitialFitRef = useRef(false);
+  const clipboardRef = useRef([]);
 
   function commitNodes(nextValue) {
     const nextNodes = typeof nextValue === "function" ? nextValue(nodesRef.current) : nextValue;
@@ -400,7 +424,8 @@ function CanvasWorkspace({
         const restoredNodes = snapshot.nodes.map(node => ({
           ...node,
           status: node.type === "upload" ? "done" : node.status,
-          url: node.type === "upload" && node.assetBlob ? URL.createObjectURL(node.assetBlob) : ""
+          url: node.type === "upload" && node.assetBlob ? URL.createObjectURL(node.assetBlob) : "",
+          annotationUrl: node.annotationBlob ? URL.createObjectURL(node.annotationBlob) : ""
         }));
         commitNodes(restoredNodes);
 
@@ -443,6 +468,7 @@ function CanvasWorkspace({
         if (node.type === "upload") {
           revokeRuntimeUrl(node.url);
         }
+        revokeRuntimeUrl(node.annotationUrl);
       });
     };
   }, []);
@@ -530,9 +556,9 @@ function CanvasWorkspace({
 
     if (node.type === "upload") {
       return {
-        url: node.url,
-        blob: node.assetBlob,
-        mimeType: node.mimeType || node.assetBlob?.type || "image/png",
+        url: node.annotationUrl || node.url,
+        blob: node.annotationBlob || node.assetBlob,
+        mimeType: node.annotationBlob?.type || node.mimeType || node.assetBlob?.type || "image/png",
         name: node.name || text("localAsset"),
         status: "done",
         error: ""
@@ -540,7 +566,18 @@ function CanvasWorkspace({
     }
 
     const linked = historyImageMap.get(node.imageId);
-    return linked
+    return node.annotationBlob
+      ? {
+          url: node.annotationUrl,
+          blob: node.annotationBlob,
+          mimeType: node.annotationBlob.type || "image/png",
+          name: linked?.task?.prompt || `image2-${node.imageId}`,
+          status: "done",
+          error: "",
+          task: linked?.task,
+          image: linked?.image
+        }
+      : linked
       ? {
           url: linked.image.url,
           blob: linked.image.blob,
@@ -582,6 +619,7 @@ function CanvasWorkspace({
       if (node.type === "upload") {
         revokeRuntimeUrl(node.url);
       }
+      revokeRuntimeUrl(node.annotationUrl);
     });
 
     const availableHistoryIds = new Set(historyImageMap.keys());
@@ -593,9 +631,16 @@ function CanvasWorkspace({
         if (!node.assetBlob) {
           return [];
         }
-        return [{ ...node, url: URL.createObjectURL(node.assetBlob) }];
+        return [{
+          ...node,
+          url: URL.createObjectURL(node.assetBlob),
+          annotationUrl: node.annotationBlob ? URL.createObjectURL(node.annotationBlob) : ""
+        }];
       }
-      return [{ ...node }];
+      return [{
+        ...node,
+        annotationUrl: node.annotationBlob ? URL.createObjectURL(node.annotationBlob) : ""
+      }];
     });
     const restoredIds = new Set(restoredNodes.map(node => node.id));
     const newlyCreatedHistoryNodes = nodesRef.current
@@ -790,12 +835,23 @@ function CanvasWorkspace({
     () => visibleNodes.filter(node => selectedIds.includes(node.id)),
     [visibleNodes, selectedIds]
   );
+  const mentionedNodeIds = useMemo(() => {
+    const ids = [];
+    for (const match of prompt.matchAll(MENTION_PATTERN)) {
+      if (!ids.includes(match[1])) ids.push(match[1]);
+    }
+    return ids;
+  }, [prompt]);
+  const generationNodes = useMemo(() => {
+    const ids = new Set([...selectedIds, ...mentionedNodeIds]);
+    return visibleNodes.filter(node => ids.has(node.id));
+  }, [visibleNodes, selectedIds, mentionedNodeIds]);
   const referenceNodes = useMemo(
-    () => selectedNodes.filter(node => node.type === "upload" || node.type === "history-image").filter(node => {
+    () => generationNodes.filter(node => node.type === "upload" || node.type === "history-image").filter(node => {
       const asset = getNodeAsset(node);
       return asset.status === "done" && Boolean(asset.blob);
     }).slice(0, MAX_REFERENCE_IMAGES),
-    [selectedNodes, historyImageMap]
+    [generationNodes, historyImageMap]
   );
   const branchDepthMap = useMemo(() => {
     const nodeMap = new Map(visibleNodes.map(node => [node.id, node]));
@@ -862,6 +918,15 @@ function CanvasWorkspace({
       } else if (modifierPressed && event.key.toLowerCase() === "y") {
         event.preventDefault();
         redoCanvasChange();
+      } else if (modifierPressed && event.key.toLowerCase() === "c") {
+        event.preventDefault();
+        copySelectedNodes();
+      } else if (modifierPressed && event.key.toLowerCase() === "v") {
+        event.preventDefault();
+        pasteCopiedNodes();
+      } else if (modifierPressed && event.key.toLowerCase() === "d") {
+        event.preventDefault();
+        duplicateSelectedNodes();
       } else if (event.code === "Space") {
         event.preventDefault();
         setSpaceHeld(true);
@@ -875,6 +940,10 @@ function CanvasWorkspace({
       } else if (event.key === "Escape") {
         setAddMenuOpen(false);
         setAssistantOpen(false);
+        setNodeMoreOpen(false);
+        setHelpOpen(false);
+        setMentionMenuOpen(false);
+        setSelectedEdgeId("");
         setSelectedIds([]);
       } else if (event.key.toLowerCase() === "i") {
         event.preventDefault();
@@ -887,7 +956,14 @@ function CanvasWorkspace({
         uploadInputRef.current?.click();
       } else if (event.key === "Delete" || event.key === "Backspace") {
         event.preventDefault();
-        removeSelectedNodes();
+        if (selectedEdgeId) {
+          disconnectEdge(selectedEdgeId);
+        } else {
+          removeSelectedNodes();
+        }
+      } else if (event.key === "?") {
+        event.preventDefault();
+        setHelpOpen(true);
       }
     };
     const handleKeyUp = event => {
@@ -902,7 +978,7 @@ function CanvasWorkspace({
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [active, undoStack.length, redoStack.length, selectedNodes]);
+  }, [active, undoStack.length, redoStack.length, selectedNodes, selectedEdgeId]);
 
   async function addFiles(files, worldPoint) {
     const imageFiles = [...files].filter(file => file.type.startsWith("image/"));
@@ -1011,6 +1087,123 @@ function CanvasWorkspace({
     setAddMenuOpen(false);
   }
 
+  function copySelectedNodes() {
+    const selection = nodesRef.current.filter(node => selectedIdsRef.current.includes(node.id));
+    clipboardRef.current = selection.map(node => ({ ...node }));
+    if (selection.length > 0) {
+      onToast?.(language === "en" ? `${selection.length} node(s) copied.` : `已复制 ${selection.length} 个节点。`);
+    }
+  }
+
+  function pasteCopiedNodes(offset = 36) {
+    if (clipboardRef.current.length === 0) return;
+    const idMap = new Map(clipboardRef.current.map(node => [node.id, createLocalId("clone")]));
+    const additions = clipboardRef.current.map(node => {
+      const nextId = idMap.get(node.id);
+      return {
+        ...node,
+        id: nextId,
+        x: node.x + offset,
+        y: node.y + offset,
+        parentIds: (node.parentIds || []).map(id => idMap.get(id) || id),
+        hidden: false,
+        url: node.type === "upload" && node.assetBlob ? URL.createObjectURL(node.assetBlob) : "",
+        annotationUrl: node.annotationBlob ? URL.createObjectURL(node.annotationBlob) : "",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+    });
+    recordUndoSnapshot();
+    commitNodes(previous => [...previous, ...additions]);
+    setSelectedIds(additions.map(node => node.id));
+    clipboardRef.current = additions.map(node => ({ ...node }));
+  }
+
+  function duplicateSelectedNodes() {
+    copySelectedNodes();
+    pasteCopiedNodes();
+  }
+
+  function edgeId(parentId, childId) {
+    return `${parentId}::${childId}`;
+  }
+
+  function disconnectEdge(id) {
+    const [parentId, childId] = String(id).split("::");
+    if (!parentId || !childId) return;
+    const child = nodesRef.current.find(node => node.id === childId);
+    if (!child?.parentIds?.includes(parentId)) return;
+    recordUndoSnapshot();
+    commitNodes(previous => previous.map(node => (
+      node.id === childId
+        ? { ...node, parentIds: node.parentIds.filter(value => value !== parentId), updatedAt: new Date().toISOString() }
+        : node
+    )));
+    setSelectedEdgeId("");
+  }
+
+  function wouldCreateCycle(parentId, childId) {
+    if (parentId === childId) return true;
+    const nodeMap = new Map(nodesRef.current.map(node => [node.id, node]));
+    const visited = new Set();
+    const visit = id => {
+      if (id === childId) return true;
+      if (visited.has(id)) return false;
+      visited.add(id);
+      const node = nodeMap.get(id);
+      return (node?.parentIds || []).some(visit);
+    };
+    return visit(parentId);
+  }
+
+  function connectNodes(parentId, childId) {
+    if (!parentId || !childId || wouldCreateCycle(parentId, childId)) {
+      onToast?.(language === "en" ? "This connection would create a loop." : "不能创建循环连线。");
+      return;
+    }
+    const child = nodesRef.current.find(node => node.id === childId);
+    if (!child || child.parentIds?.includes(parentId)) return;
+    recordUndoSnapshot();
+    commitNodes(previous => previous.map(node => (
+      node.id === childId
+        ? { ...node, parentIds: [...(node.parentIds || []), parentId], updatedAt: new Date().toISOString() }
+        : node
+    )));
+    setSelectedEdgeId(edgeId(parentId, childId));
+  }
+
+  function nodeDisplayName(node) {
+    if (node.type === "text") {
+      return (node.title || node.content || text("textNodeTitle")).trim().slice(0, 24);
+    }
+    return (node.name || getNodeAsset(node).name || text("emptyImageTitle")).trim().slice(0, 24);
+  }
+
+  function insertMention(node) {
+    const token = `@[${nodeDisplayName(node)}](canvas:${node.id})`;
+    const nextPrompt = `${prompt.replace(/@\s*$/, "").trimEnd()}${prompt.trim() ? " " : ""}${token} `;
+    commitSetting("prompt", nextPrompt, setPrompt);
+    setMentionMenuOpen(false);
+    window.requestAnimationFrame(() => promptRef.current?.focus());
+  }
+
+  function handlePromptChange(value) {
+    commitSetting("prompt", value, setPrompt);
+    setMentionMenuOpen(/@[^@\n]*$/.test(value));
+  }
+
+  function stripMentionTokens(value) {
+    return value.replace(MENTION_PATTERN, "").replace(/\s{2,}/g, " ").trim();
+  }
+
+  function removeGenerationReference(nodeId) {
+    if (mentionedNodeIds.includes(nodeId)) {
+      const escaped = nodeId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      handlePromptChange(prompt.replace(new RegExp(`@\\[[^\\]]+\\]\\(canvas:${escaped}\\)\\s*`, "g"), ""));
+    }
+    setSelectedIds(previous => previous.filter(id => id !== nodeId));
+  }
+
   function updateTextNode(nodeId, content) {
     commitNodes(previous => previous.map(node => (
       node.id === nodeId
@@ -1069,6 +1262,7 @@ function CanvasWorkspace({
       }
       if (node.type !== "history-image") {
         revokeRuntimeUrl(node.url);
+        revokeRuntimeUrl(node.annotationUrl);
         return [];
       }
       return [{ ...node, hidden: true, updatedAt: new Date().toISOString() }];
@@ -1092,6 +1286,7 @@ function CanvasWorkspace({
       if (node.type === "upload") {
         revokeRuntimeUrl(node.url);
       }
+      revokeRuntimeUrl(node.annotationUrl);
     });
     const hiddenHistoryNodes = nodesRef.current
       .filter(node => node.type === "history-image")
@@ -1164,6 +1359,7 @@ function CanvasWorkspace({
       return;
     }
     setAddMenuOpen(false);
+    setNodeMoreOpen(false);
     if (event.target.closest(".canvas-node") && tool === "select" && !spaceHeld) {
       return;
     }
@@ -1172,17 +1368,31 @@ function CanvasWorkspace({
     }
 
     event.preventDefault();
+    setSelectedEdgeId("");
     if (tool === "select" && !spaceHeld && event.button === 0) {
-      setSelectedIds([]);
+      const world = clientPointToWorld(event.clientX, event.clientY);
+      const initialSelection = event.shiftKey ? [...selectedIdsRef.current] : [];
+      if (!event.shiftKey) setSelectedIds([]);
+      interactionRef.current = {
+        type: "box-select",
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        startWorld: world,
+        initialSelection
+      };
+      setSelectionBox({ left: event.clientX, top: event.clientY, width: 0, height: 0 });
+      setInteractionType("box-select");
+    } else {
+      interactionRef.current = {
+        type: "pan",
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        viewport: viewportRef.current
+      };
+      setInteractionType("pan");
     }
-    interactionRef.current = {
-      type: "pan",
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      viewport: viewportRef.current
-    };
-    setInteractionType("pan");
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
@@ -1196,6 +1406,7 @@ function CanvasWorkspace({
 
     event.preventDefault();
     event.stopPropagation();
+    setNodeMoreOpen(false);
     const currentSelection = selectedIdsRef.current;
 
     if (event.shiftKey) {
@@ -1229,7 +1440,7 @@ function CanvasWorkspace({
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
-  function beginNodeResize(event, node) {
+  function beginNodeResize(event, node, direction) {
     event.preventDefault();
     event.stopPropagation();
     setSelectedIds([node.id]);
@@ -1239,14 +1450,60 @@ function CanvasWorkspace({
       startX: event.clientX,
       startY: event.clientY,
       id: node.id,
+      x: node.x,
+      y: node.y,
       width: node.width,
       height: node.height,
-      ratio: node.width / Math.max(1, node.height),
+      direction,
       beforeSnapshot: captureCanvasSnapshot(),
       hasChanged: false
     };
     setInteractionType("resize");
     event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function beginConnection(event, node) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const point = clientPointToWorld(event.clientX, event.clientY);
+    const start = {
+      x: node.x + node.width + CONNECTION_HANDLE_OFFSET,
+      y: node.y + node.height / 2
+    };
+    setSelectedIds([node.id]);
+    setSelectedEdgeId("");
+    setNodeMoreOpen(false);
+    interactionRef.current = {
+      type: "connect",
+      pointerId: event.pointerId,
+      parentId: node.id,
+      start,
+      current: point,
+      rawCurrent: point,
+      snapTargetId: "",
+      hasMoved: false
+    };
+    setConnectionDraft(interactionRef.current);
+    setInteractionType("connect");
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function findConnectionSnapTarget(point, parentId) {
+    const radius = CONNECTION_SNAP_RADIUS_PX / viewportRef.current.zoom;
+    let closest = null;
+    for (const node of nodesRef.current) {
+      if (node.hidden || node.id === parentId) continue;
+      const anchor = {
+        x: node.x - CONNECTION_HANDLE_OFFSET,
+        y: node.y + node.height / 2
+      };
+      const distance = Math.hypot(point.x - anchor.x, point.y - anchor.y);
+      if (distance <= radius && (!closest || distance < closest.distance)) {
+        closest = { node, anchor, distance };
+      }
+    }
+    return closest;
   }
 
   function handleStagePointerMove(event) {
@@ -1262,6 +1519,38 @@ function CanvasWorkspace({
         x: interaction.viewport.x + event.clientX - interaction.startX,
         y: interaction.viewport.y + event.clientY - interaction.startY
       });
+      return;
+    }
+
+    if (interaction.type === "box-select") {
+      const left = Math.min(interaction.startX, event.clientX);
+      const top = Math.min(interaction.startY, event.clientY);
+      const right = Math.max(interaction.startX, event.clientX);
+      const bottom = Math.max(interaction.startY, event.clientY);
+      setSelectionBox({ left, top, width: right - left, height: bottom - top });
+      const startWorld = clientPointToWorld(left, top);
+      const endWorld = clientPointToWorld(right, bottom);
+      const hitIds = getVisibleNodes().filter(node => (
+        node.x < endWorld.x &&
+        node.x + node.width > startWorld.x &&
+        node.y < endWorld.y &&
+        node.y + node.height > startWorld.y
+      )).map(node => node.id);
+      setSelectedIds([...new Set([...interaction.initialSelection, ...hitIds])]);
+      return;
+    }
+
+    if (interaction.type === "connect") {
+      const rawCurrent = clientPointToWorld(event.clientX, event.clientY);
+      const snapTarget = findConnectionSnapTarget(rawCurrent, interaction.parentId);
+      interaction.rawCurrent = rawCurrent;
+      interaction.current = snapTarget?.anchor || rawCurrent;
+      interaction.snapTargetId = snapTarget?.node.id || "";
+      interaction.hasMoved ||= Math.hypot(
+        rawCurrent.x - interaction.start.x,
+        rawCurrent.y - interaction.start.y
+      ) > 2;
+      setConnectionDraft({ ...interaction });
       return;
     }
 
@@ -1281,14 +1570,26 @@ function CanvasWorkspace({
 
     if (interaction.type === "resize") {
       interaction.hasChanged ||= Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5;
-      const widthDelta = Math.abs(deltaX) > Math.abs(deltaY * interaction.ratio)
-        ? deltaX
-        : deltaY * interaction.ratio;
-      const nextWidth = clamp(interaction.width + widthDelta, 120, 1200);
-      const nextHeight = nextWidth / interaction.ratio;
+      const direction = interaction.direction;
+      const movesWest = direction.includes("w");
+      const movesEast = direction.includes("e");
+      const movesNorth = direction.includes("n");
+      const movesSouth = direction.includes("s");
+      const nextWidth = movesWest
+        ? clamp(interaction.width - deltaX, 120, 1600)
+        : movesEast
+          ? clamp(interaction.width + deltaX, 120, 1600)
+          : interaction.width;
+      const nextHeight = movesNorth
+        ? clamp(interaction.height - deltaY, 100, 1400)
+        : movesSouth
+          ? clamp(interaction.height + deltaY, 100, 1400)
+          : interaction.height;
+      const nextX = movesWest ? interaction.x + interaction.width - nextWidth : interaction.x;
+      const nextY = movesNorth ? interaction.y + interaction.height - nextHeight : interaction.y;
       commitNodes(previous => previous.map(node => (
         node.id === interaction.id
-          ? { ...node, width: nextWidth, height: nextHeight, updatedAt: new Date().toISOString() }
+          ? { ...node, x: nextX, y: nextY, width: nextWidth, height: nextHeight, updatedAt: new Date().toISOString() }
           : node
       )));
     }
@@ -1299,9 +1600,40 @@ function CanvasWorkspace({
     if (!interaction || interaction.pointerId !== event.pointerId) {
       return;
     }
-    if (interaction.hasChanged && interaction.beforeSnapshot) {
+    if (interaction.type === "connect") {
+      const dropTarget = document.elementFromPoint(event.clientX, event.clientY)?.closest?.("[data-connection-input]");
+      const childId = interaction.snapTargetId || dropTarget?.getAttribute("data-connection-input");
+      if (childId) {
+        connectNodes(interaction.parentId, childId);
+      } else {
+        const point = interaction.rawCurrent || clientPointToWorld(event.clientX, event.clientY);
+        const source = nodesRef.current.find(node => node.id === interaction.parentId);
+        const farEnough = Math.hypot(point.x - interaction.start.x, point.y - interaction.start.y) > 48;
+        if (source && farEnough) {
+          const nodeHeight = 260;
+          const node = {
+            id: createLocalId("branch"),
+            type: "empty-image",
+            x: point.x + CONNECTION_HANDLE_OFFSET,
+            y: point.y - nodeHeight / 2,
+            width: 340,
+            height: nodeHeight,
+            parentIds: [source.id],
+            hidden: false,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          recordUndoSnapshot();
+          commitNodes(previous => [...previous, node]);
+          setSelectedIds([node.id]);
+          window.requestAnimationFrame(() => promptRef.current?.focus());
+        }
+      }
+      setConnectionDraft(null);
+    } else if (interaction.hasChanged && interaction.beforeSnapshot) {
       recordUndoSnapshot(interaction.beforeSnapshot);
     }
+    setSelectionBox(null);
     interactionRef.current = null;
     setInteractionType("");
     persistCurrentSnapshot().catch(console.error);
@@ -1344,7 +1676,7 @@ function CanvasWorkspace({
   }
 
   async function generateOnCanvas() {
-    const nextPrompt = prompt.trim();
+    const nextPrompt = stripMentionTokens(prompt);
     if (!currentUser) {
       onRequireLogin?.();
       return;
@@ -1354,7 +1686,7 @@ function CanvasWorkspace({
       promptRef.current?.focus();
       return;
     }
-    const imageReferenceCandidates = selectedNodes.filter(
+    const imageReferenceCandidates = generationNodes.filter(
       node => node.type === "upload" || node.type === "history-image"
     );
     if (imageReferenceCandidates.length > MAX_REFERENCE_IMAGES) {
@@ -1367,7 +1699,7 @@ function CanvasWorkspace({
     }
 
     try {
-      const selectedTextContext = selectedNodes
+      const selectedTextContext = generationNodes
         .filter(node => node.type === "text" && node.content?.trim())
         .map(node => node.content.trim())
         .join("\n\n");
@@ -1388,7 +1720,7 @@ function CanvasWorkspace({
       const positions = createPlacementPositions(generationCount, nodeSize);
       const canvasContext = {
         projectId: "default",
-        parentIds: selectedNodes.map(node => node.id),
+        parentIds: generationNodes.map(node => node.id),
         anchor: positions[0]
       };
       const task = onGenerate?.({
@@ -1424,7 +1756,7 @@ function CanvasWorkspace({
       setSelectedIds(canvasNodes.map(node => node.id));
       commitSetting("prompt", "", setPrompt);
       persistCurrentSnapshot().catch(console.error);
-      window.requestAnimationFrame(() => fitToContent([...selectedNodes, ...canvasNodes]));
+      window.requestAnimationFrame(() => fitToContent([...generationNodes, ...canvasNodes]));
     } catch (error) {
       console.error(error);
       onToast?.(error instanceof Error ? error.message : text("taskFailed"));
@@ -1439,24 +1771,52 @@ function CanvasWorkspace({
       if (!parent) {
         return null;
       }
-      const startX = parent.x + parent.width;
+      const startX = parent.x + parent.width + CONNECTION_HANDLE_OFFSET;
       const startY = parent.y + parent.height / 2;
-      const endX = node.x;
+      const endX = node.x - CONNECTION_HANDLE_OFFSET;
       const endY = node.y + node.height / 2;
       const bend = Math.max(48, Math.abs(endX - startX) * 0.45);
       return {
-        id: `${parent.id}-${node.id}`,
+        id: edgeId(parent.id, node.id),
+        parentId: parent.id,
+        childId: node.id,
         d: `M ${startX} ${startY} C ${startX + bend} ${startY}, ${endX - bend} ${endY}, ${endX} ${endY}`,
         endX,
         endY,
-        active: selectedIdSet.has(parent.id) || selectedIdSet.has(node.id)
+        midX: (startX + endX) / 2,
+        midY: (startY + endY) / 2,
+        active: selectedEdgeId === edgeId(parent.id, node.id) || selectedIdSet.has(parent.id) || selectedIdSet.has(node.id)
       };
     }).filter(Boolean));
-  }, [visibleNodes, selectedIds]);
+  }, [visibleNodes, selectedIds, selectedEdgeId]);
+
+  const selectedEdge = connectorPaths.find(path => path.id === selectedEdgeId);
+  const minimap = useMemo(() => {
+    if (visibleNodes.length === 0) return null;
+    const minX = Math.min(...visibleNodes.map(node => node.x)) - 80;
+    const minY = Math.min(...visibleNodes.map(node => node.y)) - 80;
+    const maxX = Math.max(...visibleNodes.map(node => node.x + node.width)) + 80;
+    const maxY = Math.max(...visibleNodes.map(node => node.y + node.height)) + 80;
+    const width = Math.max(1, maxX - minX);
+    const height = Math.max(1, maxY - minY);
+    const scale = Math.min(180 / width, 108 / height);
+    return { minX, minY, width, height, scale };
+  }, [visibleNodes]);
+
+  function centerViewportAt(worldX, worldY) {
+    const rect = stageRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    commitViewport(current => ({
+      ...current,
+      x: rect.width / 2 - worldX * current.zoom,
+      y: rect.height / 2 - worldY * current.zoom
+    }));
+  }
 
   const stageClassName = [
     "canvas-stage",
     tool === "hand" || spaceHeld ? "is-hand-tool" : "is-select-tool",
+    gridVisible ? "is-grid-visible" : "is-grid-hidden",
     interactionType ? `is-${interactionType}` : "",
     draggingFiles ? "is-dragging-files" : ""
   ].filter(Boolean).join(" ");
@@ -1466,24 +1826,107 @@ function CanvasWorkspace({
   const primarySelectionIsVisual = Boolean(
     primarySelectedNode && primarySelectedNode.type !== "text"
   );
+  const stageWidth = stageRef.current?.clientWidth || 1440;
+  const stageHeight = stageRef.current?.clientHeight || 900;
+  const selectionBounds = selectedNodes.length > 0
+    ? {
+        minimumX: Math.min(...selectedNodes.map(node => node.x)),
+        minimumY: Math.min(...selectedNodes.map(node => node.y)),
+        maximumX: Math.max(...selectedNodes.map(node => node.x + node.width)),
+        maximumY: Math.max(...selectedNodes.map(node => node.y + node.height))
+      }
+    : null;
+  const selectionScreenCenterX = selectionBounds
+    ? viewport.x + ((selectionBounds.minimumX + selectionBounds.maximumX) / 2) * viewport.zoom
+    : stageWidth / 2;
+  const selectionScreenTop = selectionBounds
+    ? viewport.y + selectionBounds.minimumY * viewport.zoom
+    : 120;
+  const selectionScreenBottom = selectionBounds
+    ? viewport.y + selectionBounds.maximumY * viewport.zoom
+    : stageHeight / 2;
+  const toolbarHalfWidth = primarySelectionIsVisual ? 371 : 190;
   const contextualToolbarStyle = primarySelectedNode
     ? {
-        left: viewport.x + (primarySelectedNode.x + primarySelectedNode.width / 2) * viewport.zoom,
-        top: Math.max(76, viewport.y + primarySelectedNode.y * viewport.zoom - 54)
+        left: clamp(selectionScreenCenterX, toolbarHalfWidth + 12, stageWidth - toolbarHalfWidth - 12),
+        top: Math.max(12, selectionScreenTop - 41)
+      }
+    : undefined;
+  const contextualComposerStyle = selectionBounds
+    ? {
+        left: clamp(selectionScreenCenterX, 336, stageWidth - 336),
+        top: clamp(selectionScreenBottom + 12, 66, Math.max(66, stageHeight - 350))
       }
     : undefined;
 
   function applyQuickAction(action) {
+    if (action === "annotate" && primarySelectedNode && primarySelectedAsset?.url) {
+      setAnnotationNodeId(primarySelectedNode.id);
+      return;
+    }
     const prompts = {
       enhance: language === "en" ? "Enhance details and clarity while preserving the composition." : "提升画面清晰度与细节，保持原有构图。",
       panorama: language === "en" ? "Expand this into a cinematic panoramic composition." : "将画面扩展为更具电影感的全景构图。",
       relight: language === "en" ? "Relight the scene with more dimensional, cinematic lighting." : "重新设计光影，让画面更有层次与电影感。",
+      film: language === "en" ? "Refine this image with cinematic composition, lens language, and film color." : "使用电影镜头语言、构图和色彩重新优化画面。",
+      grid: language === "en" ? "Split this visual into a coherent storyboard grid while preserving the subject." : "将画面切分为连贯的分镜宫格，并保持主体一致。",
+      cutout: language === "en" ? "Isolate the main subject on a clean transparent background." : "精准抠出画面主体并输出干净透明背景。",
       upscale: language === "en" ? "Upscale and refine the visual with natural detail." : "智能放大并补充自然、精细的画面细节。",
       crop: language === "en" ? "Recompose the subject with a stronger crop and visual focus." : "重新裁切构图，强化主体与视觉焦点。",
       annotate: language === "en" ? "Apply the following directed changes: " : "按照以下标注修改画面："
     };
     commitSetting("prompt", prompts[action] || "", setPrompt);
     window.requestAnimationFrame(() => promptRef.current?.focus());
+  }
+
+  function saveAnnotation(blob) {
+    const nodeId = annotationNodeId;
+    const target = nodesRef.current.find(node => node.id === nodeId);
+    if (!target) return;
+    recordUndoSnapshot();
+    revokeRuntimeUrl(target.annotationUrl);
+    const annotationUrl = URL.createObjectURL(blob);
+    commitNodes(previous => previous.map(node => (
+      node.id === nodeId
+        ? { ...node, annotationBlob: blob, annotationUrl, updatedAt: new Date().toISOString() }
+        : node
+    )));
+    setAnnotationNodeId("");
+    setSelectedIds([nodeId]);
+    commitSetting(
+      "prompt",
+      language === "en"
+        ? "Modify only the marked region while preserving the rest of the image."
+        : "仅修改标注区域，保持画面其他部分不变。",
+      setPrompt
+    );
+    window.requestAnimationFrame(() => promptRef.current?.focus());
+  }
+
+  function renderMentionMenu() {
+    if (!mentionMenuOpen) return null;
+    const query = prompt.match(/@([^@\n]*)$/)?.[1]?.trim().toLowerCase() || "";
+    const candidates = visibleNodes.filter(node => (
+      nodeDisplayName(node).toLowerCase().includes(query) ||
+      node.type.includes(query)
+    )).slice(0, 8);
+    return (
+      <div className="canvas-mention-menu">
+        <strong>{language === "en" ? "Reference a canvas node" : "引用画布节点"}</strong>
+        {candidates.length > 0 ? candidates.map(node => {
+          const asset = getNodeAsset(node);
+          return (
+            <button key={node.id} type="button" onClick={() => insertMention(node)}>
+              <span>{node.type === "text" ? <Type /> : asset.url ? <img src={asset.url} alt="" /> : <Image />}</span>
+              <i>
+                <b>{nodeDisplayName(node)}</b>
+                <small>{node.type === "text" ? (language === "en" ? "Text node" : "文本节点") : (language === "en" ? "Image node" : "图片节点")}</small>
+              </i>
+            </button>
+          );
+        }) : <p>{language === "en" ? "No matching nodes" : "没有匹配的节点"}</p>}
+      </div>
+    );
   }
 
   return (
@@ -1555,14 +1998,43 @@ function CanvasWorkspace({
             transform: `translate3d(${viewport.x}px, ${viewport.y}px, 0) scale(${viewport.zoom})`
           }}
         >
-          <svg className="canvas-connectors" aria-hidden="true">
+          <svg className={`canvas-connectors${linksVisible ? "" : " is-hidden"}`} aria-hidden="true">
             {connectorPaths.map(path => (
               <g key={path.id} className={path.active ? "is-active" : ""}>
-                <path d={path.d} />
+                <path className="canvas-connector-line" d={path.d} />
+                <path
+                  className="canvas-connector-hit"
+                  d={path.d}
+                  onPointerDown={event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setSelectedIds([]);
+                    setSelectedEdgeId(path.id);
+                  }}
+                />
                 <circle cx={path.endX} cy={path.endY} r="5" />
               </g>
             ))}
+            {connectionDraft ? (
+              <path
+                className={`canvas-connector-draft${connectionDraft.snapTargetId ? " is-snapped" : ""}`}
+                d={`M ${connectionDraft.start.x} ${connectionDraft.start.y} C ${connectionDraft.start.x + 72} ${connectionDraft.start.y}, ${connectionDraft.current.x - 72} ${connectionDraft.current.y}, ${connectionDraft.current.x} ${connectionDraft.current.y}`}
+              />
+            ) : null}
           </svg>
+
+          {connectionDraft ? (
+            <div
+              className={`canvas-connection-cursor${connectionDraft.snapTargetId ? " is-snapped" : ""}`}
+              style={{
+                left: connectionDraft.current.x,
+                top: connectionDraft.current.y
+              }}
+              aria-hidden="true"
+            >
+              <Sparkles />
+            </div>
+          ) : null}
 
           {visibleNodes.map((node, nodeIndex) => {
             const asset = getNodeAsset(node);
@@ -1644,18 +2116,53 @@ function CanvasWorkspace({
                   </div>
                 ) : null}
                 {referenceIndex >= 0 ? <b className="canvas-reference-index">{referenceIndex + 1}</b> : null}
+                <button
+                  className="canvas-connection-handle is-input"
+                  type="button"
+                  data-connection-input={node.id}
+                  aria-label={language === "en" ? "Connect into node" : "连接到此节点"}
+                  onPointerDown={event => event.stopPropagation()}
+                >
+                  <Sparkles />
+                </button>
+                <button
+                  className="canvas-connection-handle is-output"
+                  type="button"
+                  aria-label={language === "en" ? "Drag a new branch" : "拖出新分支"}
+                  onPointerDown={event => beginConnection(event, node)}
+                >
+                  <Sparkles />
+                </button>
                 {selected && selectedIds.length === 1 ? (
-                  <button
-                    className="canvas-resize-handle"
-                    type="button"
-                    aria-label={language === "en" ? "Resize image" : "缩放图片"}
-                    onPointerDown={event => beginNodeResize(event, node)}
-                  />
+                  <>
+                    {RESIZE_HANDLES.map(direction => (
+                      <button
+                        key={direction}
+                        className={`canvas-resize-handle is-${direction}`}
+                        type="button"
+                        aria-label={language === "en" ? `Resize ${direction}` : `${direction} 方向缩放`}
+                        onPointerDown={event => beginNodeResize(event, node, direction)}
+                      />
+                    ))}
+                    <span className="canvas-node-dimensions">{Math.round(node.width)} × {Math.round(node.height)}</span>
+                  </>
                 ) : null}
               </article>
             );
           })}
         </div>
+
+        {selectionBox ? (
+          <div
+            className="canvas-selection-box canvas-floating-ui"
+            style={{
+              left: selectionBox.left - (stageRef.current?.getBoundingClientRect().left || 0),
+              top: selectionBox.top - (stageRef.current?.getBoundingClientRect().top || 0),
+              width: selectionBox.width,
+              height: selectionBox.height
+            }}
+          />
+        ) : null}
 
         {primarySelectedNode && !assistantOpen ? (
           <div className="canvas-context-toolbar canvas-floating-ui" style={contextualToolbarStyle}>
@@ -1664,27 +2171,70 @@ function CanvasWorkspace({
                 <button type="button" onClick={() => applyQuickAction("enhance")}><Maximize2 /><span>{text("enhance")}</span></button>
                 <button type="button" onClick={() => applyQuickAction("panorama")}><Grid3X3 /><span>{text("panorama")}</span></button>
                 <button type="button" onClick={() => applyQuickAction("relight")}><Sparkles /><span>{text("relight")}</span></button>
-                <button type="button" onClick={() => applyQuickAction("upscale")}><ImagePlus /><span>{text("upscale")}</span></button>
-                <button type="button" onClick={() => applyQuickAction("crop")}><Focus /><span>{text("crop")}</span></button>
-                <button type="button" onClick={() => applyQuickAction("annotate")}><MousePointer2 /><span>{text("annotate")}</span></button>
-                <i />
+                <button type="button" onClick={() => applyQuickAction("film")}><Clapperboard /><span>{language === "en" ? "Film look" : "影视达人"}</span></button>
+                <button type="button" onClick={() => applyQuickAction("grid")}><LayoutGrid /><span>{language === "en" ? "Grid split" : "宫格切分"}</span></button>
+                <button type="button" onClick={() => applyQuickAction("cutout")}><Scissors /><span>{language === "en" ? "Cutout" : "抠图"}</span></button>
+                <button type="button" onClick={() => applyQuickAction("crop")}><Crop /><span>{text("crop")}</span></button>
+                <button type="button" onClick={() => applyQuickAction("annotate")}><Paintbrush /><span>{text("annotate")}</span></button>
               </>
             ) : null}
-            {primarySelectedNode.type !== "empty-image" ? (
-              <button type="button" title={text("continueFromNode")} onClick={() => prepareNodeContinuation(primarySelectedNode)}><Sparkles /></button>
-            ) : null}
-            {primarySelectedNode.type === "history-image" && (primarySelectedNode.parentIds || []).length > 0 ? (
-              <button type="button" title={text("compareBranch")} onClick={() => compareNodeBranch(primarySelectedNode)}><GitBranch /></button>
-            ) : null}
-            <button type="button" title={text("focusSelected")} onClick={() => fitToContent([primarySelectedNode])}><Focus /></button>
+            <button className="canvas-toolbar-more-trigger" type="button" title="More" onClick={() => setNodeMoreOpen(value => !value)}><MoreHorizontal /></button>
+            <i />
+            <button type="button" title={language === "en" ? "Copy" : "复制"} onClick={copySelectedNodes}><Copy /></button>
             <button
               type="button"
               title={text("download")}
               onClick={() => downloadNodes([primarySelectedNode])}
               disabled={!primarySelectedAsset?.url || primarySelectedAsset?.status !== "done"}
             ><Download /></button>
-            <button type="button" title={text("delete")} onClick={() => removeNodesByIds([primarySelectedNode.id])}><Trash2 /></button>
-            <button type="button" title="More"><MoreHorizontal /></button>
+            <button
+              type="button"
+              title={language === "en" ? "Fullscreen" : "全屏"}
+              disabled={!primarySelectedAsset?.url}
+              onClick={() => primarySelectedAsset?.url && onPreview?.(primarySelectedAsset.url, [primarySelectedAsset.url])}
+            ><Maximize2 /></button>
+            {nodeMoreOpen ? (
+              <div className="canvas-node-more-menu">
+                {primarySelectedNode.type !== "empty-image" ? (
+                  <button type="button" onClick={() => {
+                    setNodeMoreOpen(false);
+                    prepareNodeContinuation(primarySelectedNode);
+                  }}><Sparkles /><span>{text("continueFromNode")}</span></button>
+                ) : null}
+                {primarySelectedNode.type === "history-image" && (primarySelectedNode.parentIds || []).length > 0 ? (
+                  <button type="button" onClick={() => {
+                    setNodeMoreOpen(false);
+                    compareNodeBranch(primarySelectedNode);
+                  }}><GitBranch /><span>{text("compareBranch")}</span></button>
+                ) : null}
+                <button type="button" onClick={() => {
+                  setNodeMoreOpen(false);
+                  fitToContent([primarySelectedNode]);
+                }}><Focus /><span>{text("focusSelected")}</span></button>
+                <button type="button" onClick={() => {
+                  setNodeMoreOpen(false);
+                  duplicateSelectedNodes();
+                }}><CopyPlus /><span>{language === "en" ? "Quick duplicate" : "快速克隆"}</span></button>
+                <button className="is-danger" type="button" onClick={() => {
+                  setNodeMoreOpen(false);
+                  removeNodesByIds([primarySelectedNode.id]);
+                }}><Trash2 /><span>{text("delete")}</span></button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {selectedEdge && linksVisible ? (
+          <div
+            className="canvas-edge-toolbar canvas-floating-ui"
+            style={{
+              left: viewport.x + selectedEdge.midX * viewport.zoom,
+              top: viewport.y + selectedEdge.midY * viewport.zoom
+            }}
+          >
+            <span><Link2 />{language === "en" ? "Connection" : "节点连线"}</span>
+            <button type="button" onClick={() => disconnectEdge(selectedEdge.id)} title={language === "en" ? "Disconnect" : "断开连线"}><Unlink /></button>
+            <button type="button" onClick={() => disconnectEdge(selectedEdge.id)} title={text("delete")}><Trash2 /></button>
           </div>
         ) : null}
 
@@ -1727,6 +2277,7 @@ function CanvasWorkspace({
           ) : null}
           <button className={addMenuOpen ? "active" : ""} type="button" onClick={() => setAddMenuOpen(value => !value)} title={text("addImageNode")}><Plus /></button>
           <button type="button" onClick={undoCanvasChange} disabled={undoStack.length === 0} title={text("undo")}><RotateCcw /></button>
+          <i className="wuli-toolbar-divider" />
           <button className={tool === "select" ? "active light" : ""} type="button" onClick={() => setTool("select")} title={`${text("select")} (V)`}><MousePointer2 /></button>
           <button type="button" onClick={undoCanvasChange} disabled={undoStack.length === 0} title={text("undo")}><Undo2 /></button>
           <button type="button" onClick={redoCanvasChange} disabled={redoStack.length === 0} title={text("redo")}><Redo2 /></button>
@@ -1750,10 +2301,46 @@ function CanvasWorkspace({
           <button type="button" onClick={() => zoomFromCenter(0.15)} title={text("zoomIn")}><Plus /></button>
           <button className="canvas-zoom-value" type="button" onClick={() => commitViewport(current => ({ ...current, zoom: 1 }))}>{Math.round(viewport.zoom * 100)}%</button>
           <button type="button" onClick={() => fitToContent()} title={text("fit")}><Focus /></button>
-          <button type="button" title="Link"><Link2 /></button>
-          <button type="button" title="Grid"><Grid3X3 /></button>
-          <button type="button" onClick={() => fitToContent()} title={text("fit")}><MapPin /></button>
+          <button className={linksVisible ? "active" : ""} type="button" title={language === "en" ? "Show connections" : "显示连线"} onClick={() => setLinksVisible(value => !value)}>
+            {linksVisible ? <Link2 /> : <Unlink />}
+          </button>
+          <button className={gridVisible ? "active" : ""} type="button" title={language === "en" ? "Toggle grid" : "切换网格"} onClick={() => setGridVisible(value => !value)}><Grid3X3 /></button>
+          <button className={minimapVisible ? "active" : ""} type="button" onClick={() => setMinimapVisible(value => !value)} title={language === "en" ? "Toggle minimap" : "切换导航地图"}><MapPin /></button>
         </div>
+
+        {minimapVisible && minimap ? (
+          <div
+            className="canvas-minimap canvas-floating-ui"
+            onPointerDown={event => {
+              const rect = event.currentTarget.getBoundingClientRect();
+              centerViewportAt(
+                minimap.minX + (event.clientX - rect.left) / minimap.scale,
+                minimap.minY + (event.clientY - rect.top) / minimap.scale
+              );
+            }}
+          >
+            {visibleNodes.map(node => (
+              <i
+                key={node.id}
+                className={`${selectedIds.includes(node.id) ? "is-selected" : ""}${node.type === "text" ? " is-text" : ""}`}
+                style={{
+                  left: (node.x - minimap.minX) * minimap.scale,
+                  top: (node.y - minimap.minY) * minimap.scale,
+                  width: Math.max(3, node.width * minimap.scale),
+                  height: Math.max(3, node.height * minimap.scale)
+                }}
+              />
+            ))}
+            <b
+              style={{
+                left: (-viewport.x / viewport.zoom - minimap.minX) * minimap.scale,
+                top: (-viewport.y / viewport.zoom - minimap.minY) * minimap.scale,
+                width: ((stageRef.current?.clientWidth || 0) / viewport.zoom) * minimap.scale,
+                height: ((stageRef.current?.clientHeight || 0) / viewport.zoom) * minimap.scale
+              }}
+            />
+          </div>
+        ) : null}
 
         <button className="wuli-agent-trigger canvas-floating-ui" type="button" onClick={() => setAssistantOpen(true)} title={text("openAgent")}>
           <MessageCircle />
@@ -1785,7 +2372,7 @@ function CanvasWorkspace({
               ref={promptRef}
               value={prompt}
               placeholder={text("prompt")}
-              onChange={event => commitSetting("prompt", event.target.value, setPrompt)}
+              onChange={event => handlePromptChange(event.target.value)}
               onKeyDown={event => {
                 if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
                   event.preventDefault();
@@ -1793,6 +2380,7 @@ function CanvasWorkspace({
                 }
               }}
             />
+            {renderMentionMenu()}
             <div>
               <button type="button" onClick={() => uploadInputRef.current?.click()}><Plus /></button>
               <button className="wuli-mode-pill" type="button"><Link2 />{text("defaultMode")}<ChevronDown /></button>
@@ -1802,16 +2390,16 @@ function CanvasWorkspace({
         </aside>
 
         {selectedNodes.length > 0 && !assistantOpen ? (
-          <form className="canvas-composer wuli-context-composer canvas-floating-ui" onSubmit={event => {
+          <form className="canvas-composer wuli-context-composer canvas-floating-ui" style={contextualComposerStyle} onSubmit={event => {
             event.preventDefault();
             generateOnCanvas();
           }}>
             <div className="wuli-reference-strip">
               <button type="button" onClick={() => uploadInputRef.current?.click()} title={text("addReference")}><Plus /></button>
-              {selectedNodes.slice(0, MAX_REFERENCE_IMAGES).map(node => {
+              {generationNodes.slice(0, MAX_REFERENCE_IMAGES).map(node => {
                 const asset = getNodeAsset(node);
                 return (
-                  <button className="wuli-reference-card" key={node.id} type="button" title={text("removeReference")} onClick={() => setSelectedIds(previous => previous.filter(id => id !== node.id))}>
+                  <button className="wuli-reference-card" key={node.id} type="button" title={text("removeReference")} onClick={() => removeGenerationReference(node.id)}>
                     {node.type === "text" ? <Type /> : asset.url ? <img src={asset.url} alt="" /> : <Image />}
                     <span>{node.type === "text" ? (node.content || text("textNodeTitle")) : (asset.name || text("emptyImageTitle"))}</span>
                     <X />
@@ -1823,7 +2411,7 @@ function CanvasWorkspace({
               ref={promptRef}
               value={prompt}
               placeholder={text("prompt")}
-              onChange={event => commitSetting("prompt", event.target.value, setPrompt)}
+              onChange={event => handlePromptChange(event.target.value)}
               onKeyDown={event => {
                 if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
                   event.preventDefault();
@@ -1831,35 +2419,75 @@ function CanvasWorkspace({
                 }
               }}
             />
+            {renderMentionMenu()}
             <div className="wuli-context-controls">
               <button className="wuli-model-pill" type="button"><Sparkles />{text("imageModel")}<ChevronDown /></button>
-              <label>
-                <select value={aspectRatio} onChange={event => commitSetting("aspectRatio", event.target.value, setAspectRatio)}>
-                  {ratioOptions.map(value => <option key={value} value={value}>{value === "auto" ? (language === "en" ? "Auto" : "智能") : value}</option>)}
-                </select>
-              </label>
-              <label>
-                <select value={quality} onChange={event => commitSetting("quality", event.target.value, setQuality)}>
-                  <option value="low">{language === "en" ? "Low" : "低"}</option>
-                  <option value="medium">{language === "en" ? "Medium" : "中"}</option>
-                  <option value="high">{language === "en" ? "High" : "高"}</option>
-                </select>
-              </label>
-              <label>
-                <input
-                  type="number"
-                  min="1"
-                  max={MAX_GENERATION_COUNT}
-                  value={count}
-                  onChange={event => commitSetting("count", clamp(Number(event.target.value) || 1, 1, MAX_GENERATION_COUNT), setCount)}
-                />
-              </label>
+              <div className="wuli-generation-settings">
+                <label>
+                  <select value={aspectRatio} onChange={event => commitSetting("aspectRatio", event.target.value, setAspectRatio)}>
+                    {ratioOptions.map(value => <option key={value} value={value}>{value === "auto" ? (language === "en" ? "Auto" : "智能") : value}</option>)}
+                  </select>
+                </label>
+                <label>
+                  <select value={quality} onChange={event => commitSetting("quality", event.target.value, setQuality)}>
+                    <option value="low">{language === "en" ? "Low" : "低"}</option>
+                    <option value="medium">{language === "en" ? "Medium" : "中"}</option>
+                    <option value="high">{language === "en" ? "High" : "高"}</option>
+                  </select>
+                </label>
+                <label>
+                  <input
+                    type="number"
+                    min="1"
+                    max={MAX_GENERATION_COUNT}
+                    value={count}
+                    onChange={event => commitSetting("count", clamp(Number(event.target.value) || 1, 1, MAX_GENERATION_COUNT), setCount)}
+                  />
+                </label>
+              </div>
               <Button className="wuli-generate-cost" type="submit">
                 <Sparkles />
                 <span>{currentUser ? count : text("loginGenerate")}</span>
               </Button>
             </div>
           </form>
+        ) : null}
+
+        {helpOpen ? (
+          <div className="canvas-help-backdrop canvas-floating-ui" role="dialog" aria-modal="true">
+            <section className="canvas-help-dialog">
+              <header>
+                <div><HelpCircle /><strong>{language === "en" ? "Canvas shortcuts" : "画布快捷操作"}</strong></div>
+                <button type="button" onClick={() => setHelpOpen(false)}><X /></button>
+              </header>
+              <div className="canvas-help-grid">
+                {[
+                  ["V", language === "en" ? "Select / box select" : "选择 / 框选"],
+                  ["H / Space", language === "en" ? "Pan canvas" : "平移画布"],
+                  ["Ctrl C / V", language === "en" ? "Copy / paste nodes" : "复制 / 粘贴节点"],
+                  ["Ctrl D", language === "en" ? "Quick duplicate" : "快速克隆"],
+                  ["Delete", language === "en" ? "Delete node or connection" : "删除节点或连线"],
+                  ["F", language === "en" ? "Focus selection" : "聚焦所选"],
+                  ["I / T / U", language === "en" ? "Image / text / upload" : "图片 / 文本 / 上传"],
+                  ["Ctrl Z / Y", language === "en" ? "Undo / redo" : "撤销 / 重做"],
+                  ["@", language === "en" ? "Reference image or text node" : "引用图片或文本节点"]
+                ].map(([shortcut, label]) => (
+                  <div key={shortcut}><kbd>{shortcut}</kbd><span>{label}</span></div>
+                ))}
+              </div>
+              <p>{language === "en" ? "Drag the purple output dot to another node, or release on empty canvas to start a new branch." : "从节点右侧紫色圆点拖到其他节点即可连线；拖到空白处会直接创建新分支。"}</p>
+            </section>
+          </div>
+        ) : null}
+
+        {annotationNodeId ? (
+          <AnnotationEditor
+            imageUrl={getNodeAsset(nodesRef.current.find(node => node.id === annotationNodeId) || {}).url}
+            title={nodeDisplayName(nodesRef.current.find(node => node.id === annotationNodeId) || {})}
+            language={language}
+            onCancel={() => setAnnotationNodeId("")}
+            onSave={saveAnnotation}
+          />
         ) : null}
       </div>
     </section>
