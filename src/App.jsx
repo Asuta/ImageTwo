@@ -47,6 +47,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import CanvasWorkspace from "@/components/canvas/CanvasWorkspace";
 
 const DB_NAME = "image2-local-history";
 const DB_VERSION = 1;
@@ -63,6 +64,7 @@ const LOGIN_CODE_PATTERN = /^\d{6}$/;
 const GIFT_CARD_SHOP_URL = "https://pay.ldxp.cn/shop/2C8QL88T";
 const DEFAULT_LANGUAGE = "zh";
 const SUPPORTED_LANGUAGES = ["zh", "en"];
+const WORKSPACE_MODES = new Set(["classic", "canvas"]);
 
 const ratioChoices = [
   { value: "auto", labelKey: "ratio.autoShort", shape: "auto" },
@@ -84,6 +86,7 @@ const translations = {
     "nav.main": "主导航",
     "nav.new": "新建生成",
     "nav.home": "首页",
+    "nav.canvas": "画布",
     "nav.creations": "作品",
     "nav.models": "模型",
     "nav.styles": "风格",
@@ -100,6 +103,8 @@ const translations = {
     "topbar.credits": "额度 {count}",
     "topbar.pro": "Pro",
     "topbar.notifications": "通知",
+    "mode.classic": "经典",
+    "mode.canvas": "画布",
     "theme.toggle": "切换深色模式",
     "theme.light": "浅色模式",
     "theme.dark": "深色模式",
@@ -257,6 +262,7 @@ const translations = {
     "nav.main": "Main navigation",
     "nav.new": "New Generation",
     "nav.home": "Home",
+    "nav.canvas": "Canvas",
     "nav.creations": "Creations",
     "nav.models": "Models",
     "nav.styles": "Styles",
@@ -273,6 +279,8 @@ const translations = {
     "topbar.credits": "Credits {count}",
     "topbar.pro": "Pro",
     "topbar.notifications": "Notifications",
+    "mode.classic": "Classic",
+    "mode.canvas": "Canvas",
     "theme.toggle": "Toggle dark mode",
     "theme.light": "Light mode",
     "theme.dark": "Dark mode",
@@ -437,6 +445,11 @@ function getStoredLanguage() {
 
 function saveLanguagePreference(language) {
   localStorage.setItem("image2-language", language);
+}
+
+function getStoredWorkspaceMode() {
+  const storedMode = localStorage.getItem("image2-workspace-mode");
+  return WORKSPACE_MODES.has(storedMode) ? storedMode : "classic";
 }
 
 function GeneratedImageGrid({ task, renderImageCard, scrollLabel }) {
@@ -832,6 +845,8 @@ function App() {
   const [ratioOpen, setRatioOpen] = useState(false);
   const [theme, setThemeState] = useState(getThemeFromStorage());
   const [language, setLanguage] = useState(getStoredLanguage());
+  const [workspaceMode, setWorkspaceMode] = useState(getStoredWorkspaceMode());
+  const [canvasFocusSignal, setCanvasFocusSignal] = useState(0);
   const [toast, setToast] = useState("");
   const [preview, setPreview] = useState({
     isOpen: false,
@@ -873,6 +888,10 @@ function App() {
   useEffect(() => {
     setTheme(theme);
   }, [theme]);
+
+  useEffect(() => {
+    localStorage.setItem("image2-workspace-mode", workspaceMode);
+  }, [workspaceMode]);
 
   useEffect(() => {
     const onError = event => {
@@ -1605,28 +1624,36 @@ function App() {
     }
   }
 
-  async function generateNewTask() {
+  function startGeneration({
+    prompt: requestedPrompt,
+    aspectRatio: requestedAspectRatio = "auto",
+    quality: requestedQuality = "medium",
+    count: requestedCount = 1,
+    referenceImages: requestedReferences = [],
+    canvasContext
+  } = {}) {
     if (!currentUser) {
       promptLoginBeforeGeneration();
-      return;
+      return null;
     }
 
-    const nextPrompt = prompt.trim();
+    const nextPrompt = String(requestedPrompt || "").trim();
     if (!nextPrompt) {
       showToast(t("toast.promptRequired"));
-      return;
+      return null;
     }
 
-    const nextCount = getCountValue(count);
-    const mode = referenceImages.length > 0 ? "edit" : "generate";
-    const task = createTask({
+    const nextCount = getCountValue(requestedCount);
+    const mode = requestedReferences.length > 0 ? "edit" : "generate";
+    const baseTask = createTask({
       prompt: nextPrompt,
-      aspectRatio,
-      quality,
+      aspectRatio: requestedAspectRatio,
+      quality: requestedQuality,
       count: nextCount,
       mode,
-      referenceImages
+      referenceImages: requestedReferences
     });
+    const task = canvasContext ? { ...baseTask, canvasContext } : baseTask;
 
     setSelectedId(task.id);
     setHistory(prev => [task, ...prev]);
@@ -1634,12 +1661,25 @@ function App() {
       console.error(error);
       showToast(t("toast.historyStillGenerating"));
     });
-    setPrompt("");
     showToast(t("toast.submitted"));
     runTaskImages(task, task.images).catch(error => {
       console.error(error);
       showToast(error instanceof Error ? error.message : String(error));
     });
+    return task;
+  }
+
+  async function generateNewTask() {
+    const task = startGeneration({
+      prompt,
+      aspectRatio,
+      quality,
+      count,
+      referenceImages
+    });
+    if (task) {
+      setPrompt("");
+    }
   }
 
   async function generateFromTask(task) {
@@ -2076,25 +2116,50 @@ function App() {
   const referenceModeActive = syncReferenceModeState();
 
   return (
-    <div className="studio-shell">
+    <div className={`studio-shell${workspaceMode === "canvas" ? " canvas-mode-active" : ""}`} data-workspace-mode={workspaceMode}>
       <aside className="sidebar" aria-label={t("nav.main")}>
         <div className="logo">
           <span className="logo-mark"><Sparkles /></span>
           <span>Image2 Studio</span>
         </div>
 
+        <div className="workspace-mode-switch" role="group" aria-label={language === "en" ? "Workspace mode" : "工作区模式"}>
+          <button className={workspaceMode === "classic" ? "active" : ""} type="button" onClick={() => setWorkspaceMode("classic")}>
+            <Home />
+            <span>{t("mode.classic")}</span>
+          </button>
+          <button className={workspaceMode === "canvas" ? "active" : ""} type="button" onClick={() => setWorkspaceMode("canvas")}>
+            <Grid2X2 />
+            <span>{t("mode.canvas")}</span>
+          </button>
+        </div>
+
         <Button className="new-generation-button" type="button" onClick={() => {
-          setSelectedId(null);
-          setPrompt("");
+          if (workspaceMode === "canvas") {
+            setCanvasFocusSignal(value => value + 1);
+          } else {
+            setSelectedId(null);
+            setPrompt("");
+          }
         }}>
           <Plus data-icon="inline-start" />
           {t("nav.new")}
         </Button>
 
         <nav className="nav-stack">
-          <button className="nav-item active" type="button" title={t("nav.home")} onClick={() => showPlaceholderDialog(t("nav.home"))}>
+          <button className={`nav-item${workspaceMode === "classic" ? " active" : ""}`} type="button" title={t("nav.home")} onClick={() => {
+            if (workspaceMode === "canvas") {
+              setWorkspaceMode("classic");
+            } else {
+              showPlaceholderDialog(t("nav.home"));
+            }
+          }}>
             <span aria-hidden="true"><Home /></span>
             <span>{t("nav.home")}</span>
+          </button>
+          <button className={`nav-item${workspaceMode === "canvas" ? " active" : ""}`} type="button" title={t("nav.canvas")} onClick={() => setWorkspaceMode("canvas")}>
+            <span aria-hidden="true"><Grid2X2 /></span>
+            <span>{t("nav.canvas")}</span>
           </button>
           <button className="nav-item" type="button" title={t("nav.creations")} onClick={() => showPlaceholderDialog(t("nav.creations"))}>
             <span aria-hidden="true"><WandSparkles /></span>
@@ -2189,7 +2254,7 @@ function App() {
             </Button>
             <Dialog open={clearHistoryConfirmOpen} onOpenChange={setClearHistoryConfirmOpen}>
               <DialogTrigger asChild>
-                <Button className={`glass-button${history.length === 0 ? " hidden" : ""}`} variant="outline" type="button">
+                <Button className={`glass-button${history.length === 0 || workspaceMode === "canvas" ? " hidden" : ""}`} variant="outline" type="button">
                   <Eraser data-icon="inline-start" />
                   <span>{t("history.clear")}</span>
                 </Button>
@@ -2216,7 +2281,7 @@ function App() {
           </div>
         </header>
 
-        <section className="history-feed" aria-label={t("history.section")}>
+        <section className={`history-feed${workspaceMode === "classic" ? "" : " mode-hidden"}`} aria-label={t("history.section")}>
           <div className="history-toolbar">
             <div>
               <p className="eyebrow">{t("history.eyebrow")}</p>
@@ -2332,9 +2397,22 @@ function App() {
             ) : null}
           </div>
         </section>
+        <CanvasWorkspace
+          active={workspaceMode === "canvas"}
+          language={language}
+          currentUser={currentUser}
+          history={history}
+          historyLoading={historyLoading}
+          focusSignal={canvasFocusSignal}
+          onGenerate={startGeneration}
+          onRequireLogin={promptLoginBeforeGeneration}
+          onToast={showToast}
+          onPreview={(src, items) => openImagePreview(src, { items })}
+          onExit={() => setWorkspaceMode("classic")}
+        />
       </main>
 
-      <section className="composer" aria-label={t("composer.section")}>
+      <section className={`composer${workspaceMode === "classic" ? "" : " mode-hidden"}`} aria-label={t("composer.section")}>
         <form className={`composer-card${isLoggedIn ? "" : " is-disabled"}`} noValidate onSubmit={async event => {
           event.preventDefault();
           await generateNewTask();
