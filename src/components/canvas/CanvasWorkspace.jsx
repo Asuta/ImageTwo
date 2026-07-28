@@ -765,11 +765,17 @@ function CanvasWorkspace({
       });
     });
     const availableImageIds = new Set(availableImages.map(item => item.image.id));
+    const replacedNodeIds = new Set(
+      availableImages
+        .map(item => item.task.canvasContext?.replacedNodeId)
+        .filter(Boolean)
+    );
 
     commitNodes(previousNodes => {
       let changed = false;
       const reconciledNodes = previousNodes.filter(node => {
-        const keep = node.type !== "history-image" || availableImageIds.has(node.imageId);
+        const keep = !replacedNodeIds.has(node.id)
+          && (node.type !== "history-image" || availableImageIds.has(node.imageId));
         changed ||= !keep;
         return keep;
       });
@@ -846,12 +852,31 @@ function CanvasWorkspace({
     const ids = new Set([...selectedIds, ...mentionedNodeIds]);
     return visibleNodes.filter(node => ids.has(node.id));
   }, [visibleNodes, selectedIds, mentionedNodeIds]);
+  const generationInputNodes = useMemo(() => {
+    const nodeMap = new Map(visibleNodes.map(node => [node.id, node]));
+    const resolved = [];
+    const resolvedIds = new Set();
+    const appendNode = node => {
+      if (!node || resolvedIds.has(node.id)) return;
+      resolvedIds.add(node.id);
+      resolved.push(node);
+    };
+
+    generationNodes.forEach(node => {
+      if (node.type !== "empty-image") {
+        appendNode(node);
+        return;
+      }
+      (node.parentIds || []).forEach(parentId => appendNode(nodeMap.get(parentId)));
+    });
+    return resolved;
+  }, [visibleNodes, generationNodes]);
   const referenceNodes = useMemo(
-    () => generationNodes.filter(node => node.type === "upload" || node.type === "history-image").filter(node => {
+    () => generationInputNodes.filter(node => node.type === "upload" || node.type === "history-image").filter(node => {
       const asset = getNodeAsset(node);
       return asset.status === "done" && Boolean(asset.blob);
     }).slice(0, MAX_REFERENCE_IMAGES),
-    [generationNodes, historyImageMap]
+    [generationInputNodes, historyImageMap]
   );
   const branchDepthMap = useMemo(() => {
     const nodeMap = new Map(visibleNodes.map(node => [node.id, node]));
@@ -1202,6 +1227,23 @@ function CanvasWorkspace({
       handlePromptChange(prompt.replace(new RegExp(`@\\[[^\\]]+\\]\\(canvas:${escaped}\\)\\s*`, "g"), ""));
     }
     setSelectedIds(previous => previous.filter(id => id !== nodeId));
+    const inheritedChildren = generationNodes.filter(node => (
+      node.type === "empty-image" && (node.parentIds || []).includes(nodeId)
+    ));
+    if (inheritedChildren.length > 0) {
+      const childIds = new Set(inheritedChildren.map(node => node.id));
+      recordUndoSnapshot();
+      commitNodes(previous => previous.map(node => (
+        childIds.has(node.id)
+          ? {
+              ...node,
+              parentIds: (node.parentIds || []).filter(parentId => parentId !== nodeId),
+              updatedAt: new Date().toISOString()
+            }
+          : node
+      )));
+      persistCurrentSnapshot().catch(console.error);
+    }
   }
 
   function updateTextNode(nodeId, content) {
@@ -1686,7 +1728,7 @@ function CanvasWorkspace({
       promptRef.current?.focus();
       return;
     }
-    const imageReferenceCandidates = generationNodes.filter(
+    const imageReferenceCandidates = generationInputNodes.filter(
       node => node.type === "upload" || node.type === "history-image"
     );
     if (imageReferenceCandidates.length > MAX_REFERENCE_IMAGES) {
@@ -1699,7 +1741,7 @@ function CanvasWorkspace({
     }
 
     try {
-      const selectedTextContext = generationNodes
+      const selectedTextContext = generationInputNodes
         .filter(node => node.type === "text" && node.content?.trim())
         .map(node => node.content.trim())
         .join("\n\n");
@@ -1717,11 +1759,22 @@ function CanvasWorkspace({
       }));
       const generationCount = clamp(Number(count) || 1, 1, MAX_GENERATION_COUNT);
       const nodeSize = sizeFromAspectRatio(aspectRatio);
-      const positions = createPlacementPositions(generationCount, nodeSize);
+      const replaceTarget = generationNodes.length === 1 && generationNodes[0].type === "empty-image"
+        ? generationNodes[0]
+        : null;
+      const outputParentIds = replaceTarget
+        ? [...(replaceTarget.parentIds || [])]
+        : generationNodes.map(node => node.id);
+      const positions = createPlacementPositions(
+        generationCount,
+        nodeSize,
+        replaceTarget ? { x: replaceTarget.x, y: replaceTarget.y } : undefined
+      );
       const canvasContext = {
         projectId: "default",
-        parentIds: generationNodes.map(node => node.id),
-        anchor: positions[0]
+        parentIds: outputParentIds,
+        anchor: positions[0],
+        replacedNodeId: replaceTarget?.id || ""
       };
       const task = onGenerate?.({
         prompt: generationPrompt,
@@ -1752,11 +1805,33 @@ function CanvasWorkspace({
         updatedAt: task.createdAt
       }));
       recordUndoSnapshot();
-      commitNodes(previous => [...previous, ...canvasNodes]);
+      const nextNodes = commitNodes(previous => {
+        if (!replaceTarget || canvasNodes.length === 0) {
+          return [...previous, ...canvasNodes];
+        }
+
+        const replacement = canvasNodes[0];
+        const replaced = previous.map(node => {
+          if (node.id === replaceTarget.id) {
+            return replacement;
+          }
+          if (!(node.parentIds || []).includes(replaceTarget.id)) {
+            return node;
+          }
+          return {
+            ...node,
+            parentIds: node.parentIds.map(parentId => (
+              parentId === replaceTarget.id ? replacement.id : parentId
+            )),
+            updatedAt: new Date().toISOString()
+          };
+        });
+        return [...replaced, ...canvasNodes.slice(1)];
+      });
       setSelectedIds(canvasNodes.map(node => node.id));
       commitSetting("prompt", "", setPrompt);
       persistCurrentSnapshot().catch(console.error);
-      window.requestAnimationFrame(() => fitToContent([...generationNodes, ...canvasNodes]));
+      window.requestAnimationFrame(() => fitToContent(nextNodes));
     } catch (error) {
       console.error(error);
       onToast?.(error instanceof Error ? error.message : text("taskFailed"));
@@ -2396,7 +2471,7 @@ function CanvasWorkspace({
           }}>
             <div className="wuli-reference-strip">
               <button type="button" onClick={() => uploadInputRef.current?.click()} title={text("addReference")}><Plus /></button>
-              {generationNodes.slice(0, MAX_REFERENCE_IMAGES).map(node => {
+              {generationInputNodes.map(node => {
                 const asset = getNodeAsset(node);
                 return (
                   <button className="wuli-reference-card" key={node.id} type="button" title={text("removeReference")} onClick={() => removeGenerationReference(node.id)}>
