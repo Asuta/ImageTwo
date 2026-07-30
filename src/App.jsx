@@ -448,6 +448,10 @@ function saveLanguagePreference(language) {
 }
 
 function getStoredWorkspaceMode() {
+  const requestedMode = new URLSearchParams(window.location.search).get("mode");
+  if (WORKSPACE_MODES.has(requestedMode)) {
+    return requestedMode;
+  }
   const storedMode = localStorage.getItem("image2-workspace-mode");
   return WORKSPACE_MODES.has(storedMode) ? storedMode : "classic";
 }
@@ -2116,7 +2120,7 @@ function App() {
   const referenceModeActive = syncReferenceModeState();
 
   return (
-    <div className={`studio-shell${workspaceMode === "canvas" ? " canvas-mode-active" : ""}`} data-workspace-mode={workspaceMode}>
+    <div className={`studio-shell${workspaceMode !== "classic" ? " canvas-mode-active" : ""}`} data-workspace-mode={workspaceMode}>
       <aside className="sidebar" aria-label={t("nav.main")}>
         <div className="logo">
           <span className="logo-mark"><Sparkles /></span>
