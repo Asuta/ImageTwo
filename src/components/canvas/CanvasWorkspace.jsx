@@ -14,6 +14,7 @@ import {
   Grid3X3,
   Hand,
   HelpCircle,
+  History as HistoryIcon,
   Image,
   ImagePlus,
   Link2,
@@ -135,6 +136,11 @@ const canvasCopy = {
     agentGreeting: "hi~ 今天想创作点什么？",
     newChat: "新对话",
     historyChat: "历史对话",
+    generatedHistory: "历史生成图片",
+    generatedHistoryHint: "拖拽图片到画布中使用",
+    generatedHistoryEmpty: "还没有可用的历史图片",
+    generatedHistoryLoading: "正在读取历史图片…",
+    generatedHistoryCount: "{count} 张",
     defaultMode: "默认模式",
     addReference: "添加参考",
     selectFromCanvas: "画布选择",
@@ -228,6 +234,11 @@ const canvasCopy = {
     agentGreeting: "Hi~ What would you like to create today?",
     newChat: "New chat",
     historyChat: "History",
+    generatedHistory: "Generated history",
+    generatedHistoryHint: "Drag an image onto the canvas",
+    generatedHistoryEmpty: "No generated images yet",
+    generatedHistoryLoading: "Loading generated images…",
+    generatedHistoryCount: "{count} images",
     defaultMode: "Default mode",
     addReference: "Add reference",
     selectFromCanvas: "Select from canvas",
@@ -377,6 +388,17 @@ function isTypingTarget(target) {
   return Boolean(target?.closest?.("input, textarea, select, [contenteditable='true'], [role='dialog']"));
 }
 
+function formatHistoryDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function CanvasWorkspace({
   active,
   language = "zh",
@@ -423,6 +445,8 @@ function CanvasWorkspace({
   const [mentionMenuOpen, setMentionMenuOpen] = useState(false);
   const [referenceMenuOpen, setReferenceMenuOpen] = useState(false);
   const [referencePicker, setReferencePicker] = useState(null);
+  const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
+  const [historyDragPreview, setHistoryDragPreview] = useState(null);
 
   const stageRef = useRef(null);
   const promptRef = useRef(null);
@@ -597,6 +621,29 @@ function CanvasWorkspace({
     });
     return imageMap;
   }, [history]);
+
+  const historyImageGroups = useMemo(() => {
+    const grouped = new Map();
+    history.forEach(task => {
+      task.images?.forEach(image => {
+        if ((!image.url && !image.blob) || image.status === "error") {
+          return;
+        }
+        const date = formatHistoryDate(task.createdAt || image.createdAt || Date.now());
+        const group = grouped.get(date) || [];
+        group.push({ task, image });
+        grouped.set(date, group);
+      });
+    });
+    return [...grouped.entries()]
+      .sort(([left], [right]) => right.localeCompare(left))
+      .map(([date, items]) => ({ date, items }));
+  }, [history]);
+
+  const historyImageCount = useMemo(
+    () => historyImageGroups.reduce((total, group) => total + group.items.length, 0),
+    [historyImageGroups]
+  );
 
   function getVisibleNodes(sourceNodes = nodesRef.current) {
     return sourceNodes.filter(node => !node.hidden);
@@ -850,7 +897,9 @@ function CanvasWorkspace({
       const existingImageIds = new Set(
         reconciledNodes.filter(node => node.type === "history-image").map(node => node.imageId)
       );
-      const additions = availableImages.filter(item => !existingImageIds.has(item.image.id));
+      const additions = availableImages.filter(item => (
+        item.task.canvasContext && !existingImageIds.has(item.image.id)
+      ));
 
       if (additions.length === 0) {
         return changed ? reconciledNodes : previousNodes;
@@ -1701,6 +1750,137 @@ function CanvasWorkspace({
       worldPoint: clientPointToWorld(event.clientX, event.clientY)
     });
   }
+
+  function addHistoryImageAtPoint(taskId, imageId, point) {
+    const linked = historyImageMap.get(imageId);
+    if (!linked || linked.task.id !== taskId) {
+      return;
+    }
+
+    const nodeSize = sizeFromAspectRatio(linked.task.aspectRatio || "auto");
+    const hiddenMatch = nodesRef.current.find(node => (
+      node.type === "history-image" && node.imageId === imageId && node.hidden
+    ));
+    const now = new Date().toISOString();
+    const nextNode = hiddenMatch
+      ? {
+          ...hiddenMatch,
+          taskId,
+          x: point.x - nodeSize.width / 2,
+          y: point.y - nodeSize.height / 2,
+          width: nodeSize.width,
+          height: nodeSize.height,
+          hidden: false,
+          updatedAt: now
+        }
+      : {
+          id: createLocalId(`history-${imageId}`),
+          type: "history-image",
+          taskId,
+          imageId,
+          parentIds: [],
+          x: point.x - nodeSize.width / 2,
+          y: point.y - nodeSize.height / 2,
+          width: nodeSize.width,
+          height: nodeSize.height,
+          hidden: false,
+          createdAt: linked.task.createdAt || now,
+          updatedAt: now
+        };
+
+    recordUndoSnapshot();
+    commitNodes(previous => hiddenMatch
+      ? previous.map(node => node.id === hiddenMatch.id ? nextNode : node)
+      : [...previous, nextNode]
+    );
+    selectedIdsRef.current = [nextNode.id];
+    setSelectedIds([nextNode.id]);
+    didInitialFitRef.current = true;
+    persistCurrentSnapshot().catch(console.error);
+  }
+
+  function beginHistoryPointerDrag(event, task, image) {
+    if (event.button !== 0) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    interactionRef.current = {
+      type: "history-image",
+      pointerId: event.pointerId,
+      taskId: task.id,
+      imageId: image.id,
+      imageUrl: image.url,
+      startX: event.clientX,
+      startY: event.clientY,
+      moved: false
+    };
+  }
+
+  function moveHistoryPointerDrag(event) {
+    const interaction = interactionRef.current;
+    if (interaction?.type !== "history-image" || interaction.pointerId !== event.pointerId) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const moved = interaction.moved
+      || Math.hypot(event.clientX - interaction.startX, event.clientY - interaction.startY) > 5;
+    interactionRef.current = { ...interaction, moved };
+    if (moved) {
+      setHistoryDragPreview({
+        url: interaction.imageUrl,
+        x: event.clientX,
+        y: event.clientY
+      });
+    }
+  }
+
+  function finishHistoryPointerDragAt(clientX, clientY, pointerId) {
+    const interaction = interactionRef.current;
+    if (interaction?.type !== "history-image" || interaction.pointerId !== pointerId) {
+      return;
+    }
+    const stageRect = stageRef.current?.getBoundingClientRect();
+    const panelRect = stageRef.current?.querySelector(".canvas-history-panel")?.getBoundingClientRect();
+    const pointInside = (rect) => Boolean(rect
+      && clientX >= rect.left
+      && clientX <= rect.right
+      && clientY >= rect.top
+      && clientY <= rect.bottom);
+
+    if (interaction.moved && pointInside(stageRect) && !pointInside(panelRect)) {
+      addHistoryImageAtPoint(
+        interaction.taskId,
+        interaction.imageId,
+        clientPointToWorld(clientX, clientY)
+      );
+    }
+    interactionRef.current = null;
+    setHistoryDragPreview(null);
+  }
+
+  function endHistoryPointerDrag(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    finishHistoryPointerDragAt(event.clientX, event.clientY, event.pointerId);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
+
+  useEffect(() => {
+    const finishHistoryDrag = event => {
+      finishHistoryPointerDragAt(event.clientX, event.clientY, event.pointerId);
+    };
+    window.addEventListener("pointerup", finishHistoryDrag, true);
+    window.addEventListener("pointercancel", finishHistoryDrag, true);
+    return () => {
+      window.removeEventListener("pointerup", finishHistoryDrag, true);
+      window.removeEventListener("pointercancel", finishHistoryDrag, true);
+    };
+  }, [historyImageMap]);
 
   function removeNodesByIds(nodeIds) {
     const targets = new Set(nodeIds);
@@ -2978,12 +3158,77 @@ function CanvasWorkspace({
             </div>
           ) : null}
           <button className={addMenuOpen ? "active" : ""} type="button" onClick={() => setAddMenuOpen(value => !value)} title={text("addImageNode")}><Plus /></button>
+          <button
+            className={historyPanelOpen ? "active history" : "history"}
+            type="button"
+            onClick={() => setHistoryPanelOpen(value => !value)}
+            title={text("generatedHistory")}
+            aria-label={text("generatedHistory")}
+            aria-expanded={historyPanelOpen}
+            data-testid="canvas-history-trigger"
+          ><HistoryIcon /></button>
           <button type="button" onClick={undoCanvasChange} disabled={undoStack.length === 0} title={text("undo")}><RotateCcw /></button>
           <i className="wuli-toolbar-divider" />
           <button className={tool === "select" ? "active light" : ""} type="button" onClick={() => setTool("select")} title={`${text("select")} (V)`}><MousePointer2 /></button>
           <button type="button" onClick={undoCanvasChange} disabled={undoStack.length === 0} title={text("undo")}><Undo2 /></button>
           <button type="button" onClick={redoCanvasChange} disabled={redoStack.length === 0} title={text("redo")}><Redo2 /></button>
         </div>
+
+        {historyPanelOpen ? (
+          <aside
+            className="canvas-history-panel canvas-floating-ui"
+            aria-label={text("generatedHistory")}
+            data-testid="canvas-history-panel"
+            onPointerDown={event => event.stopPropagation()}
+            onWheel={event => event.stopPropagation()}
+          >
+            <header>
+              <div>
+                <strong>{text("generatedHistory")}</strong>
+                <span>{text("generatedHistoryHint")}</span>
+              </div>
+              <b>{text("generatedHistoryCount", { count: historyImageCount })}</b>
+              <button type="button" onClick={() => setHistoryPanelOpen(false)} title={text("closeAgent")}><X /></button>
+            </header>
+            <div className="canvas-history-scroll">
+              {historyLoading ? (
+                <div className="canvas-history-empty"><LoaderCircle className="is-spinning" /><span>{text("generatedHistoryLoading")}</span></div>
+              ) : historyImageGroups.length === 0 ? (
+                <div className="canvas-history-empty"><ImagePlus /><span>{text("generatedHistoryEmpty")}</span></div>
+              ) : historyImageGroups.map(group => (
+                <section key={group.date} className="canvas-history-group">
+                  <h3>{group.date}</h3>
+                  <div>
+                    {group.items.map(({ task, image }) => (
+                      <article
+                        key={`${task.id}-${image.id}`}
+                        onPointerDown={event => beginHistoryPointerDrag(event, task, image)}
+                        onPointerMove={moveHistoryPointerDrag}
+                        onPointerUp={endHistoryPointerDrag}
+                        onPointerCancel={endHistoryPointerDrag}
+                        onLostPointerCapture={endHistoryPointerDrag}
+                        title={text("generatedHistoryHint")}
+                        data-testid="canvas-history-image"
+                      >
+                        <img src={image.url} alt={task.prompt || text("generatedHistory")} draggable="false" />
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </aside>
+        ) : null}
+
+        {historyDragPreview ? (
+          <div
+            className="canvas-history-drag-preview"
+            style={{ left: historyDragPreview.x, top: historyDragPreview.y }}
+            aria-hidden="true"
+          >
+            <img src={historyDragPreview.url} alt="" />
+          </div>
+        ) : null}
 
         <div className="canvas-zoom-controls wuli-zoom-controls canvas-floating-ui">
           <button type="button" onClick={() => zoomFromCenter(-0.15)} title={text("zoomOut")}><Minus /></button>
