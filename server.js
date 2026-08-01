@@ -9,12 +9,13 @@ import sharp from "sharp";
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const publicDir = join(__dirname, "public");
 const distDir = join(__dirname, "dist");
+const inheritedEnvKeys = new Set(Object.keys(process.env));
 
 loadLocalEnv();
 
 const START_PORT = Number(process.env.PORT || 5180);
 const HOST = process.env.HOST || "0.0.0.0";
-const DEFAULT_API_URL = process.env.IMAGE2_API_URL || "https://api.bltcy.ai/v1/chat/completions";
+const DEFAULT_API_URL = process.env.IMAGE2_API_URL || "https://ai-pixel.online";
 const DEFAULT_MODEL = process.env.IMAGE2_MODEL || "gpt-image-2";
 const dataDir = process.env.IMAGE2_DATA_DIR || join(__dirname, "data");
 const dataPath = join(dataDir, "image2-data.json");
@@ -23,6 +24,7 @@ const DEFAULT_HISTORY_MAX_BYTES = 3 * 1024 * 1024 * 1024;
 const HISTORY_MAX_BYTES = Math.max(0, Number.parseInt(process.env.IMAGE2_HISTORY_MAX_BYTES || String(DEFAULT_HISTORY_MAX_BYTES), 10));
 const HISTORY_THUMB_SIZE = Math.max(64, Number.parseInt(process.env.IMAGE2_HISTORY_THUMB_SIZE || "256", 10));
 const DEFAULT_SIGNUP_CREDITS = Number.parseInt(process.env.IMAGE2_SIGNUP_CREDITS || "100", 10);
+const GENERATION_COST_CREDITS = Math.max(0, Number.parseInt(process.env.IMAGE2_GENERATION_COST_CREDITS || "0", 10) || 0);
 const LOGIN_CODE_TTL_MS = 10 * 60 * 1000;
 const LOGIN_CODE_COOLDOWN_MS = 60 * 1000;
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -69,8 +71,17 @@ function getSharedEnvPath() {
 }
 
 function loadEnvFile(envPath) {
+  for (const [key, value] of readEnvFileValues(envPath)) {
+    if (process.env[key] === undefined) {
+      process.env[key] = value;
+    }
+  }
+}
+
+function readEnvFileValues(envPath) {
+  const values = new Map();
   if (!existsSync(envPath)) {
-    return;
+    return values;
   }
 
   const envText = readFileSync(envPath, "utf8");
@@ -87,10 +98,34 @@ function loadEnvFile(envPath) {
 
     const key = trimmed.slice(0, separatorIndex).replace(/^\uFEFF/, "").trim();
     const value = trimmed.slice(separatorIndex + 1).trim();
-    if (key && process.env[key] === undefined) {
-      process.env[key] = value.replace(/^['"]|['"]$/g, "");
+    if (key) {
+      values.set(key, value.replace(/^['"]|['"]$/g, ""));
     }
   }
+
+  return values;
+}
+
+function readProviderEnvConfig() {
+  const keys = ["IMAGE2_PROVIDERS_JSON", "IMAGE2_ACTIVE_PROVIDER_ID"];
+  const config = {};
+
+  for (const key of keys) {
+    if (inheritedEnvKeys.has(key) && process.env[key] !== undefined) {
+      config[key] = process.env[key];
+    }
+  }
+
+  for (const envPath of [getSharedEnvPath(), join(__dirname, ".env")]) {
+    const values = readEnvFileValues(envPath);
+    for (const key of keys) {
+      if (config[key] === undefined && values.has(key)) {
+        config[key] = values.get(key);
+      }
+    }
+  }
+
+  return config;
 }
 
 function sendJson(res, status, payload) {
@@ -144,7 +179,7 @@ function ensureDataFile() {
     if (!Array.isArray(data.providers) || data.providers.length === 0) {
       data.providers = [createDefaultProvider()];
       data.activeProviderId = data.providers[0].id;
-      writeData(data);
+      writeData(data, { persistProviders: true });
       return;
     }
 
@@ -155,6 +190,7 @@ function ensureDataFile() {
     return;
   }
 
+  const providerStore = readProviderStore({});
   writeData({
     users: [],
     sessions: [],
@@ -165,8 +201,8 @@ function ensureDataFile() {
     adminLogs: [],
     usageLogs: [],
     generationHistory: [],
-    providers: [createDefaultProvider()],
-    activeProviderId: "default-provider"
+    providers: providerStore.providers,
+    activeProviderId: providerStore.activeProviderId
   });
 }
 
@@ -201,7 +237,7 @@ function readData() {
   }
 }
 
-function writeData(data) {
+function writeData(data, { persistProviders = false } = {}) {
   const tmpPath = `${dataPath}.tmp`;
   const storableData = {
     users: Array.isArray(data.users) ? data.users : [],
@@ -214,7 +250,9 @@ function writeData(data) {
     usageLogs: Array.isArray(data.usageLogs) ? data.usageLogs : [],
     generationHistory: Array.isArray(data.generationHistory) ? data.generationHistory : []
   };
-  writeProviderStore(data);
+  if (persistProviders) {
+    writeProviderStore(data);
+  }
   writeFileSync(tmpPath, JSON.stringify(storableData, null, 2));
   renameSync(tmpPath, dataPath);
 }
@@ -232,7 +270,8 @@ function readProviderStore(data = {}) {
 }
 
 function readProviderStoreFromEnv() {
-  const rawProviders = String(process.env.IMAGE2_PROVIDERS_JSON || "").trim();
+  const providerEnv = readProviderEnvConfig();
+  const rawProviders = String(providerEnv.IMAGE2_PROVIDERS_JSON || "").trim();
   if (!rawProviders) {
     return null;
   }
@@ -242,7 +281,7 @@ function readProviderStoreFromEnv() {
     const providerList = Array.isArray(parsed) ? parsed : parsed.providers;
     return normalizeProviderStore(
       Array.isArray(providerList) ? providerList : [],
-      process.env.IMAGE2_ACTIVE_PROVIDER_ID || parsed.activeProviderId || ""
+      providerEnv.IMAGE2_ACTIVE_PROVIDER_ID || parsed.activeProviderId || ""
     );
   } catch {
     return null;
@@ -320,13 +359,13 @@ function createDefaultProvider() {
   const now = new Date().toISOString();
   return normalizeProvider({
     id: "default-provider",
-    label: "默认百拉图",
+    label: "pixel",
     apiUrl: DEFAULT_API_URL,
     apiKey: getImageApiKey(),
     model: DEFAULT_MODEL,
     apiFormat: detectProviderFormat(DEFAULT_API_URL),
     enabled: true,
-    note: "系统默认配置",
+    note: "系统默认 Pixel 配置",
     createdAt: now,
     updatedAt: now
   }, now);
@@ -1708,7 +1747,7 @@ function reserveCredits({ userId, prompt, quality, mode, imageCount }) {
   const user = data.users.find(item => item.id === userId);
   const requestId = createRequestId();
   const now = new Date().toISOString();
-  const costCredits = imageCount;
+  const costCredits = imageCount * GENERATION_COST_CREDITS;
 
   if (!user) {
     return {
@@ -1823,7 +1862,7 @@ async function handleAdmin(req, res, url) {
     const previousActiveProviderId = data.activeProviderId;
     const activeProvider = applyProviderSelection(data);
     if (activeProvider?.id !== previousActiveProviderId) {
-      writeData(data);
+      writeData(data, { persistProviders: true });
     }
 
     sendJson(res, 200, {
@@ -1865,7 +1904,7 @@ async function handleAdmin(req, res, url) {
       label: provider.label,
       apiFormat: provider.apiFormat
     });
-    writeData(data);
+    writeData(data, { persistProviders: true });
     sendJson(res, 201, {
       provider: publicProvider(provider, data.activeProviderId)
     });
@@ -1905,7 +1944,7 @@ async function handleAdmin(req, res, url) {
       label: provider.label,
       enabled: provider.enabled
     });
-    writeData(data);
+    writeData(data, { persistProviders: true });
     sendJson(res, 200, {
       provider: publicProvider(provider, data.activeProviderId)
     });
@@ -1974,7 +2013,7 @@ async function handleAdmin(req, res, url) {
         label: provider.label
       });
       applyProviderSelection(data);
-      writeData(data);
+      writeData(data, { persistProviders: true });
       sendJson(res, 200, {
         provider: publicProvider(provider, data.activeProviderId),
         activeProviderId: data.activeProviderId
@@ -2000,7 +2039,7 @@ async function handleAdmin(req, res, url) {
       providerId: provider.id,
       label: provider.label
     });
-    writeData(data);
+    writeData(data, { persistProviders: true });
     sendJson(res, 200, {
       ok: true,
       activeProviderId: data.activeProviderId

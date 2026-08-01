@@ -33,11 +33,13 @@
 ## 环境与数据
 
 - 运行配置优先级：系统环境变量优先，其次是 `IMAGE2_ENV_FILE` 指定文件或用户目录 `.image2.env`，最后是项目根目录 `.env`。
+- 生图供应商列表和当前启用项由共享环境文件中的 `IMAGE2_PROVIDERS_JSON`、`IMAGE2_ACTIVE_PROVIDER_ID` 管理，并在每次读取时获取最新共享值；新 Git worktree 初始化及用户、历史、额度等普通数据写入不得覆盖共享供应商。未显式配置供应商时默认使用 `https://ai-pixel.online` 的 `ai-pixel` 格式和 `gpt-image-2` 模型。
 - 不要提交 `.env`、`.env.*`、`data/`、生成图片、日志或临时调试输出；这些已在 `.gitignore` 中排除。
 - `IMAGE2_API_KEY` / `NOWCODING_API_KEY`、`IMAGE2_ADMIN_KEY`、腾讯云邮件推送 Secret、SendCloud 凭证等都属于敏感信息，不要写入文档、测试输出或提交内容。
 - 验证码邮件发信平台由 `IMAGE2_MAIL_PROVIDER` 控制；`auto` 会优先使用腾讯云邮件推送配置，再回退到 SendCloud，未配置时走开发验证码输出。
 - 腾讯云邮件推送需要 `TENCENT_SES_SECRET_ID`、`TENCENT_SES_SECRET_KEY`、`TENCENT_SES_REGION`、`TENCENT_SES_FROM`；默认 `TENCENT_SES_CONTENT_MODE=simple` 会直接发送项目内验证码 HTML/纯文本内容。如腾讯云账号不支持 Simple 模式，可切到 `template` 并配置 `TENCENT_SES_TEMPLATE_ID`，模板变量默认使用 `{{code}}`，可通过 `TENCENT_SES_TEMPLATE_DATA_KEY` 调整。
 - 用户、session、礼品卡、额度和生成历史默认写入 `IMAGE2_DATA_DIR` 下的数据文件。修改数据结构时，要兼容已有本地数据或写清迁移方式。
+- 单次生图成本由 `IMAGE2_GENERATION_COST_CREDITS` 控制，当前默认值为 `0`，表示临时免费生成但仍保留 usage log；以后设为 `1` 可恢复每张扣 1 点，失败返还逻辑继续兼容非零成本。
 - 经典历史保存在浏览器 `image2-local-history` IndexedDB；画布布局、本地上传素材、节点内直接上传的 `referenceAssets` 和画布标注结果保存在独立的 `image2-canvas-workspace` IndexedDB。为覆盖刷新前的保存窗口，画布还会把不含 Blob 的布局、视口和设置写入 `localStorage` 兜底；生成图片节点只持久化 `taskId` / `imageId` 引用，不复制经典历史中的生成 Blob。
 - 本地环境不能发送真实邮箱验证码。测试登录相关流程时使用 `pnpm run dev:api`，不要依赖真实邮件；该脚本会强制 `IMAGE2_MAIL_PROVIDER=dev`，避免全局 `.image2.env` 中的生产邮件配置被误用。
 

@@ -5,7 +5,7 @@
 ## 功能
 
 - 邮箱验证码登录：不使用密码，验证码通过后写入 HttpOnly session cookie。
-- 账号额度：新账号默认获得 100 点，生成 1 张图片扣 1 点，上游失败时返还额度。
+- 账号额度：新账号默认获得 100 点；当前临时免费生成，默认不扣额度。可通过 `IMAGE2_GENERATION_COST_CREDITS` 恢复或调整单张成本。
 - 礼品卡兑换：管理员批量生成 `gift_...` 礼品卡，用户登录后输入 Key 兑换额度。
 - 卡密管理：管理员访问 `/admin` 并输入 `IMAGE2_ADMIN_KEY` 后进入独立后台，支持批次创建、状态查询、复制新卡密、作废、启用、撤销已兑换卡和审计日志。
 - 供应商配置：后台可配置不同图片服务商和接口格式，包括 Responses、图片编辑、Compilation、Right Code Draw 以及 AI Pixel Images。
@@ -37,12 +37,13 @@ macOS / Linux 默认读取：
 文件内容示例：
 
 ```text
-IMAGE2_API_URL=https://api.bltcy.ai/v1/chat/completions
+IMAGE2_API_URL=https://ai-pixel.online
 IMAGE2_API_KEY=your_api_key_here
 IMAGE2_MODEL=gpt-image-2
 IMAGE2_ADMIN_KEY=change_this_admin_key
 IMAGE2_DATA_DIR=./data
 IMAGE2_SIGNUP_CREDITS=100
+IMAGE2_GENERATION_COST_CREDITS=0
 IMAGE2_SECURE_COOKIES=false
 IMAGE2_MAIL_PROVIDER=auto
 TENCENT_SES_SECRET_ID=
@@ -59,7 +60,7 @@ HOST=0.0.0.0
 PORT=5173
 ```
 
-也可以继续使用项目根目录的 `.env`。服务启动时会先读全局文件，再读项目根目录 `.env`；已经存在的系统环境变量优先级最高。如果想指定其他共享文件位置，可以设置 `IMAGE2_ENV_FILE`。
+也可以继续使用项目根目录的 `.env`。服务启动时会先读全局文件，再读项目根目录 `.env`；已经存在的系统环境变量优先级最高。如果想指定其他共享文件位置，可以设置 `IMAGE2_ENV_FILE`。供应商列表和当前启用项保存在共享文件的 `IMAGE2_PROVIDERS_JSON`、`IMAGE2_ACTIVE_PROVIDER_ID` 中，各 Git worktree 启动时都会读取最新共享配置；新工作区初始化和普通业务数据写入不会覆盖共享供应商。
 
 ```powershell
 pnpm start
@@ -126,7 +127,7 @@ Invoke-RestMethod -Method Post -Uri http://localhost:5173/api/admin/users/<user-
 ## 说明
 
 - 模型：`gpt-image-2`
-- 图片接口：`https://api.bltcy.ai/v1/chat/completions`
+- 默认图片接口：`https://ai-pixel.online`（AI Pixel Images 格式）
 - 图片不会长期保存在服务器；浏览器会把生成结果保存到当前浏览器的 IndexedDB。
 - API key 从系统环境变量、全局共享 env 文件或项目根目录 `.env` 读取，`.env` 不会提交到 Git。
 - 用户、session、礼品卡和额度数据默认保存在 `IMAGE2_DATA_DIR` 下的 `image2-data.json`。
