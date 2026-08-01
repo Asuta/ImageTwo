@@ -55,6 +55,7 @@ const MENTION_PATTERN = /@\[[^\]]+\]\(canvas:([^)]+)\)/g;
 const RESIZE_HANDLES = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
 const CONNECTION_HANDLE_OFFSET = 26;
 const CONNECTION_SNAP_RADIUS_PX = 34;
+const NODE_MOVE_ACTIVATION_DISTANCE_PX = 4;
 
 const ratioOptions = ["auto", "9:21", "9:16", "2:3", "3:4", "1:1", "4:3", "3:2", "16:9", "21:9"];
 
@@ -1622,6 +1623,40 @@ function CanvasWorkspace({
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
+  function beginTextNodeInteraction(event, node) {
+    if (tool === "hand" || spaceHeld) {
+      return;
+    }
+    if (event.button !== 0) {
+      event.stopPropagation();
+      return;
+    }
+
+    event.stopPropagation();
+    setNodeMoreOpen(false);
+    setSelectedIds([node.id]);
+
+    // An already focused textarea stays in text-editing mode so drag-selection
+    // keeps working. Before focus, wait for actual pointer movement: a click
+    // still places the caret, while a drag moves the node.
+    if (document.activeElement === event.currentTarget) {
+      return;
+    }
+
+    interactionRef.current = {
+      type: "move-pending",
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      ids: [node.id],
+      positions: new Map([[node.id, { x: node.x, y: node.y }]]),
+      beforeSnapshot: captureCanvasSnapshot(),
+      source: event.currentTarget,
+      hasChanged: false
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
   function beginNodeResize(event, node, direction) {
     event.preventDefault();
     event.stopPropagation();
@@ -1701,6 +1736,23 @@ function CanvasWorkspace({
     }
 
     event.preventDefault();
+    if (interaction.type === "move-pending") {
+      const pointerDistance = Math.hypot(
+        event.clientX - interaction.startX,
+        event.clientY - interaction.startY
+      );
+      if (pointerDistance < NODE_MOVE_ACTIVATION_DISTANCE_PX) {
+        return;
+      }
+
+      interaction.type = "move";
+      if (document.activeElement === interaction.source) {
+        textEditSnapshotRef.current = null;
+        interaction.source.blur();
+      }
+      setInteractionType("move");
+    }
+
     if (interaction.type === "pan") {
       commitViewport({
         ...interaction.viewport,
@@ -2322,7 +2374,10 @@ function CanvasWorkspace({
                   }
                 }}
               >
-                <div className="canvas-node-label">
+                <div
+                  className="canvas-node-label"
+                  onPointerDown={isTextNode ? event => beginNodeMove(event, node) : undefined}
+                >
                   {isTextNode ? <Type /> : <Image />}
                   <span>{isTextNode ? (node.title || text("textNodeTitle")) : (node.name || asset.task?.prompt || text("emptyImageTitle"))}</span>
                 </div>
@@ -2330,10 +2385,7 @@ function CanvasWorkspace({
                   <textarea
                     value={node.content || ""}
                     placeholder={text("textNodePlaceholder")}
-                    onPointerDown={event => {
-                      event.stopPropagation();
-                      setSelectedIds([node.id]);
-                    }}
+                    onPointerDown={event => beginTextNodeInteraction(event, node)}
                     onFocus={() => {
                       textEditSnapshotRef.current ||= captureCanvasSnapshot();
                     }}

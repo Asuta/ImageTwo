@@ -2592,6 +2592,16 @@
   color: #58aa41;
 }
 
+.wuli-canvas .canvas-node.is-text-node .canvas-node-label {
+  pointer-events: auto;
+  cursor: move;
+  user-select: none;
+}
+
+.wuli-canvas .canvas-stage.is-hand-tool .canvas-node.is-text-node .canvas-node-label {
+  cursor: inherit;
+}
+
 .wuli-canvas .canvas-node.is-text-node textarea {
   width: 100% !important;
   height: 100% !important;
