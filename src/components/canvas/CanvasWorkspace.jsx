@@ -137,6 +137,14 @@ const canvasCopy = {
     historyChat: "历史对话",
     defaultMode: "默认模式",
     addReference: "添加参考",
+    selectFromCanvas: "画布选择",
+    uploadReference: "上传",
+    referencePickerHint: "请在画布上选择要连接的节点",
+    exitReferencePicker: "退出",
+    selectSingleReferenceTarget: "请先选择一个目标节点。",
+    invalidReferenceTarget: "不能把节点自身设为参考。",
+    referenceAdded: "已添加 {count} 张参考图。",
+    invalidReferenceSource: "请选择图片或文本节点作为参考。",
     imageModel: "Image2",
     enhance: "高清",
     panorama: "全景图",
@@ -222,6 +230,14 @@ const canvasCopy = {
     historyChat: "History",
     defaultMode: "Default mode",
     addReference: "Add reference",
+    selectFromCanvas: "Select from canvas",
+    uploadReference: "Upload",
+    referencePickerHint: "Select a node on the canvas to use as a reference",
+    exitReferencePicker: "Exit",
+    selectSingleReferenceTarget: "Select one target node first.",
+    invalidReferenceTarget: "A node cannot reference itself.",
+    referenceAdded: "Added {count} reference image(s).",
+    invalidReferenceSource: "Choose an image or text node as the reference.",
     imageModel: "Image2",
     enhance: "HD",
     panorama: "Panorama",
@@ -251,6 +267,45 @@ function revokeRuntimeUrl(url) {
   if (url?.startsWith("blob:")) {
     URL.revokeObjectURL(url);
   }
+}
+
+function hydrateReferenceAssets(referenceAssets) {
+  if (!Array.isArray(referenceAssets)) {
+    return [];
+  }
+  return referenceAssets.flatMap(reference => (
+    reference?.blob
+      ? [{
+          ...reference,
+          url: URL.createObjectURL(reference.blob)
+        }]
+      : []
+  ));
+}
+
+function revokeReferenceAssetUrls(referenceAssets) {
+  (referenceAssets || []).forEach(reference => revokeRuntimeUrl(reference.url));
+}
+
+function cloneReferenceAssets(referenceAssets) {
+  return (referenceAssets || []).flatMap(reference => (
+    reference?.blob
+      ? [{
+          ...reference,
+          id: createLocalId("reference"),
+          url: URL.createObjectURL(reference.blob),
+          createdAt: new Date().toISOString()
+        }]
+      : []
+  ));
+}
+
+function revokeNodeRuntimeUrls(node) {
+  if (node.type === "upload") {
+    revokeRuntimeUrl(node.url);
+  }
+  revokeRuntimeUrl(node.annotationUrl);
+  revokeReferenceAssetUrls(node.referenceAssets);
 }
 
 function blobToDataUrl(blob) {
@@ -366,13 +421,17 @@ function CanvasWorkspace({
   const [helpOpen, setHelpOpen] = useState(false);
   const [annotationNodeId, setAnnotationNodeId] = useState("");
   const [mentionMenuOpen, setMentionMenuOpen] = useState(false);
+  const [referenceMenuOpen, setReferenceMenuOpen] = useState(false);
+  const [referencePicker, setReferencePicker] = useState(null);
 
   const stageRef = useRef(null);
   const promptRef = useRef(null);
-  const uploadInputRef = useRef(null);
+  const canvasUploadInputRef = useRef(null);
   const pendingUploadPointRef = useRef(null);
   const connectionUploadInputRef = useRef(null);
   const pendingConnectionUploadRef = useRef(null);
+  const referenceUploadInputRef = useRef(null);
+  const referenceUploadTargetRef = useRef("");
   const textEditSnapshotRef = useRef(null);
   const nodesRef = useRef(nodes);
   const viewportRef = useRef(viewport);
@@ -441,7 +500,8 @@ function CanvasWorkspace({
           ...node,
           status: node.type === "upload" ? "done" : node.status,
           url: node.type === "upload" && node.assetBlob ? URL.createObjectURL(node.assetBlob) : "",
-          annotationUrl: node.annotationBlob ? URL.createObjectURL(node.annotationBlob) : ""
+          annotationUrl: node.annotationBlob ? URL.createObjectURL(node.annotationBlob) : "",
+          referenceAssets: hydrateReferenceAssets(node.referenceAssets)
         }));
         commitNodes(restoredNodes);
 
@@ -480,12 +540,7 @@ function CanvasWorkspace({
 
     return () => {
       cancelled = true;
-      nodesRef.current.forEach(node => {
-        if (node.type === "upload") {
-          revokeRuntimeUrl(node.url);
-        }
-        revokeRuntimeUrl(node.annotationUrl);
-      });
+      nodesRef.current.forEach(revokeNodeRuntimeUrls);
     };
   }, []);
 
@@ -631,12 +686,7 @@ function CanvasWorkspace({
       return;
     }
 
-    nodesRef.current.forEach(node => {
-      if (node.type === "upload") {
-        revokeRuntimeUrl(node.url);
-      }
-      revokeRuntimeUrl(node.annotationUrl);
-    });
+    nodesRef.current.forEach(revokeNodeRuntimeUrls);
 
     const availableHistoryIds = new Set(historyImageMap.keys());
     const restoredNodes = snapshot.nodes.flatMap(node => {
@@ -650,12 +700,14 @@ function CanvasWorkspace({
         return [{
           ...node,
           url: URL.createObjectURL(node.assetBlob),
-          annotationUrl: node.annotationBlob ? URL.createObjectURL(node.annotationBlob) : ""
+          annotationUrl: node.annotationBlob ? URL.createObjectURL(node.annotationBlob) : "",
+          referenceAssets: hydrateReferenceAssets(node.referenceAssets)
         }];
       }
       return [{
         ...node,
-        annotationUrl: node.annotationBlob ? URL.createObjectURL(node.annotationBlob) : ""
+        annotationUrl: node.annotationBlob ? URL.createObjectURL(node.annotationBlob) : "",
+        referenceAssets: hydrateReferenceAssets(node.referenceAssets)
       }];
     });
     const restoredIds = new Set(restoredNodes.map(node => node.id));
@@ -881,9 +933,11 @@ function CanvasWorkspace({
     generationNodes.forEach(node => {
       if (node.type !== "empty-image") {
         appendNode(node);
-        return;
       }
-      (node.parentIds || []).forEach(parentId => appendNode(nodeMap.get(parentId)));
+      const linkedReferenceIds = node.type === "empty-image"
+        ? [...(node.parentIds || []), ...(node.referenceNodeIds || [])]
+        : (node.referenceNodeIds || []);
+      linkedReferenceIds.forEach(referenceId => appendNode(nodeMap.get(referenceId)));
     });
     return resolved;
   }, [visibleNodes, generationNodes]);
@@ -894,6 +948,19 @@ function CanvasWorkspace({
     }).slice(0, MAX_REFERENCE_IMAGES),
     [generationInputNodes, historyImageMap]
   );
+  const directReferenceAssets = useMemo(() => {
+    const seenIds = new Set();
+    return generationNodes.flatMap(node => (node.referenceAssets || []).flatMap(reference => {
+      if (!reference?.blob || seenIds.has(reference.id)) {
+        return [];
+      }
+      seenIds.add(reference.id);
+      return [{
+        ...reference,
+        ownerNodeId: node.id
+      }];
+    }));
+  }, [generationNodes]);
   const branchDepthMap = useMemo(() => {
     const nodeMap = new Map(visibleNodes.map(node => [node.id, node]));
     const depths = new Map();
@@ -940,11 +1007,16 @@ function CanvasWorkspace({
       setSpaceHeld(false);
       interactionRef.current = null;
       setInteractionType("");
+      setReferenceMenuOpen(false);
+      setReferencePicker(null);
       return undefined;
     }
 
     const handleKeyDown = event => {
       if (isTypingTarget(event.target)) {
+        return;
+      }
+      if (referencePicker && event.key !== "Escape") {
         return;
       }
 
@@ -979,6 +1051,11 @@ function CanvasWorkspace({
         event.preventDefault();
         fitToContent(selectedNodes);
       } else if (event.key === "Escape") {
+        if (referencePicker) {
+          setReferencePicker(null);
+          setReferenceMenuOpen(false);
+          return;
+        }
         setAddMenuOpen(false);
         setContextMenu(null);
         setAssistantOpen(false);
@@ -986,6 +1063,7 @@ function CanvasWorkspace({
         setHelpOpen(false);
         setMentionMenuOpen(false);
         setConnectionMenu(null);
+        setReferenceMenuOpen(false);
         setSelectedEdgeId("");
         setSelectedIds([]);
       } else if (event.key.toLowerCase() === "i") {
@@ -1021,9 +1099,9 @@ function CanvasWorkspace({
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [active, undoStack.length, redoStack.length, selectedNodes, selectedEdgeId]);
+  }, [active, undoStack.length, redoStack.length, selectedNodes, selectedEdgeId, referencePicker]);
 
-  async function addFiles(files, worldPoint, connectionContext = null) {
+  async function addCanvasFiles(files, worldPoint, connectionContext = null) {
     const imageFiles = [...files].filter(file => file.type.startsWith("image/"));
     if (imageFiles.length === 0) {
       onToast?.(text("uploadOnlyImages"));
@@ -1118,7 +1196,173 @@ function CanvasWorkspace({
 
   function openUploadPicker(worldPoint = null) {
     pendingUploadPointRef.current = worldPoint;
-    uploadInputRef.current?.click();
+    canvasUploadInputRef.current?.click();
+  }
+
+  function getReferenceTarget() {
+    const selected = nodesRef.current.filter(node => (
+      selectedIdsRef.current.includes(node.id) && !node.hidden
+    ));
+    return selected.length === 1 ? selected[0] : null;
+  }
+
+  function getTargetImageReferenceCount(targetNode) {
+    if (!targetNode) {
+      return 0;
+    }
+    const nodeMap = new Map(nodesRef.current.map(node => [node.id, node]));
+    const linkedIds = targetNode.type === "empty-image"
+      ? [...(targetNode.parentIds || []), ...(targetNode.referenceNodeIds || [])]
+      : [targetNode.id, ...(targetNode.referenceNodeIds || [])];
+    const linkedImageCount = new Set(linkedIds).size === 0
+      ? 0
+      : [...new Set(linkedIds)].filter(id => {
+          const node = nodeMap.get(id);
+          return node?.type === "upload" || node?.type === "history-image";
+        }).length;
+    return linkedImageCount + (targetNode.referenceAssets || []).length;
+  }
+
+  function toggleReferenceMenu() {
+    if (!getReferenceTarget()) {
+      onToast?.(text("selectSingleReferenceTarget"));
+      return;
+    }
+    setReferenceMenuOpen(value => !value);
+  }
+
+  function requestReferenceUpload(targetNodeId) {
+    const target = nodesRef.current.find(node => node.id === targetNodeId && !node.hidden);
+    if (!target) {
+      onToast?.(text("selectSingleReferenceTarget"));
+      return;
+    }
+    referenceUploadTargetRef.current = target.id;
+    setReferenceMenuOpen(false);
+    referenceUploadInputRef.current?.click();
+  }
+
+  async function addReferenceFiles(files, targetNodeId) {
+    const imageFiles = [...files].filter(file => file.type.startsWith("image/"));
+    if (imageFiles.length === 0) {
+      onToast?.(text("uploadOnlyImages"));
+      return;
+    }
+
+    const target = nodesRef.current.find(node => node.id === targetNodeId && !node.hidden);
+    if (!target) {
+      onToast?.(text("selectSingleReferenceTarget"));
+      return;
+    }
+    const availableSlots = Math.max(0, MAX_REFERENCE_IMAGES - getTargetImageReferenceCount(target));
+    if (availableSlots === 0) {
+      onToast?.(text("referenceLimit", { count: MAX_REFERENCE_IMAGES }));
+      return;
+    }
+
+    const additions = [];
+    let failedCount = 0;
+    for (const file of imageFiles.slice(0, availableSlots)) {
+      try {
+        await readImageDimensions(file);
+        additions.push({
+          id: createLocalId("reference"),
+          name: file.name,
+          mimeType: file.type || "image/png",
+          blob: file,
+          url: URL.createObjectURL(file),
+          createdAt: new Date().toISOString()
+        });
+      } catch (error) {
+        failedCount += 1;
+        console.error(error);
+      }
+    }
+
+    if (additions.length === 0) {
+      onToast?.(text("uploadFailed"));
+      return;
+    }
+    recordUndoSnapshot();
+    commitNodes(previous => previous.map(node => (
+      node.id === target.id
+        ? {
+            ...node,
+            referenceAssets: [...(node.referenceAssets || []), ...additions],
+            updatedAt: new Date().toISOString()
+          }
+        : node
+    )));
+    setSelectedIds([target.id]);
+    persistCurrentSnapshot().catch(console.error);
+    if (imageFiles.length > availableSlots) {
+      onToast?.(text("referenceLimit", { count: MAX_REFERENCE_IMAGES }));
+    } else if (failedCount > 0) {
+      onToast?.(text("uploadPartial"));
+    } else {
+      onToast?.(text("referenceAdded", { count: additions.length }));
+    }
+  }
+
+  function startCanvasReferencePicker() {
+    const target = getReferenceTarget();
+    if (!target) {
+      onToast?.(text("selectSingleReferenceTarget"));
+      return;
+    }
+    setReferenceMenuOpen(false);
+    setSelectedEdgeId("");
+    setReferencePicker({ targetNodeId: target.id });
+  }
+
+  function finishCanvasReferencePicker(referenceNodeId) {
+    const targetNodeId = referencePicker?.targetNodeId;
+    const target = nodesRef.current.find(node => node.id === targetNodeId && !node.hidden);
+    const reference = nodesRef.current.find(node => node.id === referenceNodeId && !node.hidden);
+    if (!target || !reference) {
+      setReferencePicker(null);
+      return;
+    }
+    if (target.id === reference.id) {
+      onToast?.(text("invalidReferenceTarget"));
+      return;
+    }
+    if (!["upload", "history-image", "text"].includes(reference.type)) {
+      onToast?.(text("invalidReferenceSource"));
+      return;
+    }
+    if (wouldCreateCycle(reference.id, target.id)) {
+      onToast?.(language === "en" ? "This connection would create a loop." : "不能创建循环连线。");
+      return;
+    }
+
+    const referenceKey = target.type === "empty-image" ? "parentIds" : "referenceNodeIds";
+    if ((target[referenceKey] || []).includes(reference.id)) {
+      setSelectedIds([target.id]);
+      setReferencePicker(null);
+      return;
+    }
+    if (
+      reference.type !== "text"
+      && getTargetImageReferenceCount(target) >= MAX_REFERENCE_IMAGES
+    ) {
+      onToast?.(text("referenceLimit", { count: MAX_REFERENCE_IMAGES }));
+      return;
+    }
+    recordUndoSnapshot();
+    commitNodes(previous => previous.map(node => (
+      node.id === target.id
+        ? {
+            ...node,
+            [referenceKey]: [...(node[referenceKey] || []), reference.id],
+            updatedAt: new Date().toISOString()
+          }
+        : node
+    )));
+    setSelectedIds([target.id]);
+    setSelectedEdgeId("");
+    setReferencePicker(null);
+    persistCurrentSnapshot().catch(console.error);
   }
 
   function addEmptyImageNode(worldPoint) {
@@ -1247,6 +1491,8 @@ function CanvasWorkspace({
         x: node.x + offset,
         y: node.y + offset,
         parentIds: (node.parentIds || []).map(id => idMap.get(id) || id),
+        referenceNodeIds: (node.referenceNodeIds || []).map(id => idMap.get(id) || id),
+        referenceAssets: cloneReferenceAssets(node.referenceAssets),
         hidden: false,
         url: node.type === "upload" && node.assetBlob ? URL.createObjectURL(node.assetBlob) : "",
         annotationUrl: node.annotationBlob ? URL.createObjectURL(node.annotationBlob) : "",
@@ -1346,20 +1592,49 @@ function CanvasWorkspace({
     const inheritedChildren = generationNodes.filter(node => (
       node.type === "empty-image" && (node.parentIds || []).includes(nodeId)
     ));
-    if (inheritedChildren.length > 0) {
+    const linkedReferenceOwners = generationNodes.filter(node => (
+      (node.referenceNodeIds || []).includes(nodeId)
+    ));
+    if (inheritedChildren.length > 0 || linkedReferenceOwners.length > 0) {
       const childIds = new Set(inheritedChildren.map(node => node.id));
+      const ownerIds = new Set(linkedReferenceOwners.map(node => node.id));
       recordUndoSnapshot();
       commitNodes(previous => previous.map(node => (
-        childIds.has(node.id)
+        childIds.has(node.id) || ownerIds.has(node.id)
           ? {
               ...node,
-              parentIds: (node.parentIds || []).filter(parentId => parentId !== nodeId),
+              ...(childIds.has(node.id)
+                ? { parentIds: (node.parentIds || []).filter(parentId => parentId !== nodeId) }
+                : {}),
+              ...(ownerIds.has(node.id)
+                ? { referenceNodeIds: (node.referenceNodeIds || []).filter(referenceId => referenceId !== nodeId) }
+                : {}),
               updatedAt: new Date().toISOString()
             }
           : node
       )));
       persistCurrentSnapshot().catch(console.error);
     }
+  }
+
+  function removeDirectReference(ownerNodeId, referenceId) {
+    const owner = nodesRef.current.find(node => node.id === ownerNodeId);
+    const reference = owner?.referenceAssets?.find(item => item.id === referenceId);
+    if (!owner || !reference) {
+      return;
+    }
+    recordUndoSnapshot();
+    revokeRuntimeUrl(reference.url);
+    commitNodes(previous => previous.map(node => (
+      node.id === owner.id
+        ? {
+            ...node,
+            referenceAssets: (node.referenceAssets || []).filter(item => item.id !== reference.id),
+            updatedAt: new Date().toISOString()
+          }
+        : node
+    )));
+    persistCurrentSnapshot().catch(console.error);
   }
 
   function updateTextNode(nodeId, content) {
@@ -1404,7 +1679,7 @@ function CanvasWorkspace({
     event.preventDefault();
     setDraggingFiles(false);
     const point = clientPointToWorld(event.clientX, event.clientY);
-    await addFiles(event.dataTransfer.files || [], point);
+    await addCanvasFiles(event.dataTransfer.files || [], point);
   }
 
   function openCanvasContextMenu(event) {
@@ -1436,14 +1711,32 @@ function CanvasWorkspace({
     recordUndoSnapshot();
     commitNodes(previous => previous.flatMap(node => {
       if (!targets.has(node.id)) {
+        const parentIds = (node.parentIds || []).filter(id => !targets.has(id));
+        const referenceNodeIds = (node.referenceNodeIds || []).filter(id => !targets.has(id));
+        if (
+          parentIds.length !== (node.parentIds || []).length
+          || referenceNodeIds.length !== (node.referenceNodeIds || []).length
+        ) {
+          return [{
+            ...node,
+            parentIds,
+            referenceNodeIds,
+            updatedAt: new Date().toISOString()
+          }];
+        }
         return [node];
       }
       if (node.type !== "history-image") {
-        revokeRuntimeUrl(node.url);
-        revokeRuntimeUrl(node.annotationUrl);
+        revokeNodeRuntimeUrls(node);
         return [];
       }
-      return [{ ...node, hidden: true, updatedAt: new Date().toISOString() }];
+      revokeReferenceAssetUrls(node.referenceAssets);
+      return [{
+        ...node,
+        referenceAssets: [],
+        hidden: true,
+        updatedAt: new Date().toISOString()
+      }];
     }));
     setSelectedIds([]);
     persistCurrentSnapshot().catch(console.error);
@@ -1460,15 +1753,15 @@ function CanvasWorkspace({
     }
 
     recordUndoSnapshot();
-    nodesRef.current.forEach(node => {
-      if (node.type === "upload") {
-        revokeRuntimeUrl(node.url);
-      }
-      revokeRuntimeUrl(node.annotationUrl);
-    });
+    nodesRef.current.forEach(revokeNodeRuntimeUrls);
     const hiddenHistoryNodes = nodesRef.current
       .filter(node => node.type === "history-image")
-      .map(node => ({ ...node, hidden: true, updatedAt: new Date().toISOString() }));
+      .map(node => ({
+        ...node,
+        referenceAssets: [],
+        hidden: true,
+        updatedAt: new Date().toISOString()
+      }));
     const resetViewport = { x: 32, y: 32, zoom: 1 };
     commitNodes(hiddenHistoryNodes);
     setSelectedIds([]);
@@ -1540,8 +1833,13 @@ function CanvasWorkspace({
       return;
     }
     setConnectionMenu(null);
+    if (referencePicker) {
+      event.preventDefault();
+      return;
+    }
     setAddMenuOpen(false);
     setContextMenu(null);
+    setReferenceMenuOpen(false);
     setNodeMoreOpen(false);
     if (event.target.closest(".canvas-node") && tool === "select" && !spaceHeld) {
       return;
@@ -1580,6 +1878,12 @@ function CanvasWorkspace({
   }
 
   function beginNodeMove(event, node) {
+    if (referencePicker) {
+      event.preventDefault();
+      event.stopPropagation();
+      finishCanvasReferencePicker(node.id);
+      return;
+    }
     if (tool === "hand" || spaceHeld) {
       return;
     }
@@ -1589,6 +1893,7 @@ function CanvasWorkspace({
 
     event.preventDefault();
     event.stopPropagation();
+    setReferenceMenuOpen(false);
     setNodeMoreOpen(false);
     const currentSelection = selectedIdsRef.current;
 
@@ -1624,6 +1929,12 @@ function CanvasWorkspace({
   }
 
   function beginTextNodeInteraction(event, node) {
+    if (referencePicker) {
+      event.preventDefault();
+      event.stopPropagation();
+      finishCanvasReferencePicker(node.id);
+      return;
+    }
     if (tool === "hand" || spaceHeld) {
       return;
     }
@@ -1934,7 +2245,8 @@ function CanvasWorkspace({
     const imageReferenceCandidates = generationInputNodes.filter(
       node => node.type === "upload" || node.type === "history-image"
     );
-    if (imageReferenceCandidates.length > MAX_REFERENCE_IMAGES) {
+    const totalReferenceCount = imageReferenceCandidates.length + directReferenceAssets.length;
+    if (totalReferenceCount > MAX_REFERENCE_IMAGES) {
       onToast?.(text("referenceLimit", { count: MAX_REFERENCE_IMAGES }));
       return;
     }
@@ -1951,15 +2263,23 @@ function CanvasWorkspace({
       const generationPrompt = selectedTextContext
         ? `${selectedTextContext}\n\n${nextPrompt}`
         : nextPrompt;
-      const references = await Promise.all(referenceNodes.map(async node => {
-        const asset = getNodeAsset(node);
-        return {
+      const references = await Promise.all([
+        ...referenceNodes.map(async node => {
+          const asset = getNodeAsset(node);
+          return {
+            id: createLocalId("reference"),
+            name: asset.name || `${node.id}.png`,
+            type: asset.mimeType,
+            dataUrl: await blobToDataUrl(asset.blob)
+          };
+        }),
+        ...directReferenceAssets.map(async reference => ({
           id: createLocalId("reference"),
-          name: asset.name || `${node.id}.png`,
-          type: asset.mimeType,
-          dataUrl: await blobToDataUrl(asset.blob)
-        };
-      }));
+          name: reference.name || `${reference.id}.png`,
+          type: reference.mimeType || reference.blob.type || "image/png",
+          dataUrl: await blobToDataUrl(reference.blob)
+        }))
+      ]);
       const generationCount = clamp(Number(count) || 1, 1, MAX_GENERATION_COUNT);
       const nodeSize = sizeFromAspectRatio(aspectRatio);
       const replaceTarget = generationNodes.length === 1 && generationNodes[0].type === "empty-image"
@@ -2018,19 +2338,27 @@ function CanvasWorkspace({
           if (node.id === replaceTarget.id) {
             return replacement;
           }
-          if (!(node.parentIds || []).includes(replaceTarget.id)) {
+          const hasParentReference = (node.parentIds || []).includes(replaceTarget.id);
+          const hasDraftReference = (node.referenceNodeIds || []).includes(replaceTarget.id);
+          if (!hasParentReference && !hasDraftReference) {
             return node;
           }
           return {
             ...node,
-            parentIds: node.parentIds.map(parentId => (
+            parentIds: (node.parentIds || []).map(parentId => (
               parentId === replaceTarget.id ? replacement.id : parentId
+            )),
+            referenceNodeIds: (node.referenceNodeIds || []).map(referenceId => (
+              referenceId === replaceTarget.id ? replacement.id : referenceId
             )),
             updatedAt: new Date().toISOString()
           };
         });
         return [...replaced, ...canvasNodes.slice(1)];
       });
+      if (replaceTarget && canvasNodes.length > 0) {
+        revokeReferenceAssetUrls(replaceTarget.referenceAssets);
+      }
       setSelectedIds(canvasNodes.map(node => node.id));
       commitSetting("prompt", "", setPrompt);
       persistCurrentSnapshot().catch(console.error);
@@ -2096,7 +2424,8 @@ function CanvasWorkspace({
     tool === "hand" || spaceHeld ? "is-hand-tool" : "is-select-tool",
     gridVisible ? "is-grid-visible" : "is-grid-hidden",
     interactionType ? `is-${interactionType}` : "",
-    draggingFiles ? "is-dragging-files" : ""
+    draggingFiles ? "is-dragging-files" : "",
+    referencePicker ? "is-reference-picking" : ""
   ].filter(Boolean).join(" ");
 
   const primarySelectedNode = selectedNodes.length === 1 ? selectedNodes[0] : null;
@@ -2260,7 +2589,7 @@ function CanvasWorkspace({
         onDrop={handleDrop}
       >
         <input
-          ref={uploadInputRef}
+          ref={canvasUploadInputRef}
           className="canvas-hidden-upload"
           type="file"
           accept="image/*"
@@ -2268,7 +2597,7 @@ function CanvasWorkspace({
           onChange={async event => {
             const worldPoint = pendingUploadPointRef.current;
             pendingUploadPointRef.current = null;
-            await addFiles(event.target.files || [], worldPoint);
+            await addCanvasFiles(event.target.files || [], worldPoint);
             event.target.value = "";
           }}
         />
@@ -2281,10 +2610,33 @@ function CanvasWorkspace({
           onChange={async event => {
             const context = pendingConnectionUploadRef.current;
             pendingConnectionUploadRef.current = null;
-            await addFiles(event.target.files || [], context?.point, context);
+            await addCanvasFiles(event.target.files || [], context?.point, context);
             event.target.value = "";
           }}
         />
+        <input
+          ref={referenceUploadInputRef}
+          className="canvas-hidden-upload"
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={async event => {
+            await addReferenceFiles(
+              event.target.files || [],
+              referenceUploadTargetRef.current
+            );
+            event.target.value = "";
+            referenceUploadTargetRef.current = "";
+          }}
+        />
+        {referencePicker ? (
+          <div className="canvas-reference-picker-banner canvas-floating-ui">
+            <span>{text("referencePickerHint")}</span>
+            <button type="button" onClick={() => setReferencePicker(null)}>
+              {text("exitReferencePicker")}
+            </button>
+          </div>
+        ) : null}
 
         <div
           className="canvas-plane"
@@ -2492,7 +2844,7 @@ function CanvasWorkspace({
           </div>
         ) : null}
 
-        {primarySelectedNode && !assistantOpen ? (
+        {primarySelectedNode && !assistantOpen && !referencePicker ? (
           <div className="canvas-context-toolbar canvas-floating-ui" style={contextualToolbarStyle}>
             {primarySelectionIsVisual ? (
               <>
@@ -2718,6 +3070,33 @@ function CanvasWorkspace({
             event.preventDefault();
             generateOnCanvas();
           }}>
+            {generationInputNodes.length > 0 || directReferenceAssets.length > 0 ? (
+              <div className="wuli-agent-reference-strip">
+                {generationInputNodes.map(node => {
+                  const asset = getNodeAsset(node);
+                  return (
+                    <button className="wuli-reference-card" key={node.id} type="button" title={text("removeReference")} onClick={() => removeGenerationReference(node.id)}>
+                      {node.type === "text" ? <Type /> : asset.url ? <img src={asset.url} alt="" /> : <Image />}
+                      <span>{node.type === "text" ? (node.content || text("textNodeTitle")) : (asset.name || text("emptyImageTitle"))}</span>
+                      <X />
+                    </button>
+                  );
+                })}
+                {directReferenceAssets.map(reference => (
+                  <button
+                    className="wuli-reference-card"
+                    key={`${reference.ownerNodeId}-${reference.id}`}
+                    type="button"
+                    title={text("removeReference")}
+                    onClick={() => removeDirectReference(reference.ownerNodeId, reference.id)}
+                  >
+                    <img src={reference.url} alt="" />
+                    <span>{reference.name || text("localAsset")}</span>
+                    <X />
+                  </button>
+                ))}
+              </div>
+            ) : null}
             <textarea
               ref={promptRef}
               value={prompt}
@@ -2732,20 +3111,39 @@ function CanvasWorkspace({
             />
             {renderMentionMenu()}
             <div>
-              <button type="button" onClick={() => openUploadPicker()}><Plus /></button>
+              <button type="button" title={text("addReference")} onClick={() => {
+                const target = getReferenceTarget();
+                if (target) {
+                  requestReferenceUpload(target.id);
+                } else {
+                  onToast?.(text("selectSingleReferenceTarget"));
+                }
+              }}><Plus /></button>
               <button className="wuli-mode-pill" type="button"><Link2 />{text("defaultMode")}<ChevronDown /></button>
               <button className="wuli-agent-send" type="submit"><Send /></button>
             </div>
           </form>
         </aside>
 
-        {selectedNodes.length > 0 && !assistantOpen ? (
+        {selectedNodes.length > 0 && !assistantOpen && !referencePicker ? (
           <form className="canvas-composer wuli-context-composer canvas-floating-ui" style={contextualComposerStyle} onSubmit={event => {
             event.preventDefault();
             generateOnCanvas();
           }}>
             <div className="wuli-reference-strip">
-              <button type="button" onClick={() => openUploadPicker()} title={text("addReference")}><Plus /></button>
+              <button className={referenceMenuOpen ? "is-active" : ""} type="button" onClick={toggleReferenceMenu} title={text("addReference")}><Plus /></button>
+              {referenceMenuOpen && primarySelectedNode ? (
+                <div className="wuli-reference-add-menu">
+                  <button type="button" onClick={startCanvasReferencePicker}>
+                    <MousePointer2 />
+                    <span>{text("selectFromCanvas")}</span>
+                  </button>
+                  <button type="button" onClick={() => requestReferenceUpload(primarySelectedNode.id)}>
+                    <Upload />
+                    <span>{text("uploadReference")}</span>
+                  </button>
+                </div>
+              ) : null}
               {generationInputNodes.map(node => {
                 const asset = getNodeAsset(node);
                 return (
@@ -2756,6 +3154,19 @@ function CanvasWorkspace({
                   </button>
                 );
               })}
+              {directReferenceAssets.map(reference => (
+                <button
+                  className="wuli-reference-card"
+                  key={`${reference.ownerNodeId}-${reference.id}`}
+                  type="button"
+                  title={text("removeReference")}
+                  onClick={() => removeDirectReference(reference.ownerNodeId, reference.id)}
+                >
+                  <img src={reference.url} alt="" />
+                  <span>{reference.name || text("localAsset")}</span>
+                  <X />
+                </button>
+              ))}
             </div>
             <textarea
               ref={promptRef}

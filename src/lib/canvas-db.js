@@ -5,18 +5,46 @@ const CANVAS_FALLBACK_KEY = "image2-canvas-workspace-fallback";
 
 let databasePromise;
 
+function sanitizeReferenceAssets(referenceAssets, { keepBlobs }) {
+  if (!Array.isArray(referenceAssets)) {
+    return [];
+  }
+
+  return referenceAssets.map(reference => {
+    const {
+      url: _runtimeUrl,
+      blob: _blob,
+      ...serializableReference
+    } = reference;
+    return keepBlobs
+      ? { ...serializableReference, blob: reference.blob }
+      : serializableReference;
+  });
+}
+
+function sanitizeNode(node, { keepBlobs }) {
+  const {
+    url: _runtimeUrl,
+    annotationUrl: _annotationRuntimeUrl,
+    assetBlob: _assetBlob,
+    annotationBlob: _annotationBlob,
+    ...serializableNode
+  } = node;
+  return {
+    ...serializableNode,
+    ...(keepBlobs
+      ? {
+          assetBlob: node.assetBlob,
+          annotationBlob: node.annotationBlob
+        }
+      : {}),
+    referenceAssets: sanitizeReferenceAssets(node.referenceAssets, { keepBlobs })
+  };
+}
+
 function makeFallbackSnapshot({ nodes, viewport, settings, updatedAt }) {
   return {
-    nodes: nodes.map(node => {
-      const {
-        url: _runtimeUrl,
-        annotationUrl: _annotationRuntimeUrl,
-        assetBlob: _assetBlob,
-        annotationBlob: _annotationBlob,
-        ...serializableNode
-      } = node;
-      return serializableNode;
-    }),
+    nodes: nodes.map(node => sanitizeNode(node, { keepBlobs: false })),
     viewport,
     settings,
     updatedAt
@@ -108,11 +136,26 @@ export async function loadCanvasSnapshot() {
       if (node.type === "upload" && !storedNode?.assetBlob) {
         return [];
       }
+      const storedReferences = new Map(
+        (storedNode?.referenceAssets || []).map(reference => [reference.id, reference])
+      );
+      const referenceAssets = (node.referenceAssets || []).flatMap(reference => {
+        const storedReference = storedReferences.get(reference.id);
+        if (!storedReference?.blob) {
+          return [];
+        }
+        return [{
+          ...storedReference,
+          ...reference,
+          blob: storedReference.blob
+        }];
+      });
       return [{
         ...storedNode,
         ...node,
         assetBlob: storedNode?.assetBlob,
-        annotationBlob: storedNode?.annotationBlob
+        annotationBlob: storedNode?.annotationBlob,
+        referenceAssets
       }];
     });
     return {
@@ -140,8 +183,7 @@ export async function saveCanvasSnapshot({ nodes, viewport, settings }) {
 
   nodeStore.clear();
   nodes.forEach(node => {
-    const { url: _runtimeUrl, annotationUrl: _annotationRuntimeUrl, ...storableNode } = node;
-    nodeStore.put(storableNode);
+    nodeStore.put(sanitizeNode(node, { keepBlobs: true }));
   });
 
   transaction.objectStore("meta").put({
