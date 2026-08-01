@@ -121,6 +121,10 @@ const canvasCopy = {
     addImageNode: "添加图像节点",
     addTextNode: "添加文本节点",
     addLocalImage: "添加本地图片",
+    addUpstreamNode: "添加前置节点",
+    addDownstreamNode: "添加后续节点",
+    connectUpstream: "拖出前置输入",
+    connectDownstream: "拖出后续输出",
     textNodeTitle: "文本节点",
     textNodePlaceholder: "输入创意、描述或分镜内容…",
     emptyImageTitle: "图片节点",
@@ -202,6 +206,10 @@ const canvasCopy = {
     addImageNode: "Add image node",
     addTextNode: "Add text node",
     addLocalImage: "Add local image",
+    addUpstreamNode: "Add upstream node",
+    addDownstreamNode: "Add downstream node",
+    connectUpstream: "Drag an upstream input",
+    connectDownstream: "Drag a downstream output",
     textNodeTitle: "Text node",
     textNodePlaceholder: "Write an idea, description, or storyboard…",
     emptyImageTitle: "Image node",
@@ -350,6 +358,7 @@ function CanvasWorkspace({
   const [selectedEdgeId, setSelectedEdgeId] = useState("");
   const [selectionBox, setSelectionBox] = useState(null);
   const [connectionDraft, setConnectionDraft] = useState(null);
+  const [connectionMenu, setConnectionMenu] = useState(null);
   const [gridVisible, setGridVisible] = useState(true);
   const [linksVisible, setLinksVisible] = useState(true);
   const [minimapVisible, setMinimapVisible] = useState(false);
@@ -361,6 +370,8 @@ function CanvasWorkspace({
   const promptRef = useRef(null);
   const uploadInputRef = useRef(null);
   const pendingUploadPointRef = useRef(null);
+  const connectionUploadInputRef = useRef(null);
+  const pendingConnectionUploadRef = useRef(null);
   const textEditSnapshotRef = useRef(null);
   const nodesRef = useRef(nodes);
   const viewportRef = useRef(viewport);
@@ -973,6 +984,7 @@ function CanvasWorkspace({
         setNodeMoreOpen(false);
         setHelpOpen(false);
         setMentionMenuOpen(false);
+        setConnectionMenu(null);
         setSelectedEdgeId("");
         setSelectedIds([]);
       } else if (event.key.toLowerCase() === "i") {
@@ -1010,14 +1022,22 @@ function CanvasWorkspace({
     };
   }, [active, undoStack.length, redoStack.length, selectedNodes, selectedEdgeId]);
 
-  async function addFiles(files, worldPoint) {
+  async function addFiles(files, worldPoint, connectionContext = null) {
     const imageFiles = [...files].filter(file => file.type.startsWith("image/"));
     if (imageFiles.length === 0) {
       onToast?.(text("uploadOnlyImages"));
       return;
     }
 
-    const center = worldPoint || getWorldCenter();
+    if (
+      connectionContext &&
+      !nodesRef.current.some(node => node.id === connectionContext.originNodeId)
+    ) {
+      setConnectionMenu(null);
+      return;
+    }
+
+    const center = connectionContext?.point || worldPoint || getWorldCenter();
     const additions = [];
     let failedCount = 0;
     for (let index = 0; index < imageFiles.length; index += 1) {
@@ -1025,6 +1045,8 @@ function CanvasWorkspace({
         const file = imageFiles[index];
         const dimensions = await readImageDimensions(file);
         const fitted = fitNodeSize(dimensions.width, dimensions.height);
+        const cascadeOffset = index * 36;
+        const connectedFromRight = connectionContext?.startHandleType === "source";
         additions.push({
           id: createLocalId("upload"),
           type: "upload",
@@ -1032,11 +1054,15 @@ function CanvasWorkspace({
           mimeType: file.type || "image/png",
           assetBlob: file,
           url: URL.createObjectURL(file),
-          x: center.x - fitted.width / 2 + index * 36,
-          y: center.y - fitted.height / 2 + index * 36,
+          x: connectionContext
+            ? connectedFromRight
+              ? center.x + CONNECTION_HANDLE_OFFSET + cascadeOffset
+              : center.x - fitted.width - CONNECTION_HANDLE_OFFSET - cascadeOffset
+            : center.x - fitted.width / 2 + cascadeOffset,
+          y: center.y - fitted.height / 2 + cascadeOffset,
           width: fitted.width,
           height: fitted.height,
-          parentIds: [],
+          parentIds: connectedFromRight ? [connectionContext.originNodeId] : [],
           hidden: false,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
@@ -1052,7 +1078,21 @@ function CanvasWorkspace({
       return;
     }
 
-    const nextNodes = [...nodesRef.current, ...additions];
+    const incomingIds = connectionContext?.startHandleType === "target"
+      ? additions.map(node => node.id)
+      : [];
+    const nextNodes = [
+      ...nodesRef.current.map(node => (
+        node.id === connectionContext?.originNodeId && incomingIds.length > 0
+          ? {
+              ...node,
+              parentIds: [...new Set([...(node.parentIds || []), ...incomingIds])],
+              updatedAt: new Date().toISOString()
+            }
+          : node
+      )),
+      ...additions
+    ];
     try {
       await saveCanvasSnapshot({
         nodes: nextNodes,
@@ -1068,6 +1108,7 @@ function CanvasWorkspace({
     recordUndoSnapshot();
     commitNodes(nextNodes);
     setSelectedIds(additions.map(node => node.id));
+    setConnectionMenu(null);
     didInitialFitRef.current = true;
     if (failedCount > 0) {
       onToast?.(text("uploadPartial"));
@@ -1122,6 +1163,68 @@ function CanvasWorkspace({
     setSelectedIds([node.id]);
     setAddMenuOpen(false);
     setContextMenu(null);
+  }
+
+  function addConnectedNode(type) {
+    const context = connectionMenu;
+    const origin = nodesRef.current.find(node => node.id === context?.originNodeId);
+    if (!context || !origin) {
+      setConnectionMenu(null);
+      return;
+    }
+
+    const isTextNode = type === "text";
+    const width = isTextNode ? 300 : 340;
+    const height = isTextNode ? 340 : 260;
+    const connectedFromRight = context.startHandleType === "source";
+    const node = {
+      id: createLocalId(isTextNode ? "text-node" : "image-node"),
+      type: isTextNode ? "text" : "empty-image",
+      ...(isTextNode
+        ? { title: text("textNodeTitle"), content: "" }
+        : {}),
+      x: connectedFromRight
+        ? context.point.x + CONNECTION_HANDLE_OFFSET
+        : context.point.x - width - CONNECTION_HANDLE_OFFSET,
+      y: context.point.y - height / 2,
+      width,
+      height,
+      parentIds: connectedFromRight ? [origin.id] : [],
+      hidden: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    recordUndoSnapshot();
+    commitNodes(previous => [
+      ...previous.map(item => (
+        !connectedFromRight && item.id === origin.id
+          ? {
+              ...item,
+              parentIds: [...new Set([...(item.parentIds || []), node.id])],
+              updatedAt: new Date().toISOString()
+            }
+          : item
+      )),
+      node
+    ]);
+    setSelectedIds([node.id]);
+    setSelectedEdgeId(edgeId(
+      connectedFromRight ? origin.id : node.id,
+      connectedFromRight ? node.id : origin.id
+    ));
+    setConnectionMenu(null);
+    persistCurrentSnapshot().catch(console.error);
+    if (!isTextNode) {
+      window.requestAnimationFrame(() => promptRef.current?.focus());
+    }
+  }
+
+  function openConnectionUpload() {
+    if (!connectionMenu) return;
+    pendingConnectionUploadRef.current = connectionMenu;
+    setConnectionMenu(null);
+    connectionUploadInputRef.current?.click();
   }
 
   function copySelectedNodes() {
@@ -1430,8 +1533,12 @@ function CanvasWorkspace({
 
   function beginStageInteraction(event) {
     if (event.target.closest(".canvas-floating-ui")) {
+      if (!event.target.closest(".canvas-connection-menu")) {
+        setConnectionMenu(null);
+      }
       return;
     }
+    setConnectionMenu(null);
     setAddMenuOpen(false);
     setContextMenu(null);
     setNodeMoreOpen(false);
@@ -1537,22 +1644,26 @@ function CanvasWorkspace({
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
-  function beginConnection(event, node) {
+  function beginConnection(event, node, startHandleType = "source") {
     if (event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
     const point = clientPointToWorld(event.clientX, event.clientY);
     const start = {
-      x: node.x + node.width + CONNECTION_HANDLE_OFFSET,
+      x: startHandleType === "target"
+        ? node.x - CONNECTION_HANDLE_OFFSET
+        : node.x + node.width + CONNECTION_HANDLE_OFFSET,
       y: node.y + node.height / 2
     };
     setSelectedIds([node.id]);
     setSelectedEdgeId("");
     setNodeMoreOpen(false);
+    setConnectionMenu(null);
     interactionRef.current = {
       type: "connect",
       pointerId: event.pointerId,
-      parentId: node.id,
+      originNodeId: node.id,
+      startHandleType,
       start,
       current: point,
       rawCurrent: point,
@@ -1564,13 +1675,15 @@ function CanvasWorkspace({
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
-  function findConnectionSnapTarget(point, parentId) {
+  function findConnectionSnapTarget(point, originNodeId, startHandleType) {
     const radius = CONNECTION_SNAP_RADIUS_PX / viewportRef.current.zoom;
     let closest = null;
     for (const node of nodesRef.current) {
-      if (node.hidden || node.id === parentId) continue;
+      if (node.hidden || node.id === originNodeId) continue;
       const anchor = {
-        x: node.x - CONNECTION_HANDLE_OFFSET,
+        x: startHandleType === "target"
+          ? node.x + node.width + CONNECTION_HANDLE_OFFSET
+          : node.x - CONNECTION_HANDLE_OFFSET,
         y: node.y + node.height / 2
       };
       const distance = Math.hypot(point.x - anchor.x, point.y - anchor.y);
@@ -1617,7 +1730,11 @@ function CanvasWorkspace({
 
     if (interaction.type === "connect") {
       const rawCurrent = clientPointToWorld(event.clientX, event.clientY);
-      const snapTarget = findConnectionSnapTarget(rawCurrent, interaction.parentId);
+      const snapTarget = findConnectionSnapTarget(
+        rawCurrent,
+        interaction.originNodeId,
+        interaction.startHandleType
+      );
       interaction.rawCurrent = rawCurrent;
       interaction.current = snapTarget?.anchor || rawCurrent;
       interaction.snapTargetId = snapTarget?.node.id || "";
@@ -1676,32 +1793,33 @@ function CanvasWorkspace({
       return;
     }
     if (interaction.type === "connect") {
-      const dropTarget = document.elementFromPoint(event.clientX, event.clientY)?.closest?.("[data-connection-input]");
-      const childId = interaction.snapTargetId || dropTarget?.getAttribute("data-connection-input");
-      if (childId) {
-        connectNodes(interaction.parentId, childId);
+      const targetAttribute = interaction.startHandleType === "target"
+        ? "data-connection-output"
+        : "data-connection-input";
+      const dropTarget = document
+        .elementFromPoint(event.clientX, event.clientY)
+        ?.closest?.(`[${targetAttribute}]`);
+      const otherNodeId = interaction.snapTargetId || dropTarget?.getAttribute(targetAttribute);
+      if (otherNodeId) {
+        connectNodes(
+          interaction.startHandleType === "target" ? otherNodeId : interaction.originNodeId,
+          interaction.startHandleType === "target" ? interaction.originNodeId : otherNodeId
+        );
       } else {
         const point = interaction.rawCurrent || clientPointToWorld(event.clientX, event.clientY);
-        const source = nodesRef.current.find(node => node.id === interaction.parentId);
+        const origin = nodesRef.current.find(node => node.id === interaction.originNodeId);
         const farEnough = Math.hypot(point.x - interaction.start.x, point.y - interaction.start.y) > 48;
-        if (source && farEnough) {
-          const nodeHeight = 260;
-          const node = {
-            id: createLocalId("branch"),
-            type: "empty-image",
-            x: point.x + CONNECTION_HANDLE_OFFSET,
-            y: point.y - nodeHeight / 2,
-            width: 340,
-            height: nodeHeight,
-            parentIds: [source.id],
-            hidden: false,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          };
-          recordUndoSnapshot();
-          commitNodes(previous => [...previous, node]);
-          setSelectedIds([node.id]);
-          window.requestAnimationFrame(() => promptRef.current?.focus());
+        const stageRect = stageRef.current?.getBoundingClientRect();
+        if (origin && farEnough && stageRect) {
+          setConnectionMenu({
+            originNodeId: origin.id,
+            startHandleType: interaction.startHandleType,
+            point,
+            position: {
+              x: clamp(event.clientX - stageRect.left, 12, Math.max(12, stageRect.width - 208)),
+              y: clamp(event.clientY - stageRect.top, 12, Math.max(12, stageRect.height - 178))
+            }
+          });
         }
       }
       setConnectionDraft(null);
@@ -2102,6 +2220,19 @@ function CanvasWorkspace({
             event.target.value = "";
           }}
         />
+        <input
+          ref={connectionUploadInputRef}
+          className="canvas-hidden-upload"
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={async event => {
+            const context = pendingConnectionUploadRef.current;
+            pendingConnectionUploadRef.current = null;
+            await addFiles(event.target.files || [], context?.point, context);
+            event.target.value = "";
+          }}
+        />
 
         <div
           className="canvas-plane"
@@ -2129,7 +2260,11 @@ function CanvasWorkspace({
             {connectionDraft ? (
               <path
                 className={`canvas-connector-draft${connectionDraft.snapTargetId ? " is-snapped" : ""}`}
-                d={`M ${connectionDraft.start.x} ${connectionDraft.start.y} C ${connectionDraft.start.x + 72} ${connectionDraft.start.y}, ${connectionDraft.current.x - 72} ${connectionDraft.current.y}, ${connectionDraft.current.x} ${connectionDraft.current.y}`}
+                d={`M ${connectionDraft.start.x} ${connectionDraft.start.y} C ${
+                  connectionDraft.start.x + (connectionDraft.startHandleType === "target" ? -72 : 72)
+                } ${connectionDraft.start.y}, ${
+                  connectionDraft.current.x + (connectionDraft.startHandleType === "target" ? 72 : -72)
+                } ${connectionDraft.current.y}, ${connectionDraft.current.x} ${connectionDraft.current.y}`}
               />
             ) : null}
           </svg>
@@ -2231,16 +2366,17 @@ function CanvasWorkspace({
                   className="canvas-connection-handle is-input"
                   type="button"
                   data-connection-input={node.id}
-                  aria-label={language === "en" ? "Connect into node" : "连接到此节点"}
-                  onPointerDown={event => event.stopPropagation()}
+                  aria-label={text("connectUpstream")}
+                  onPointerDown={event => beginConnection(event, node, "target")}
                 >
                   <Sparkles />
                 </button>
                 <button
                   className="canvas-connection-handle is-output"
                   type="button"
-                  aria-label={language === "en" ? "Drag a new branch" : "拖出新分支"}
-                  onPointerDown={event => beginConnection(event, node)}
+                  data-connection-output={node.id}
+                  aria-label={text("connectDownstream")}
+                  onPointerDown={event => beginConnection(event, node, "source")}
                 >
                   <Sparkles />
                 </button>
@@ -2273,6 +2409,35 @@ function CanvasWorkspace({
               height: selectionBox.height
             }}
           />
+        ) : null}
+
+        {connectionMenu ? (
+          <div
+            className="canvas-connection-menu canvas-floating-ui"
+            data-connection-menu={connectionMenu.startHandleType}
+            style={{
+              left: connectionMenu.position.x,
+              top: connectionMenu.position.y
+            }}
+          >
+            <strong>
+              {connectionMenu.startHandleType === "target"
+                ? text("addUpstreamNode")
+                : text("addDownstreamNode")}
+            </strong>
+            <button type="button" onClick={() => addConnectedNode("empty-image")}>
+              <Image />
+              <span>{text("addImageNode")}</span>
+            </button>
+            <button type="button" onClick={() => addConnectedNode("text")}>
+              <Type />
+              <span>{text("addTextNode")}</span>
+            </button>
+            <button type="button" onClick={openConnectionUpload}>
+              <Upload />
+              <span>{text("upload")}</span>
+            </button>
+          </div>
         ) : null}
 
         {primarySelectedNode && !assistantOpen ? (
@@ -2608,7 +2773,11 @@ function CanvasWorkspace({
                   <div key={shortcut}><kbd>{shortcut}</kbd><span>{label}</span></div>
                 ))}
               </div>
-              <p>{language === "en" ? "Drag the purple output dot to another node, or release on empty canvas to start a new branch." : "从节点右侧紫色圆点拖到其他节点即可连线；拖到空白处会直接创建新分支。"}</p>
+              <p>
+                {language === "en"
+                  ? "Drag from the left dot to add an upstream input, or from the right dot to add a downstream output. Releasing on empty canvas opens the node type menu."
+                  : "从左侧圆点拖出可添加前置输入，从右侧圆点拖出可添加后续输出；在空白处松开会打开节点类型菜单。"}
+              </p>
             </section>
           </div>
         ) : null}
