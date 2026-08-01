@@ -46,8 +46,8 @@ import { Button } from "@/components/ui/button";
 import AnnotationEditor from "@/components/canvas/AnnotationEditor";
 import { loadCanvasSnapshot, saveCanvasSnapshot } from "@/lib/canvas-db";
 
-const MIN_ZOOM = 0.2;
-const MAX_ZOOM = 2.5;
+const MIN_ZOOM = 0.02;
+const MAX_ZOOM = 4;
 const MAX_REFERENCE_IMAGES = 8;
 const MAX_GENERATION_COUNT = 8;
 const SAVE_DEBOUNCE_MS = 500;
@@ -447,6 +447,7 @@ function CanvasWorkspace({
   const [referencePicker, setReferencePicker] = useState(null);
   const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
   const [historyDragPreview, setHistoryDragPreview] = useState(null);
+  const [pointerContextMenu, setPointerContextMenu] = useState(null);
 
   const stageRef = useRef(null);
   const promptRef = useRef(null);
@@ -462,6 +463,8 @@ function CanvasWorkspace({
   const selectedIdsRef = useRef(selectedIds);
   const settingsRef = useRef({ prompt, aspectRatio, quality, count });
   const interactionRef = useRef(null);
+  const suppressContextMenuRef = useRef(false);
+  const wheelEndTimerRef = useRef(0);
   const didInitialFitRef = useRef(false);
   const clipboardRef = useRef([]);
 
@@ -1046,6 +1049,21 @@ function CanvasWorkspace({
   }, [active, hydrated, visibleNodes.length]);
 
   useEffect(() => {
+    const stage = stageRef.current;
+    if (!active || !stage) {
+      return undefined;
+    }
+
+    // Ctrl/⌘ + wheel must cancel the browser's page zoom before updating only
+    // the canvas viewport. React's delegated wheel event can be passive.
+    const handleNativeWheel = event => handleWheel(event);
+    stage.addEventListener("wheel", handleNativeWheel, { passive: false });
+    return () => {
+      stage.removeEventListener("wheel", handleNativeWheel);
+    };
+  }, [active]);
+
+  useEffect(() => {
     if (active && focusSignal) {
       window.requestAnimationFrame(() => promptRef.current?.focus());
     }
@@ -1055,9 +1073,11 @@ function CanvasWorkspace({
     if (!active) {
       setSpaceHeld(false);
       interactionRef.current = null;
+      window.clearTimeout(wheelEndTimerRef.current);
       setInteractionType("");
       setReferenceMenuOpen(false);
       setReferencePicker(null);
+      setPointerContextMenu(null);
       return undefined;
     }
 
@@ -1113,6 +1133,7 @@ function CanvasWorkspace({
         setMentionMenuOpen(false);
         setConnectionMenu(null);
         setReferenceMenuOpen(false);
+        setPointerContextMenu(null);
         setSelectedEdgeId("");
         setSelectedIds([]);
       } else if (event.key.toLowerCase() === "i") {
@@ -1744,6 +1765,7 @@ function CanvasWorkspace({
     const menuHeight = 132;
     setAddMenuOpen(false);
     setNodeMoreOpen(false);
+    setPointerContextMenu(null);
     setContextMenu({
       left: clamp(event.clientX - rect.left, 8, Math.max(8, rect.width - menuWidth - 8)),
       top: clamp(event.clientY - rect.top, 8, Math.max(8, rect.height - menuHeight - 8)),
@@ -2021,10 +2043,11 @@ function CanvasWorkspace({
     setContextMenu(null);
     setReferenceMenuOpen(false);
     setNodeMoreOpen(false);
+    setPointerContextMenu(null);
     if (event.target.closest(".canvas-node") && tool === "select" && !spaceHeld) {
       return;
     }
-    if (event.button !== 0 && event.button !== 1) {
+    if (event.button !== 0 && event.button !== 1 && event.button !== 2) {
       return;
     }
 
@@ -2050,7 +2073,9 @@ function CanvasWorkspace({
         pointerId: event.pointerId,
         startX: event.clientX,
         startY: event.clientY,
-        viewport: viewportRef.current
+        viewport: viewportRef.current,
+        button: event.button,
+        hasMoved: false
       };
       setInteractionType("pan");
     }
@@ -2245,6 +2270,10 @@ function CanvasWorkspace({
     }
 
     if (interaction.type === "pan") {
+      interaction.hasMoved ||= Math.hypot(
+        event.clientX - interaction.startX,
+        event.clientY - interaction.startY
+      ) > 3;
       commitViewport({
         ...interaction.viewport,
         x: interaction.viewport.x + event.clientX - interaction.startX,
@@ -2369,6 +2398,12 @@ function CanvasWorkspace({
     } else if (interaction.hasChanged && interaction.beforeSnapshot) {
       recordUndoSnapshot(interaction.beforeSnapshot);
     }
+    if (interaction.type === "pan" && interaction.button === 2 && interaction.hasMoved) {
+      suppressContextMenuRef.current = true;
+      window.setTimeout(() => {
+        suppressContextMenuRef.current = false;
+      }, 100);
+    }
     setSelectionBox(null);
     interactionRef.current = null;
     setInteractionType("");
@@ -2407,8 +2442,69 @@ function CanvasWorkspace({
 
   function handleWheel(event) {
     event.preventDefault();
-    const multiplier = event.deltaY > 0 ? 0.9 : 1.1;
-    zoomAroundPoint(viewportRef.current.zoom * multiplier, event.clientX, event.clientY);
+    setContextMenu(null);
+    setPointerContextMenu(null);
+    window.clearTimeout(wheelEndTimerRef.current);
+    setInteractionType("wheel");
+    wheelEndTimerRef.current = window.setTimeout(() => {
+      if (!interactionRef.current) setInteractionType("");
+    }, 120);
+    const deltaScale = event.deltaMode === 1
+      ? 16
+      : event.deltaMode === 2
+        ? stageRef.current?.clientHeight || 800
+        : 1;
+    const deltaX = event.deltaX * deltaScale;
+    const deltaY = event.deltaY * deltaScale;
+
+    if (event.ctrlKey || event.metaKey) {
+      const multiplier = 2 ** (-deltaY * 0.002);
+      zoomAroundPoint(
+        viewportRef.current.zoom * multiplier,
+        event.clientX,
+        event.clientY
+      );
+      return;
+    }
+
+    const horizontalDelta = event.shiftKey && Math.abs(deltaX) < 0.01 ? deltaY : deltaX;
+    const verticalDelta = event.shiftKey && Math.abs(deltaX) < 0.01 ? 0 : deltaY;
+    commitViewport(current => ({
+      ...current,
+      x: current.x - horizontalDelta,
+      y: current.y - verticalDelta
+    }));
+  }
+
+  function handleStageContextMenu(event) {
+    if (event.target.closest(".canvas-floating-ui")) {
+      return;
+    }
+    event.preventDefault();
+    if (suppressContextMenuRef.current) {
+      suppressContextMenuRef.current = false;
+      return;
+    }
+
+    const nodeId = event.target.closest(".canvas-node")?.dataset.nodeId || "";
+    const targetIds = nodeId
+      ? (selectedIdsRef.current.includes(nodeId) ? selectedIdsRef.current : [nodeId])
+      : selectedIdsRef.current;
+    if (targetIds.length === 0) {
+      openCanvasContextMenu(event);
+      return;
+    }
+
+    setContextMenu(null);
+    if (nodeId && !selectedIdsRef.current.includes(nodeId)) {
+      setSelectedIds([nodeId]);
+    }
+    const rect = stageRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setPointerContextMenu({
+      left: event.clientX - rect.left,
+      top: event.clientY - rect.top
+    });
   }
 
   async function generateOnCanvas() {
@@ -2751,8 +2847,7 @@ function CanvasWorkspace({
         onPointerMove={handleStagePointerMove}
         onPointerUp={endStageInteraction}
         onPointerCancel={endStageInteraction}
-        onWheel={handleWheel}
-        onContextMenu={openCanvasContextMenu}
+        onContextMenu={handleStageContextMenu}
         onDragEnter={event => {
           event.preventDefault();
           setDraggingFiles(true);
@@ -2883,6 +2978,7 @@ function CanvasWorkspace({
             return (
               <article
                 key={node.id}
+                data-node-id={node.id}
                 className={`canvas-node${selected ? " is-selected" : ""}${asset.status === "error" ? " is-error" : ""}${isTextNode ? " is-text-node" : ""}${isEmptyImageNode ? " is-empty-image-node" : ""}`}
                 style={{
                   width: node.width,
@@ -3021,6 +3117,33 @@ function CanvasWorkspace({
               <Upload />
               <span>{text("upload")}</span>
             </button>
+          </div>
+        ) : null}
+
+        {pointerContextMenu && selectedNodes.length > 0 ? (
+          <div
+            className="canvas-pointer-context-menu canvas-floating-ui"
+            style={{
+              left: clamp(pointerContextMenu.left, 12, Math.max(12, stageWidth - 216)),
+              top: clamp(pointerContextMenu.top, 12, Math.max(12, stageHeight - 196))
+            }}
+          >
+            <button type="button" onClick={() => {
+              copySelectedNodes();
+              setPointerContextMenu(null);
+            }}><Copy /><span>{language === "en" ? "Copy" : "复制节点"}</span><kbd>Ctrl+C</kbd></button>
+            <button type="button" onClick={() => {
+              duplicateSelectedNodes();
+              setPointerContextMenu(null);
+            }}><CopyPlus /><span>{language === "en" ? "Duplicate" : "复制并粘贴"}</span><kbd>Ctrl+D</kbd></button>
+            <button type="button" onClick={() => {
+              fitToContent(selectedNodes);
+              setPointerContextMenu(null);
+            }}><Focus /><span>{text("focusSelected")}</span><kbd>F</kbd></button>
+            <button className="is-danger" type="button" onClick={() => {
+              setPointerContextMenu(null);
+              removeSelectedNodes();
+            }}><Trash2 /><span>{text("delete")}</span><kbd>Delete</kbd></button>
           </div>
         ) : null}
 
@@ -3470,6 +3593,10 @@ function CanvasWorkspace({
                 {[
                   ["V", language === "en" ? "Select / box select" : "选择 / 框选"],
                   ["H / Space", language === "en" ? "Pan canvas" : "平移画布"],
+                  ["Wheel", language === "en" ? "Pan canvas in two dimensions" : "二维平移画布"],
+                  ["Ctrl/⌘ + Wheel", language === "en" ? "Zoom around the pointer" : "以鼠标位置为中心缩放"],
+                  ["Middle / Right drag", language === "en" ? "Pan from empty canvas" : "从空白处拖动平移"],
+                  ["Right click", language === "en" ? "Open node actions" : "打开节点操作菜单"],
                   ["Ctrl C / V", language === "en" ? "Copy / paste nodes" : "复制 / 粘贴节点"],
                   ["Ctrl D", language === "en" ? "Quick duplicate" : "快速克隆"],
                   ["Delete", language === "en" ? "Delete node or connection" : "删除节点或连线"],
