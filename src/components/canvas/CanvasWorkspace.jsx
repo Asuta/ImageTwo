@@ -120,6 +120,7 @@ const canvasCopy = {
     shareDone: "画布链接已复制",
     addImageNode: "添加图像节点",
     addTextNode: "添加文本节点",
+    addLocalImage: "添加本地图片",
     textNodeTitle: "文本节点",
     textNodePlaceholder: "输入创意、描述或分镜内容…",
     emptyImageTitle: "图片节点",
@@ -200,6 +201,7 @@ const canvasCopy = {
     shareDone: "Canvas link copied",
     addImageNode: "Add image node",
     addTextNode: "Add text node",
+    addLocalImage: "Add local image",
     textNodeTitle: "Text node",
     textNodePlaceholder: "Write an idea, description, or storyboard…",
     emptyImageTitle: "Image node",
@@ -342,6 +344,7 @@ function CanvasWorkspace({
   const [undoStack, setUndoStack] = useState([]);
   const [redoStack, setRedoStack] = useState([]);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [contextMenu, setContextMenu] = useState(null);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [nodeMoreOpen, setNodeMoreOpen] = useState(false);
   const [selectedEdgeId, setSelectedEdgeId] = useState("");
@@ -357,6 +360,7 @@ function CanvasWorkspace({
   const stageRef = useRef(null);
   const promptRef = useRef(null);
   const uploadInputRef = useRef(null);
+  const pendingUploadPointRef = useRef(null);
   const textEditSnapshotRef = useRef(null);
   const nodesRef = useRef(nodes);
   const viewportRef = useRef(viewport);
@@ -964,6 +968,7 @@ function CanvasWorkspace({
         fitToContent(selectedNodes);
       } else if (event.key === "Escape") {
         setAddMenuOpen(false);
+        setContextMenu(null);
         setAssistantOpen(false);
         setNodeMoreOpen(false);
         setHelpOpen(false);
@@ -978,7 +983,7 @@ function CanvasWorkspace({
         addTextNode();
       } else if (event.key.toLowerCase() === "u") {
         event.preventDefault();
-        uploadInputRef.current?.click();
+        openUploadPicker();
       } else if (event.key === "Delete" || event.key === "Backspace") {
         event.preventDefault();
         if (selectedEdgeId) {
@@ -1069,8 +1074,13 @@ function CanvasWorkspace({
     }
   }
 
-  function addEmptyImageNode() {
-    const center = getWorldCenter();
+  function openUploadPicker(worldPoint = null) {
+    pendingUploadPointRef.current = worldPoint;
+    uploadInputRef.current?.click();
+  }
+
+  function addEmptyImageNode(worldPoint) {
+    const center = worldPoint || getWorldCenter();
     const node = {
       id: createLocalId("image-node"),
       type: "empty-image",
@@ -1087,11 +1097,12 @@ function CanvasWorkspace({
     commitNodes(previous => [...previous, node]);
     setSelectedIds([node.id]);
     setAddMenuOpen(false);
+    setContextMenu(null);
     window.requestAnimationFrame(() => promptRef.current?.focus());
   }
 
-  function addTextNode() {
-    const center = getWorldCenter();
+  function addTextNode(worldPoint) {
+    const center = worldPoint || getWorldCenter();
     const node = {
       id: createLocalId("text-node"),
       type: "text",
@@ -1110,6 +1121,7 @@ function CanvasWorkspace({
     commitNodes(previous => [...previous, node]);
     setSelectedIds([node.id]);
     setAddMenuOpen(false);
+    setContextMenu(null);
   }
 
   function copySelectedNodes() {
@@ -1291,6 +1303,26 @@ function CanvasWorkspace({
     await addFiles(event.dataTransfer.files || [], point);
   }
 
+  function openCanvasContextMenu(event) {
+    if (event.target.closest(".canvas-floating-ui") || event.target.closest(".canvas-node")) {
+      return;
+    }
+    event.preventDefault();
+    const rect = stageRef.current?.getBoundingClientRect();
+    if (!rect) {
+      return;
+    }
+    const menuWidth = 196;
+    const menuHeight = 132;
+    setAddMenuOpen(false);
+    setNodeMoreOpen(false);
+    setContextMenu({
+      left: clamp(event.clientX - rect.left, 8, Math.max(8, rect.width - menuWidth - 8)),
+      top: clamp(event.clientY - rect.top, 8, Math.max(8, rect.height - menuHeight - 8)),
+      worldPoint: clientPointToWorld(event.clientX, event.clientY)
+    });
+  }
+
   function removeNodesByIds(nodeIds) {
     const targets = new Set(nodeIds);
     if (targets.size === 0) {
@@ -1401,6 +1433,7 @@ function CanvasWorkspace({
       return;
     }
     setAddMenuOpen(false);
+    setContextMenu(null);
     setNodeMoreOpen(false);
     if (event.target.closest(".canvas-node") && tool === "select" && !spaceHeld) {
       return;
@@ -2040,6 +2073,7 @@ function CanvasWorkspace({
         onPointerUp={endStageInteraction}
         onPointerCancel={endStageInteraction}
         onWheel={handleWheel}
+        onContextMenu={openCanvasContextMenu}
         onDragEnter={event => {
           event.preventDefault();
           setDraggingFiles(true);
@@ -2062,7 +2096,9 @@ function CanvasWorkspace({
           accept="image/*"
           multiple
           onChange={async event => {
-            await addFiles(event.target.files || []);
+            const worldPoint = pendingUploadPointRef.current;
+            pendingUploadPointRef.current = null;
+            await addFiles(event.target.files || [], worldPoint);
             event.target.value = "";
           }}
         />
@@ -2325,7 +2361,7 @@ function CanvasWorkspace({
             <span><ImagePlus /></span>
             <h2>{text("emptyTitle")}</h2>
             <p>{text("emptyCopy")}</p>
-            <Button type="button" variant="secondary" onClick={() => uploadInputRef.current?.click()}>
+            <Button type="button" variant="secondary" onClick={() => openUploadPicker()}>
               <Plus data-icon="inline-start" />
               {text("emptyAction")}
             </Button>
@@ -2339,14 +2375,36 @@ function CanvasWorkspace({
           </div>
         ) : null}
 
+        {contextMenu ? (
+          <div
+            className="canvas-context-menu canvas-floating-ui"
+            style={{ left: contextMenu.left, top: contextMenu.top }}
+            role="menu"
+          >
+            <button type="button" role="menuitem" onClick={() => addEmptyImageNode(contextMenu.worldPoint)}>
+              <Image /><span>{text("addImageNode")}</span><kbd>I</kbd>
+            </button>
+            <button type="button" role="menuitem" onClick={() => addTextNode(contextMenu.worldPoint)}>
+              <Type /><span>{text("addTextNode")}</span><kbd>T</kbd>
+            </button>
+            <button type="button" role="menuitem" onClick={() => {
+              const worldPoint = contextMenu.worldPoint;
+              setContextMenu(null);
+              openUploadPicker(worldPoint);
+            }}>
+              <Upload /><span>{text("addLocalImage")}</span><kbd>U</kbd>
+            </button>
+          </div>
+        ) : null}
+
         <div className="wuli-canvas-toolbar canvas-floating-ui">
           {addMenuOpen ? (
             <div className="wuli-add-menu is-open">
-              <button type="button" onClick={addEmptyImageNode}><Image /><span>{text("addImageNode")}</span><kbd>I</kbd></button>
-              <button type="button" onClick={addTextNode}><Type /><span>{text("addTextNode")}</span><kbd>T</kbd></button>
+              <button type="button" onClick={() => addEmptyImageNode()}><Image /><span>{text("addImageNode")}</span><kbd>I</kbd></button>
+              <button type="button" onClick={() => addTextNode()}><Type /><span>{text("addTextNode")}</span><kbd>T</kbd></button>
               <button type="button" onClick={() => {
                 setAddMenuOpen(false);
-                uploadInputRef.current?.click();
+                openUploadPicker();
               }}><Upload /><span>{text("upload")}</span><kbd>U</kbd></button>
             </div>
           ) : null}
@@ -2457,7 +2515,7 @@ function CanvasWorkspace({
             />
             {renderMentionMenu()}
             <div>
-              <button type="button" onClick={() => uploadInputRef.current?.click()}><Plus /></button>
+              <button type="button" onClick={() => openUploadPicker()}><Plus /></button>
               <button className="wuli-mode-pill" type="button"><Link2 />{text("defaultMode")}<ChevronDown /></button>
               <button className="wuli-agent-send" type="submit"><Send /></button>
             </div>
@@ -2470,7 +2528,7 @@ function CanvasWorkspace({
             generateOnCanvas();
           }}>
             <div className="wuli-reference-strip">
-              <button type="button" onClick={() => uploadInputRef.current?.click()} title={text("addReference")}><Plus /></button>
+              <button type="button" onClick={() => openUploadPicker()} title={text("addReference")}><Plus /></button>
               {generationInputNodes.map(node => {
                 const asset = getNodeAsset(node);
                 return (
