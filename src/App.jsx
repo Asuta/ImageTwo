@@ -47,7 +47,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import CanvasProjectsPage from "@/components/canvas/CanvasProjectsPage";
 import CanvasWorkspace from "@/components/canvas/CanvasWorkspace";
+import { createCanvasProject } from "@/lib/canvas-db";
 
 const DB_NAME = "image2-local-history";
 const DB_VERSION = 1;
@@ -456,6 +458,10 @@ function getStoredWorkspaceMode() {
   return WORKSPACE_MODES.has(storedMode) ? storedMode : "classic";
 }
 
+function getRequestedCanvasId() {
+  return new URLSearchParams(window.location.search).get("canvas") || "";
+}
+
 function GeneratedImageGrid({ task, renderImageCard, scrollLabel }) {
   const gridRef = useRef(null);
   const scrollbarTrackRef = useRef(null);
@@ -850,6 +856,9 @@ function App() {
   const [theme, setThemeState] = useState(getThemeFromStorage());
   const [language, setLanguage] = useState(getStoredLanguage());
   const [workspaceMode, setWorkspaceMode] = useState(getStoredWorkspaceMode());
+  const [activeCanvasId, setActiveCanvasId] = useState(() => (
+    getStoredWorkspaceMode() === "canvas" ? getRequestedCanvasId() : ""
+  ));
   const [canvasFocusSignal, setCanvasFocusSignal] = useState(0);
   const [toast, setToast] = useState("");
   const [preview, setPreview] = useState({
@@ -895,7 +904,20 @@ function App() {
 
   useEffect(() => {
     localStorage.setItem("image2-workspace-mode", workspaceMode);
-  }, [workspaceMode]);
+    const url = new URL(window.location.href);
+    if (workspaceMode === "canvas") {
+      url.searchParams.set("mode", "canvas");
+      if (activeCanvasId) {
+        url.searchParams.set("canvas", activeCanvasId);
+      } else {
+        url.searchParams.delete("canvas");
+      }
+    } else {
+      url.searchParams.delete("mode");
+      url.searchParams.delete("canvas");
+    }
+    window.history.replaceState(window.history.state, "", url);
+  }, [workspaceMode, activeCanvasId]);
 
   useEffect(() => {
     const onError = event => {
@@ -2117,10 +2139,37 @@ function App() {
     window.addEventListener("pointerup", handlePointerUp, { once: true });
   }
 
+  function openCanvasProjects() {
+    setActiveCanvasId("");
+    setWorkspaceMode("canvas");
+  }
+
+  function openCanvasProject(canvasId) {
+    setActiveCanvasId(canvasId);
+    setWorkspaceMode("canvas");
+  }
+
+  function openClassicWorkspace() {
+    setActiveCanvasId("");
+    setWorkspaceMode("classic");
+  }
+
+  async function createAndOpenCanvas() {
+    try {
+      const project = await createCanvasProject({
+        title: language === "en" ? "Untitled canvas" : "未命名画布"
+      });
+      openCanvasProject(project.id);
+    } catch (error) {
+      console.error(error);
+      showToast(language === "en" ? "Canvas project could not be created." : "画布项目创建失败。");
+    }
+  }
+
   const referenceModeActive = syncReferenceModeState();
 
   return (
-    <div className={`studio-shell${workspaceMode !== "classic" ? " canvas-mode-active" : ""}`} data-workspace-mode={workspaceMode}>
+    <div className={`studio-shell${workspaceMode !== "classic" ? " canvas-mode-active" : ""}${workspaceMode === "canvas" && !activeCanvasId ? " canvas-hub-active" : ""}`} data-workspace-mode={workspaceMode}>
       <aside className="sidebar" aria-label={t("nav.main")}>
         <div className="logo">
           <span className="logo-mark"><Sparkles /></span>
@@ -2128,11 +2177,11 @@ function App() {
         </div>
 
         <div className="workspace-mode-switch" role="group" aria-label={language === "en" ? "Workspace mode" : "工作区模式"}>
-          <button className={workspaceMode === "classic" ? "active" : ""} type="button" onClick={() => setWorkspaceMode("classic")}>
+          <button className={workspaceMode === "classic" ? "active" : ""} type="button" onClick={openClassicWorkspace}>
             <Home />
             <span>{t("mode.classic")}</span>
           </button>
-          <button className={workspaceMode === "canvas" ? "active" : ""} type="button" onClick={() => setWorkspaceMode("canvas")}>
+          <button className={workspaceMode === "canvas" ? "active" : ""} type="button" onClick={openCanvasProjects}>
             <Grid2X2 />
             <span>{t("mode.canvas")}</span>
           </button>
@@ -2140,7 +2189,11 @@ function App() {
 
         <Button className="new-generation-button" type="button" onClick={() => {
           if (workspaceMode === "canvas") {
-            setCanvasFocusSignal(value => value + 1);
+            if (activeCanvasId) {
+              setCanvasFocusSignal(value => value + 1);
+            } else {
+              createAndOpenCanvas();
+            }
           } else {
             setSelectedId(null);
             setPrompt("");
@@ -2153,7 +2206,7 @@ function App() {
         <nav className="nav-stack">
           <button className={`nav-item${workspaceMode === "classic" ? " active" : ""}`} type="button" title={t("nav.home")} onClick={() => {
             if (workspaceMode === "canvas") {
-              setWorkspaceMode("classic");
+              openClassicWorkspace();
             } else {
               showPlaceholderDialog(t("nav.home"));
             }
@@ -2161,7 +2214,7 @@ function App() {
             <span aria-hidden="true"><Home /></span>
             <span>{t("nav.home")}</span>
           </button>
-          <button className={`nav-item${workspaceMode === "canvas" ? " active" : ""}`} type="button" title={t("nav.canvas")} onClick={() => setWorkspaceMode("canvas")}>
+          <button className={`nav-item${workspaceMode === "canvas" ? " active" : ""}`} type="button" title={t("nav.canvas")} onClick={openCanvasProjects}>
             <span aria-hidden="true"><Grid2X2 /></span>
             <span>{t("nav.canvas")}</span>
           </button>
@@ -2401,19 +2454,32 @@ function App() {
             ) : null}
           </div>
         </section>
-        <CanvasWorkspace
-          active={workspaceMode === "canvas"}
-          language={language}
-          currentUser={currentUser}
-          history={history}
-          historyLoading={historyLoading}
-          focusSignal={canvasFocusSignal}
-          onGenerate={startGeneration}
-          onRequireLogin={promptLoginBeforeGeneration}
-          onToast={showToast}
-          onPreview={(src, items) => openImagePreview(src, { items })}
-          onExit={() => setWorkspaceMode("classic")}
-        />
+        {workspaceMode === "canvas" && !activeCanvasId ? (
+          <CanvasProjectsPage
+            active
+            language={language}
+            history={history}
+            onOpenProject={openCanvasProject}
+            onToast={showToast}
+          />
+        ) : null}
+        {workspaceMode === "canvas" && activeCanvasId ? (
+          <CanvasWorkspace
+            key={activeCanvasId}
+            active
+            canvasId={activeCanvasId}
+            language={language}
+            currentUser={currentUser}
+            history={history}
+            historyLoading={historyLoading}
+            focusSignal={canvasFocusSignal}
+            onGenerate={startGeneration}
+            onRequireLogin={promptLoginBeforeGeneration}
+            onToast={showToast}
+            onPreview={(src, items) => openImagePreview(src, { items })}
+            onExit={openCanvasProjects}
+          />
+        ) : null}
       </main>
 
       <section className={`composer${workspaceMode === "classic" ? "" : " mode-hidden"}`} aria-label={t("composer.section")}>

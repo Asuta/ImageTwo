@@ -10,7 +10,7 @@
 
 - 前端入口：`src/main.jsx`、`src/App.jsx`。
 - 前端样式：`src/styles.css`、`src/concept-fidelity.css`；轻量画布样式为 `src/canvas-mode.css`。
-- 轻量画布：`src/components/canvas/CanvasWorkspace.jsx` 负责全屏画布、图片/文本节点、框选、复制克隆、八方向缩放、可编辑连线、`@` 节点引用、导航辅助、上下文生成面板、经典历史图片抽屉和 AI 助手抽屉等交互；经典历史图片只在用户从底部历史抽屉拖入时加入画布，画布内发起的生成结果仍自动落位。`src/components/canvas/AnnotationEditor.jsx` 负责非破坏式图片标注，`src/lib/canvas-db.js` 负责独立 IndexedDB 布局、上传素材和标注图持久化。画布不包含视频生成或视频节点。
+- 轻量画布：`src/components/canvas/CanvasProjectsPage.jsx` 负责 Canvas 二级项目页、新建/提示词快速创建、搜索、进入、重命名和删除；`src/components/canvas/CanvasWorkspace.jsx` 负责单个全屏画布的图片/文本节点、框选、复制克隆、八方向缩放、可编辑连线、`@` 节点引用、导航辅助、上下文生成面板、经典历史图片抽屉和 AI 助手抽屉等交互；经典历史图片只在用户从底部历史抽屉拖入时加入画布，画布内发起的生成结果仍自动落位。`src/components/canvas/AnnotationEditor.jsx` 负责非破坏式图片标注，`src/lib/canvas-db.js` 负责多项目 IndexedDB、按 `canvasId` 隔离的布局/上传素材/标注持久化和旧单画布数据迁移。画布不包含视频生成或视频节点。
 - shadcn/Radix UI 组件：`src/components/ui/`，配置在 `components.json`，图标库为 `lucide`。
 - 前端工具函数：`src/lib/utils.js`，`@/*` 别名指向 `src/*`。
 - Vite 配置：`vite.config.js`。开发时 `/api` 代理到 `http://127.0.0.1:5180`，并为 `/admin` 提供本地页面 fallback。
@@ -40,7 +40,7 @@
 - 腾讯云邮件推送需要 `TENCENT_SES_SECRET_ID`、`TENCENT_SES_SECRET_KEY`、`TENCENT_SES_REGION`、`TENCENT_SES_FROM`；默认 `TENCENT_SES_CONTENT_MODE=simple` 会直接发送项目内验证码 HTML/纯文本内容。如腾讯云账号不支持 Simple 模式，可切到 `template` 并配置 `TENCENT_SES_TEMPLATE_ID`，模板变量默认使用 `{{code}}`，可通过 `TENCENT_SES_TEMPLATE_DATA_KEY` 调整。
 - 用户、session、礼品卡、额度和生成历史默认写入 `IMAGE2_DATA_DIR` 下的数据文件。修改数据结构时，要兼容已有本地数据或写清迁移方式。
 - 单次生图成本由 `IMAGE2_GENERATION_COST_CREDITS` 控制，当前默认值为 `0`，表示临时免费生成但仍保留 usage log；以后设为 `1` 可恢复每张扣 1 点，失败返还逻辑继续兼容非零成本。
-- 经典历史保存在浏览器 `image2-local-history` IndexedDB；画布布局、本地上传素材、节点内直接上传的 `referenceAssets` 和画布标注结果保存在独立的 `image2-canvas-workspace` IndexedDB。为覆盖刷新前的保存窗口，画布还会把不含 Blob 的布局、视口和设置写入 `localStorage` 兜底；生成图片节点只持久化 `taskId` / `imageId` 引用，不复制经典历史中的生成 Blob。
+- 经典历史保存在浏览器 `image2-local-history` IndexedDB；Canvas 项目清单以及每个项目按 `canvasId` 隔离的布局、本地上传素材、节点内直接上传的 `referenceAssets` 和画布标注结果保存在独立的 `image2-canvas-workspace` IndexedDB。数据库从旧单画布结构升级时会把原节点迁入 `default-workspace` 项目。为覆盖刷新前的保存窗口，各画布还会把不含 Blob 的布局、视口和设置写入独立的 `localStorage` 兜底键；生成图片节点只持久化 `taskId` / `imageId` 引用，不复制经典历史中的生成 Blob。
 - 本地环境不能发送真实邮箱验证码。测试登录相关流程时使用 `pnpm run dev:api`，不要依赖真实邮件；该脚本会强制 `IMAGE2_MAIL_PROVIDER=dev`，避免全局 `.image2.env` 中的生产邮件配置被误用。
 
 ## 代码约定
@@ -53,6 +53,8 @@
 - 多图生成是前端并行发送多次 `POST /api/generate`，不是在单个请求里传生成数量；相关请求格式见 `docs/request-format.md`。
 - 图片比例为 `auto` 时不应给上游追加比例文本；其他比例会写入 prompt，参考 `docs/request-format.md` 的说明。
 - 画布模式必须复用 `App.jsx` 的生成、轮询、额度和经典历史链路；不要在 Canvas 组件中另写一套 `/api/generate` 请求。画布移除生成节点只隐藏布局，不删除经典历史。
+- 多 Canvas 的所有节点、视口、提示词设置、上传 Blob、标注和本地兜底快照都必须按显式 `canvasId` 读写；保存一个项目时只替换该项目的节点，不能再清空整个 `nodes` object store。Canvas 项目删除不影响经典生成历史。
+- Canvas 项目页的空白“新建项目”只负责创建项目并在当前列表插入卡片，不得自动进入工作区；只有点击项目卡片才调用 `onOpenProject`。顶部提示词“创建并开始”属于另一条快捷路径，可以创建后直接进入。
 - 画布分支关系由节点 `parentIds` 和任务 `canvasContext.parentIds` 表达；分支续作结果默认落在来源节点右侧并绘制连线，不要根据节点坐标反推父子关系。节点连接锚点位于节点左右边缘外侧，左右吸附球都可发起由 `connectionDraft` 表达的跟随鼠标和磁性吸附：左侧拖出创建或连接当前节点的前置父节点，右侧拖出创建或连接当前节点的后续子节点；空白处松开必须先显示图像、文本、上传节点类型菜单。右侧拖出创建节点时，新节点左侧吸附球必须与松手位置重合；左侧拖出创建节点时，新节点右侧吸附球必须与松手位置重合。任意节点的直接 `parentIds` 都同时代表该节点的默认参考来源：选回目标节点时，所有左侧拖出的上游节点必须显示在参考内容区，上游图片作为参考图、上游文本作为提示词上下文；当前选中的图片是生成结果/目标节点，除非被提示词显式 `@` 引用，否则不得把自身显示或提交为参考素材。断开连线或移除参考卡片必须同步移除对应输入。上下文“添加参考”必须区分两种意图：“画布选择”把已有节点写入目标空图像节点的 `parentIds` 并绘制连线；“上传”把 Blob 写入目标节点的 `referenceAssets`，只显示参考卡片，不得创建可见 `upload` 节点或改变当前选中目标。对单个空图像节点发起生成时，首张任务图片必须原地替换该节点并继承其上游 `parentIds`；不要把空节点保留为中间父节点后再追加结果。
 - 画布中的文本节点作为选中生成时的提示词上下文使用，空图像节点可作为分支起点；两者只保存在画布工作区，不写入经典生成历史。
 - 画布生成只要求“输入框存在有效文字”或“当前生成上下文引用了至少一个有内容的文本节点”满足其一；仅引用图片不能替代提示词，两者都为空时才提示补充提示词。
@@ -85,7 +87,7 @@
 - 这个仓库目前没有 `test`、`lint` 或 `typecheck` 脚本；不要在说明中假设它们存在。需要验证时优先运行与改动相关的已有脚本。
 - 前端或构建配置改动后，至少运行 `pnpm run build`。
 - 登录、生成、兑换、管理员后台或任何 `/api` 行为改动后，同时启动 `pnpm run dev` 和 `pnpm run dev:api` 做浏览器验证。
-- 画布改动需要同时验证经典模式无回归，以及画布平移/缩放、框选、上传、图像/文本节点、添加菜单、AI 助手抽屉、上下文生成面板、拖拽、八方向缩放、复制/粘贴/克隆、选图参考、`@` 节点引用、图片标注、手动连线/断线/边删除、左右吸附球的前置/后续拖出、空白落点节点菜单、双向磁性吸附、导航地图、聚焦所选、撤销/重做、生成落位、双模式同步和刷新恢复。
+- 画布改动需要同时验证经典模式无回归，Canvas 项目页空白新建后停留当前页、点击新卡片后进入、提示词快速创建后直接进入、长项目列表可滚动到底部，以及搜索/重命名/删除，多项目节点与视口隔离、旧单画布迁移和刷新恢复；还要覆盖画布平移/缩放、框选、上传、图像/文本节点、添加菜单、AI 助手抽屉、上下文生成面板、拖拽、八方向缩放、复制/粘贴/克隆、选图参考、`@` 节点引用、图片标注、手动连线/断线/边删除、左右吸附球的前置/后续拖出、空白落点节点菜单、双向磁性吸附、导航地图、聚焦所选、撤销/重做、生成落位和双模式同步。
 - 使用 Playwright 测试本项目时，只需要测试横向桌面版本；不要求竖屏或移动端 portrait 测试。
 - 如果修改 `server.js`，正在运行的服务需要重启后才会生效。
 - 测试管理员接口时使用本地环境变量中的 `IMAGE2_ADMIN_KEY`，不要把真实 key 写进命令记录或文档。

@@ -116,7 +116,7 @@ const canvasCopy = {
     dragDrop: "松开即可添加到画布",
     nodeCount: "{count} 个画面",
     selectedCount: "已选择 {count} 项",
-    exitClassic: "经典模式",
+    exitClassic: "返回画布项目",
     projectTitle: "Image2 创意画布",
     share: "复制画布链接",
     shareDone: "画布链接已复制",
@@ -214,7 +214,7 @@ const canvasCopy = {
     dragDrop: "Drop to add to canvas",
     nodeCount: "{count} visual(s)",
     selectedCount: "{count} selected",
-    exitClassic: "Classic mode",
+    exitClassic: "Back to Canvas projects",
     projectTitle: "Image2 Creative Canvas",
     share: "Copy canvas link",
     shareDone: "Canvas link copied",
@@ -401,6 +401,7 @@ function formatHistoryDate(value) {
 
 function CanvasWorkspace({
   active,
+  canvasId,
   language = "zh",
   currentUser,
   history,
@@ -448,6 +449,7 @@ function CanvasWorkspace({
   const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
   const [historyDragPreview, setHistoryDragPreview] = useState(null);
   const [pointerContextMenu, setPointerContextMenu] = useState(null);
+  const [projectTitle, setProjectTitle] = useState(text("projectTitle"));
 
   const stageRef = useRef(null);
   const promptRef = useRef(null);
@@ -492,6 +494,7 @@ function CanvasWorkspace({
       return Promise.resolve();
     }
     return saveCanvasSnapshot({
+      canvasId,
       nodes: nodesRef.current,
       viewport: viewportRef.current,
       settings: settingsRef.current
@@ -517,12 +520,13 @@ function CanvasWorkspace({
   useEffect(() => {
     let cancelled = false;
 
-    loadCanvasSnapshot()
+    loadCanvasSnapshot(canvasId)
       .then(snapshot => {
         if (cancelled) {
           return;
         }
 
+        setProjectTitle(snapshot.project?.title || text("projectTitle"));
         const restoredNodes = snapshot.nodes.map(node => ({
           ...node,
           status: node.type === "upload" ? "done" : node.status,
@@ -569,7 +573,7 @@ function CanvasWorkspace({
       cancelled = true;
       nodesRef.current.forEach(revokeNodeRuntimeUrls);
     };
-  }, []);
+  }, [canvasId]);
 
   useEffect(() => {
     if (!hydrated) {
@@ -579,6 +583,7 @@ function CanvasWorkspace({
     setSaving(true);
     const timer = window.setTimeout(() => {
       saveCanvasSnapshot({
+        canvasId,
         nodes,
         viewport,
         settings: { prompt, aspectRatio, quality, count }
@@ -591,7 +596,7 @@ function CanvasWorkspace({
     }, SAVE_DEBOUNCE_MS);
 
     return () => window.clearTimeout(timer);
-  }, [nodes, viewport, prompt, aspectRatio, quality, count, hydrated]);
+  }, [canvasId, nodes, viewport, prompt, aspectRatio, quality, count, hydrated]);
 
   useEffect(() => {
     if (!hydrated) {
@@ -614,6 +619,20 @@ function CanvasWorkspace({
       document.removeEventListener("visibilitychange", flushWhenHidden);
     };
   }, [hydrated]);
+
+  useEffect(() => {
+    if (!hydrated) {
+      return undefined;
+    }
+    return () => {
+      saveCanvasSnapshot({
+        canvasId,
+        nodes: nodesRef.current,
+        viewport: viewportRef.current,
+        settings: settingsRef.current
+      }).catch(console.error);
+    };
+  }, [canvasId, hydrated]);
 
   const historyImageMap = useMemo(() => {
     const imageMap = new Map();
@@ -1267,6 +1286,7 @@ function CanvasWorkspace({
     ];
     try {
       await saveCanvasSnapshot({
+        canvasId,
         nodes: nextNodes,
         viewport: viewportRef.current,
         settings: settingsRef.current
@@ -1993,6 +2013,7 @@ function CanvasWorkspace({
     setSelectedIds([]);
     commitViewport(resetViewport);
     await saveCanvasSnapshot({
+      canvasId,
       nodes: hiddenHistoryNodes,
       viewport: resetViewport,
       settings: settingsRef.current
@@ -2856,7 +2877,7 @@ function CanvasWorkspace({
             <span><Sparkles /></span>
           </button>
           <button className="wuli-project-title" type="button" onClick={() => fitToContent()}>
-            <strong>{text("projectTitle")}</strong>
+            <strong>{projectTitle}</strong>
             <small>{saving ? text("saving") : text("saved")}</small>
             <ChevronDown />
           </button>
@@ -3460,7 +3481,7 @@ function CanvasWorkspace({
           inert={!assistantOpen}
         >
           <div className="wuli-agent-head">
-            <div><span><Bot /></span><strong>{text("projectTitle")}</strong><ChevronDown /></div>
+            <div><span><Bot /></span><strong>{projectTitle}</strong><ChevronDown /></div>
             <nav>
               <button type="button" title={text("historyChat")}><RotateCcw /></button>
               <button type="button" title={text("newChat")}><CirclePlus /></button>
