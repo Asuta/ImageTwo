@@ -4,10 +4,8 @@ import {
   Bot,
   ChevronDown,
   CirclePlus,
-  Clapperboard,
   Copy,
   CopyPlus,
-  Crop,
   Download,
   Focus,
   GitBranch,
@@ -18,7 +16,6 @@ import {
   Image,
   ImagePlus,
   Link2,
-  LayoutGrid,
   LoaderCircle,
   LocateFixed,
   MapPin,
@@ -33,7 +30,6 @@ import {
   Redo2,
   RotateCcw,
   Send,
-  Scissors,
   Sparkles,
   Trash2,
   Type,
@@ -151,11 +147,6 @@ const canvasCopy = {
     referenceAdded: "已添加 {count} 张参考图。",
     invalidReferenceSource: "请选择图片或文本节点作为参考。",
     imageModel: "Image2",
-    enhance: "高清",
-    panorama: "全景图",
-    relight: "重打光",
-    upscale: "智能放大",
-    crop: "裁剪",
     annotate: "标注"
   },
   en: {
@@ -249,11 +240,6 @@ const canvasCopy = {
     referenceAdded: "Added {count} reference image(s).",
     invalidReferenceSource: "Choose an image or text node as the reference.",
     imageModel: "Image2",
-    enhance: "HD",
-    panorama: "Panorama",
-    relight: "Relight",
-    upscale: "Upscale",
-    crop: "Crop",
     annotate: "Annotate"
   }
 };
@@ -2752,9 +2738,6 @@ function CanvasWorkspace({
 
   const primarySelectedNode = selectedNodes.length === 1 ? selectedNodes[0] : null;
   const primarySelectedAsset = primarySelectedNode ? getNodeAsset(primarySelectedNode) : null;
-  const primarySelectionIsVisual = Boolean(
-    primarySelectedNode && primarySelectedNode.type !== "text"
-  );
   const stageWidth = stageRef.current?.clientWidth || 1440;
   const stageHeight = stageRef.current?.clientHeight || 900;
   const connectionMenuStyle = connectionMenu
@@ -2788,7 +2771,7 @@ function CanvasWorkspace({
   const selectionScreenBottom = selectionBounds
     ? viewport.y + selectionBounds.maximumY * viewport.zoom
     : stageHeight / 2;
-  const toolbarHalfWidth = primarySelectionIsVisual ? 371 : 190;
+  const toolbarHalfWidth = 86;
   const contextualToolbarStyle = primarySelectedNode
     ? {
         left: clamp(selectionScreenCenterX, toolbarHalfWidth + 12, stageWidth - toolbarHalfWidth - 12),
@@ -2801,26 +2784,6 @@ function CanvasWorkspace({
         top: clamp(selectionScreenBottom + 12, 66, Math.max(66, stageHeight - 350))
       }
     : undefined;
-
-  function applyQuickAction(action) {
-    if (action === "annotate" && primarySelectedNode && primarySelectedAsset?.url) {
-      setAnnotationNodeId(primarySelectedNode.id);
-      return;
-    }
-    const prompts = {
-      enhance: language === "en" ? "Enhance details and clarity while preserving the composition." : "提升画面清晰度与细节，保持原有构图。",
-      panorama: language === "en" ? "Expand this into a cinematic panoramic composition." : "将画面扩展为更具电影感的全景构图。",
-      relight: language === "en" ? "Relight the scene with more dimensional, cinematic lighting." : "重新设计光影，让画面更有层次与电影感。",
-      film: language === "en" ? "Refine this image with cinematic composition, lens language, and film color." : "使用电影镜头语言、构图和色彩重新优化画面。",
-      grid: language === "en" ? "Split this visual into a coherent storyboard grid while preserving the subject." : "将画面切分为连贯的分镜宫格，并保持主体一致。",
-      cutout: language === "en" ? "Isolate the main subject on a clean transparent background." : "精准抠出画面主体并输出干净透明背景。",
-      upscale: language === "en" ? "Upscale and refine the visual with natural detail." : "智能放大并补充自然、精细的画面细节。",
-      crop: language === "en" ? "Recompose the subject with a stronger crop and visual focus." : "重新裁切构图，强化主体与视觉焦点。",
-      annotate: language === "en" ? "Apply the following directed changes: " : "按照以下标注修改画面："
-    };
-    commitSetting("prompt", prompts[action] || "", setPrompt);
-    window.requestAnimationFrame(() => promptRef.current?.focus());
-  }
 
   function saveAnnotation(blob) {
     const nodeId = annotationNodeId;
@@ -3239,18 +3202,6 @@ function CanvasWorkspace({
 
         {primarySelectedNode && !assistantOpen && !referencePicker ? (
           <div className="canvas-context-toolbar canvas-floating-ui" style={contextualToolbarStyle}>
-            {primarySelectionIsVisual ? (
-              <>
-                <button type="button" onClick={() => applyQuickAction("enhance")}><Maximize2 /><span>{text("enhance")}</span></button>
-                <button type="button" onClick={() => applyQuickAction("panorama")}><Grid3X3 /><span>{text("panorama")}</span></button>
-                <button type="button" onClick={() => applyQuickAction("relight")}><Sparkles /><span>{text("relight")}</span></button>
-                <button type="button" onClick={() => applyQuickAction("film")}><Clapperboard /><span>{language === "en" ? "Film look" : "影视达人"}</span></button>
-                <button type="button" onClick={() => applyQuickAction("grid")}><LayoutGrid /><span>{language === "en" ? "Grid split" : "宫格切分"}</span></button>
-                <button type="button" onClick={() => applyQuickAction("cutout")}><Scissors /><span>{language === "en" ? "Cutout" : "抠图"}</span></button>
-                <button type="button" onClick={() => applyQuickAction("crop")}><Crop /><span>{text("crop")}</span></button>
-                <button type="button" onClick={() => applyQuickAction("annotate")}><Paintbrush /><span>{text("annotate")}</span></button>
-              </>
-            ) : null}
             <button className="canvas-toolbar-more-trigger" type="button" title="More" onClick={() => setNodeMoreOpen(value => !value)}><MoreHorizontal /></button>
             <i />
             <button type="button" title={language === "en" ? "Copy" : "复制"} onClick={copySelectedNodes}><Copy /></button>
@@ -3268,6 +3219,12 @@ function CanvasWorkspace({
             ><Maximize2 /></button>
             {nodeMoreOpen ? (
               <div className="canvas-node-more-menu">
+                {primarySelectedNode.type !== "text" && primarySelectedAsset?.url ? (
+                  <button type="button" onClick={() => {
+                    setNodeMoreOpen(false);
+                    setAnnotationNodeId(primarySelectedNode.id);
+                  }}><Paintbrush /><span>{text("annotate")}</span></button>
+                ) : null}
                 {primarySelectedNode.type !== "empty-image" ? (
                   <button type="button" onClick={() => {
                     setNodeMoreOpen(false);

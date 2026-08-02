@@ -10,7 +10,7 @@
 
 - 前端入口：`src/main.jsx`、`src/App.jsx`。
 - 前端样式：`src/styles.css`、`src/concept-fidelity.css`；轻量画布样式为 `src/canvas-mode.css`。
-- 轻量画布：`src/components/canvas/CanvasProjectsPage.jsx` 负责 Canvas 二级项目页、新建/提示词快速创建、搜索、进入、重命名和删除；`src/components/canvas/CanvasWorkspace.jsx` 负责单个全屏画布的图片/文本节点、框选、复制克隆、八方向缩放、可编辑连线、`@` 节点引用、导航辅助、上下文生成面板、经典历史图片抽屉和 AI 助手抽屉等交互；经典历史图片只在用户从底部历史抽屉拖入时加入画布，画布内发起的生成结果仍自动落位。`src/components/canvas/AnnotationEditor.jsx` 负责非破坏式图片标注，`src/lib/canvas-db.js` 负责多项目 IndexedDB、按 `canvasId` 隔离的布局/上传素材/标注持久化和旧单画布数据迁移。画布不包含视频生成或视频节点。
+- 轻量画布：`src/components/canvas/CanvasProjectsPage.jsx` 负责 Canvas 二级项目页、新建/提示词快速创建、搜索、进入、重命名和删除；`src/components/canvas/CanvasWorkspace.jsx` 负责单个全屏画布的图片/文本节点、框选、复制克隆、八方向缩放、可编辑连线、`@` 节点引用、导航辅助、上下文生成面板、经典历史图片抽屉和 AI 助手抽屉等交互；选中图片后的顶部工具栏只保留真实节点操作，不提供仅追加固定提示词的伪功能按钮，图片标注从“更多”菜单进入；经典历史图片只在用户从底部历史抽屉拖入时加入画布，画布内发起的生成结果仍自动落位。`src/components/canvas/AnnotationEditor.jsx` 负责非破坏式图片标注，`src/lib/canvas-db.js` 负责多项目 IndexedDB、按 `canvasId` 隔离的布局/上传素材/标注持久化和旧单画布数据迁移。画布不包含视频生成或视频节点。
 - shadcn/Radix UI 组件：`src/components/ui/`，配置在 `components.json`，图标库为 `lucide`。
 - 前端工具函数：`src/lib/utils.js`，`@/*` 别名指向 `src/*`。
 - Vite 配置：`vite.config.js`。开发时 `/api` 代理到 `http://127.0.0.1:5180`，并为 `/admin` 提供本地页面 fallback。
