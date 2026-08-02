@@ -2651,7 +2651,7 @@ function CanvasWorkspace({
         updatedAt: task.createdAt
       }));
       recordUndoSnapshot();
-      const nextNodes = commitNodes(previous => {
+      commitNodes(previous => {
         if (!replaceTarget || canvasNodes.length === 0) {
           return [...previous, ...canvasNodes];
         }
@@ -2685,7 +2685,6 @@ function CanvasWorkspace({
       setSelectedIds(canvasNodes.map(node => node.id));
       commitSetting("prompt", "", setPrompt);
       persistCurrentSnapshot().catch(console.error);
-      window.requestAnimationFrame(() => fitToContent(nextNodes));
     } catch (error) {
       console.error(error);
       onToast?.(error instanceof Error ? error.message : text("taskFailed"));
