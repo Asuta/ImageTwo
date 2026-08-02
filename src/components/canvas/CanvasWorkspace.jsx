@@ -96,7 +96,7 @@ const canvasCopy = {
     count: "数量",
     generate: "生成",
     loginGenerate: "登录后生成",
-    promptRequired: "请输入提示词。",
+    promptRequired: "请输入提示词或引用一个有内容的文本节点。",
     uploadOnlyImages: "请选择图片文件。",
     uploadFailed: "图片添加失败。",
     uploadPartial: "部分图片无法读取，其他图片已添加。",
@@ -194,7 +194,7 @@ const canvasCopy = {
     count: "Count",
     generate: "Generate",
     loginGenerate: "Sign in to generate",
-    promptRequired: "Enter a prompt first.",
+    promptRequired: "Enter a prompt or reference a text node with content.",
     uploadOnlyImages: "Choose image files.",
     uploadFailed: "Could not add the image.",
     uploadPartial: "Some images could not be read. The others were added.",
@@ -2533,11 +2533,16 @@ function CanvasWorkspace({
 
   async function generateOnCanvas() {
     const nextPrompt = stripMentionTokens(prompt);
+    const selectedTextContext = generationInputNodes
+      .filter(node => node.type === "text" && node.content?.trim())
+      .map(node => node.content.trim())
+      .join("\n\n");
+    const generationPrompt = [selectedTextContext, nextPrompt].filter(Boolean).join("\n\n");
     if (!currentUser) {
       onRequireLogin?.();
       return;
     }
-    if (!nextPrompt) {
+    if (!generationPrompt) {
       onToast?.(text("promptRequired"));
       promptRef.current?.focus();
       return;
@@ -2556,13 +2561,6 @@ function CanvasWorkspace({
     }
 
     try {
-      const selectedTextContext = generationInputNodes
-        .filter(node => node.type === "text" && node.content?.trim())
-        .map(node => node.content.trim())
-        .join("\n\n");
-      const generationPrompt = selectedTextContext
-        ? `${selectedTextContext}\n\n${nextPrompt}`
-        : nextPrompt;
       const references = await Promise.all([
         ...referenceNodes.map(async node => {
           const asset = getNodeAsset(node);
