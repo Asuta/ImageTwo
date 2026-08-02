@@ -456,6 +456,7 @@ function CanvasWorkspace({
   const wheelEndTimerRef = useRef(0);
   const didInitialFitRef = useRef(false);
   const clipboardRef = useRef([]);
+  const stagePointerClientRef = useRef(null);
 
   function commitNodes(nextValue) {
     const nextNodes = typeof nextValue === "function" ? nextValue(nodesRef.current) : nextValue;
@@ -1132,16 +1133,13 @@ function CanvasWorkspace({
       } else if (modifierPressed && event.key.toLowerCase() === "c") {
         event.preventDefault();
         copySelectedNodes();
-      } else if (modifierPressed && event.key.toLowerCase() === "v") {
-        event.preventDefault();
-        pasteCopiedNodes();
       } else if (modifierPressed && event.key.toLowerCase() === "d") {
         event.preventDefault();
         duplicateSelectedNodes();
       } else if (event.code === "Space") {
         event.preventDefault();
         setSpaceHeld(true);
-      } else if (event.key.toLowerCase() === "v") {
+      } else if (!modifierPressed && event.key.toLowerCase() === "v") {
         setTool("select");
       } else if (event.key.toLowerCase() === "h") {
         setTool("hand");
@@ -1191,12 +1189,25 @@ function CanvasWorkspace({
         setSpaceHeld(false);
       }
     };
+    const handlePaste = event => {
+      if (
+        isTypingTarget(event.target)
+        || referencePicker
+        || clipboardRef.current.length === 0
+      ) {
+        return;
+      }
+      event.preventDefault();
+      pasteCopiedNodes();
+    };
 
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("paste", handlePaste);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("paste", handlePaste);
     };
   }, [active, undoStack.length, redoStack.length, selectedNodes, selectedEdgeId, referencePicker]);
 
@@ -1586,16 +1597,43 @@ function CanvasWorkspace({
     }
   }
 
-  function pasteCopiedNodes(offset = 36) {
+  function getPointerPasteTarget() {
+    const pointer = stagePointerClientRef.current;
+    const rect = stageRef.current?.getBoundingClientRect();
+    if (
+      !pointer
+      || !rect
+      || pointer.x < rect.left
+      || pointer.x > rect.right
+      || pointer.y < rect.top
+      || pointer.y > rect.bottom
+    ) {
+      return null;
+    }
+    return clientPointToWorld(pointer.x, pointer.y);
+  }
+
+  function pasteCopiedNodes({ atPointer = true, offset = 36 } = {}) {
     if (clipboardRef.current.length === 0) return;
+    const pasteTarget = atPointer ? getPointerPasteTarget() : null;
+    const minimumX = Math.min(...clipboardRef.current.map(node => node.x));
+    const minimumY = Math.min(...clipboardRef.current.map(node => node.y));
+    const maximumX = Math.max(...clipboardRef.current.map(node => node.x + node.width));
+    const maximumY = Math.max(...clipboardRef.current.map(node => node.y + node.height));
+    const translateX = pasteTarget
+      ? pasteTarget.x - (minimumX + maximumX) / 2
+      : offset;
+    const translateY = pasteTarget
+      ? pasteTarget.y - (minimumY + maximumY) / 2
+      : offset;
     const idMap = new Map(clipboardRef.current.map(node => [node.id, createLocalId("clone")]));
     const additions = clipboardRef.current.map(node => {
       const nextId = idMap.get(node.id);
       return {
         ...node,
         id: nextId,
-        x: node.x + offset,
-        y: node.y + offset,
+        x: node.x + translateX,
+        y: node.y + translateY,
         parentIds: (node.parentIds || []).map(id => idMap.get(id) || id),
         referenceNodeIds: (node.referenceNodeIds || []).map(id => idMap.get(id) || id),
         referenceAssets: cloneReferenceAssets(node.referenceAssets),
@@ -1614,7 +1652,7 @@ function CanvasWorkspace({
 
   function duplicateSelectedNodes() {
     copySelectedNodes();
-    pasteCopiedNodes();
+    pasteCopiedNodes({ atPointer: false });
   }
 
   function edgeId(parentId, childId) {
@@ -2292,6 +2330,10 @@ function CanvasWorkspace({
   }
 
   function handleStagePointerMove(event) {
+    stagePointerClientRef.current = {
+      x: event.clientX,
+      y: event.clientY
+    };
     const interaction = interactionRef.current;
     if (!interaction || interaction.pointerId !== event.pointerId) {
       return;
@@ -2868,6 +2910,15 @@ function CanvasWorkspace({
         }}
         onPointerDownCapture={captureStagePointerDown}
         onPointerDown={beginStageInteraction}
+        onPointerEnter={event => {
+          stagePointerClientRef.current = {
+            x: event.clientX,
+            y: event.clientY
+          };
+        }}
+        onPointerLeave={() => {
+          stagePointerClientRef.current = null;
+        }}
         onPointerMove={handleStagePointerMove}
         onPointerUp={endStageInteraction}
         onPointerCancel={endStageInteraction}
@@ -3644,7 +3695,7 @@ function CanvasWorkspace({
                   ["Ctrl/⌘ + Wheel", language === "en" ? "Zoom around the pointer" : "以鼠标位置为中心缩放"],
                   ["Middle / Right drag", language === "en" ? "Pan from empty canvas" : "从空白处拖动平移"],
                   ["Right click", language === "en" ? "Open node actions" : "打开节点操作菜单"],
-                  ["Ctrl C / V", language === "en" ? "Copy / paste nodes" : "复制 / 粘贴节点"],
+                  ["Ctrl C / V", language === "en" ? "Copy / paste nodes at pointer" : "复制 / 粘贴到鼠标位置"],
                   ["Ctrl D", language === "en" ? "Quick duplicate" : "快速克隆"],
                   ["Delete", language === "en" ? "Delete node or connection" : "删除节点或连线"],
                   ["F", language === "en" ? "Focus selection" : "聚焦所选"],
