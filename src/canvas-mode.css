@@ -1312,10 +1312,6 @@
   box-shadow: 0 8px 18px rgba(91, 72, 143, 0.13), inset 0 1px 0 #fff;
 }
 
-.studio-shell.canvas-mode-active .main::after {
-  display: none !important;
-}
-
 .canvas-workspace {
   position: relative;
   z-index: 4;

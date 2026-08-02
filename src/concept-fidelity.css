@@ -33,37 +33,6 @@
       linear-gradient(135deg, #f8f5ff 0%, #efedfb 48%, #dfe3f7 100%) !important;
   }
 
-  body::after {
-    content: "" !important;
-    position: fixed !important;
-    inset: auto 0 0 0 !important;
-    height: 330px !important;
-    z-index: 1 !important;
-    pointer-events: none !important;
-    background:
-      linear-gradient(0deg, rgba(188, 194, 230, 0.5), rgba(218, 221, 244, 0.24) 52%, rgba(238, 237, 250, 0)) !important;
-    filter: blur(18px) saturate(112%) !important;
-    mask-image: linear-gradient(0deg, #000 0%, rgba(0, 0, 0, 0.72) 58%, transparent 100%) !important;
-    -webkit-mask-image: linear-gradient(0deg, #000 0%, rgba(0, 0, 0, 0.72) 58%, transparent 100%) !important;
-  }
-
-  .studio-shell .main::after {
-    content: "" !important;
-    position: fixed !important;
-    left: 240px !important;
-    right: 48px !important;
-    bottom: 0 !important;
-    height: 150px !important;
-    z-index: 70 !important;
-    pointer-events: none !important;
-    background:
-      linear-gradient(0deg, rgba(188, 194, 230, 0.38), rgba(216, 219, 244, 0.18) 50%, rgba(238, 237, 250, 0)) !important;
-    backdrop-filter: blur(2px) saturate(115%) !important;
-    mask-image: linear-gradient(0deg, #000 0%, rgba(0, 0, 0, 0.72) 42%, transparent 100%) !important;
-    -webkit-mask-image: linear-gradient(0deg, #000 0%, rgba(0, 0, 0, 0.72) 42%, transparent 100%) !important;
-  }
-
-  body.preview-open .studio-shell .main::after,
   body.preview-open .studio-shell .composer {
     display: none !important;
   }
@@ -1666,13 +1635,11 @@ body,
     rgba(32, 23, 52, 0.56) !important;
 }
 
-.studio-shell:has(.image-preview:not(.hidden)) .main::after,
 .studio-shell:has(.image-preview:not(.hidden)) .composer {
   display: none !important;
   pointer-events: none !important;
 }
 
-body:has(.studio-shell .image-preview:not(.hidden))::after,
 .studio-shell:has(.image-preview:not(.hidden))::before,
 .studio-shell:has(.image-preview:not(.hidden))::after {
   display: none !important;
@@ -2074,21 +2041,6 @@ body:has(.studio-shell .image-preview:not(.hidden))::after,
 :root[data-theme="dark"] .studio-shell .task-more-actions svg {
   color: #d8dcf4 !important;
   opacity: 1 !important;
-}
-
-:root[data-theme="dark"] body::after {
-  background:
-    radial-gradient(ellipse at 30% 96%, rgba(126, 92, 255, 0.18), transparent 34%),
-    radial-gradient(ellipse at 78% 100%, rgba(61, 67, 104, 0.34), transparent 36%),
-    linear-gradient(0deg, rgba(7, 8, 13, 0.9), rgba(17, 20, 31, 0.68) 48%, rgba(18, 21, 32, 0)) !important;
-  filter: blur(18px) saturate(112%) !important;
-}
-
-:root[data-theme="dark"] .studio-shell .main::after {
-  background:
-    radial-gradient(ellipse at 52% 100%, rgba(133, 101, 255, 0.18), transparent 44%),
-    linear-gradient(0deg, rgba(8, 9, 15, 0.72), rgba(21, 24, 36, 0.5) 50%, rgba(21, 24, 36, 0)) !important;
-  backdrop-filter: blur(2px) saturate(118%) !important;
 }
 
 /* Compact landscape needs this final override because the in-app browser can
@@ -2510,10 +2462,8 @@ body:has(.studio-shell .image-preview:not(.hidden))::after,
       linear-gradient(145deg, #f8f5ff 0%, #efedfb 54%, #dde2f6 100%) !important;
   }
 
-  body::after,
   .studio-shell::before,
-  .studio-shell::after,
-  .studio-shell .main::after {
+  .studio-shell::after {
     display: none !important;
     content: none !important;
   }
