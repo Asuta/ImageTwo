@@ -983,16 +983,20 @@ function CanvasWorkspace({
     };
 
     generationNodes.forEach(node => {
-      if (node.type !== "empty-image") {
+      const explicitlyMentioned = mentionedNodeIds.includes(node.id);
+      const selectedImageOutput = selectedIds.includes(node.id)
+        && (node.type === "upload" || node.type === "history-image");
+      if (node.type !== "empty-image" && (!selectedImageOutput || explicitlyMentioned)) {
         appendNode(node);
       }
-      const linkedReferenceIds = node.type === "empty-image"
-        ? [...(node.parentIds || []), ...(node.referenceNodeIds || [])]
-        : (node.referenceNodeIds || []);
+      const linkedReferenceIds = [
+        ...(node.parentIds || []),
+        ...(node.referenceNodeIds || [])
+      ];
       linkedReferenceIds.forEach(referenceId => appendNode(nodeMap.get(referenceId)));
     });
     return resolved;
-  }, [visibleNodes, generationNodes]);
+  }, [visibleNodes, generationNodes, selectedIds, mentionedNodeIds]);
   const referenceNodes = useMemo(
     () => generationInputNodes.filter(node => node.type === "upload" || node.type === "history-image").filter(node => {
       const asset = getNodeAsset(node);
@@ -1056,7 +1060,26 @@ function CanvasWorkspace({
 
     // Ctrl/⌘ + wheel must cancel the browser's page zoom before updating only
     // the canvas viewport. React's delegated wheel event can be passive.
-    const handleNativeWheel = event => handleWheel(event);
+    const handleNativeWheel = event => {
+      const target = event.target instanceof Element ? event.target : null;
+      const floatingUi = target?.closest(".canvas-floating-ui");
+      if (floatingUi) {
+        const historyScroll = floatingUi.matches(".canvas-history-panel")
+          ? floatingUi.querySelector(".canvas-history-scroll")
+          : null;
+        if (historyScroll) {
+          const deltaScale = event.deltaMode === 1
+            ? 16
+            : event.deltaMode === 2
+              ? historyScroll.clientHeight || 600
+              : 1;
+          event.preventDefault();
+          historyScroll.scrollTop += event.deltaY * deltaScale;
+        }
+        return;
+      }
+      handleWheel(event);
+    };
     stage.addEventListener("wheel", handleNativeWheel, { passive: false });
     return () => {
       stage.removeEventListener("wheel", handleNativeWheel);
@@ -1281,9 +1304,10 @@ function CanvasWorkspace({
       return 0;
     }
     const nodeMap = new Map(nodesRef.current.map(node => [node.id, node]));
-    const linkedIds = targetNode.type === "empty-image"
-      ? [...(targetNode.parentIds || []), ...(targetNode.referenceNodeIds || [])]
-      : [targetNode.id, ...(targetNode.referenceNodeIds || [])];
+    const linkedIds = [
+      ...(targetNode.parentIds || []),
+      ...(targetNode.referenceNodeIds || [])
+    ];
     const linkedImageCount = new Set(linkedIds).size === 0
       ? 0
       : [...new Set(linkedIds)].filter(id => {
@@ -1660,7 +1684,7 @@ function CanvasWorkspace({
     }
     setSelectedIds(previous => previous.filter(id => id !== nodeId));
     const inheritedChildren = generationNodes.filter(node => (
-      node.type === "empty-image" && (node.parentIds || []).includes(nodeId)
+      (node.parentIds || []).includes(nodeId)
     ));
     const linkedReferenceOwners = generationNodes.filter(node => (
       (node.referenceNodeIds || []).includes(nodeId)
