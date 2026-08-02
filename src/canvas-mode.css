@@ -2674,16 +2674,6 @@
   color: #58aa41;
 }
 
-.wuli-canvas .canvas-node.is-text-node .canvas-node-label {
-  pointer-events: auto;
-  cursor: move;
-  user-select: none;
-}
-
-.wuli-canvas .canvas-stage.is-hand-tool .canvas-node.is-text-node .canvas-node-label {
-  cursor: inherit;
-}
-
 .wuli-canvas .canvas-node.is-text-node textarea {
   width: 100% !important;
   height: 100% !important;
@@ -2698,7 +2688,17 @@
   font: inherit !important;
   font-size: 12px !important;
   line-height: 1.65 !important;
+  cursor: move;
+  user-select: none;
+}
+
+.wuli-canvas .canvas-node.is-text-node.is-editing textarea {
+  cursor: text;
   user-select: text;
+}
+
+.wuli-canvas .canvas-node.is-text-node.is-editing textarea.is-keyboard-input-active {
+  cursor: none;
 }
 
 .canvas-empty-image {

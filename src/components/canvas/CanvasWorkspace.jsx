@@ -56,7 +56,6 @@ const MENTION_PATTERN = /@\[[^\]]+\]\(canvas:([^)]+)\)/g;
 const RESIZE_HANDLES = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
 const CONNECTION_HANDLE_OFFSET = 26;
 const CONNECTION_SNAP_RADIUS_PX = 34;
-const NODE_MOVE_ACTIVATION_DISTANCE_PX = 4;
 
 const ratioOptions = ["auto", "9:21", "9:16", "2:3", "3:4", "1:1", "4:3", "3:2", "16:9", "21:9"];
 
@@ -418,6 +417,7 @@ function CanvasWorkspace({
   const [nodes, setNodes] = useState([]);
   const [viewport, setViewport] = useState({ x: 32, y: 32, zoom: 1 });
   const [selectedIds, setSelectedIds] = useState([]);
+  const [editingTextNodeId, setEditingTextNodeId] = useState("");
   const [tool, setTool] = useState("select");
   const [prompt, setPrompt] = useState("");
   const [aspectRatio, setAspectRatio] = useState("auto");
@@ -460,6 +460,7 @@ function CanvasWorkspace({
   const referenceUploadInputRef = useRef(null);
   const referenceUploadTargetRef = useRef("");
   const textEditSnapshotRef = useRef(null);
+  const textNodeInputRefs = useRef(new Map());
   const nodesRef = useRef(nodes);
   const viewportRef = useRef(viewport);
   const selectedIdsRef = useRef(selectedIds);
@@ -1173,7 +1174,7 @@ function CanvasWorkspace({
         setNodeMoreOpen(false);
         setHelpOpen(false);
         setMentionMenuOpen(false);
-        setConnectionMenu(null);
+        clearPendingConnection();
         setReferenceMenuOpen(false);
         setPointerContextMenu(null);
         setSelectedEdgeId("");
@@ -1224,7 +1225,7 @@ function CanvasWorkspace({
       connectionContext &&
       !nodesRef.current.some(node => node.id === connectionContext.originNodeId)
     ) {
-      setConnectionMenu(null);
+      clearPendingConnection();
       return;
     }
 
@@ -1300,7 +1301,7 @@ function CanvasWorkspace({
     recordUndoSnapshot();
     commitNodes(nextNodes);
     setSelectedIds(additions.map(node => node.id));
-    setConnectionMenu(null);
+    clearPendingConnection();
     didInitialFitRef.current = true;
     if (failedCount > 0) {
       onToast?.(text("uploadPartial"));
@@ -1524,11 +1525,17 @@ function CanvasWorkspace({
     setContextMenu(null);
   }
 
+  function clearPendingConnection() {
+    pendingConnectionUploadRef.current = null;
+    setConnectionMenu(null);
+    setConnectionDraft(null);
+  }
+
   function addConnectedNode(type) {
     const context = connectionMenu;
     const origin = nodesRef.current.find(node => node.id === context?.originNodeId);
     if (!context || !origin) {
-      setConnectionMenu(null);
+      clearPendingConnection();
       return;
     }
 
@@ -1572,7 +1579,7 @@ function CanvasWorkspace({
       connectedFromRight ? origin.id : node.id,
       connectedFromRight ? node.id : origin.id
     ));
-    setConnectionMenu(null);
+    clearPendingConnection();
     persistCurrentSnapshot().catch(console.error);
     if (!isTextNode) {
       window.requestAnimationFrame(() => promptRef.current?.focus());
@@ -1582,7 +1589,6 @@ function CanvasWorkspace({
   function openConnectionUpload() {
     if (!connectionMenu) return;
     pendingConnectionUploadRef.current = connectionMenu;
-    setConnectionMenu(null);
     connectionUploadInputRef.current?.click();
   }
 
@@ -1765,6 +1771,17 @@ function CanvasWorkspace({
       textEditSnapshotRef.current = null;
       persistCurrentSnapshot().catch(console.error);
     }
+  }
+
+  function stopTextNodeEditing(nodeId = editingTextNodeId) {
+    if (!nodeId) return;
+    const input = textNodeInputRefs.current.get(nodeId);
+    if (document.activeElement === input) {
+      input.blur();
+      return;
+    }
+    setEditingTextNodeId(current => current === nodeId ? "" : current);
+    finishTextEdit();
   }
 
   async function shareCanvas() {
@@ -2089,11 +2106,11 @@ function CanvasWorkspace({
   function beginStageInteraction(event) {
     if (event.target.closest(".canvas-floating-ui")) {
       if (!event.target.closest(".canvas-connection-menu")) {
-        setConnectionMenu(null);
+        clearPendingConnection();
       }
       return;
     }
-    setConnectionMenu(null);
+    clearPendingConnection();
     if (referencePicker) {
       event.preventDefault();
       return;
@@ -2103,7 +2120,11 @@ function CanvasWorkspace({
     setReferenceMenuOpen(false);
     setNodeMoreOpen(false);
     setPointerContextMenu(null);
-    if (event.target.closest(".canvas-node") && tool === "select" && !spaceHeld) {
+    const targetNode = event.target.closest(".canvas-node");
+    if (!targetNode) {
+      stopTextNodeEditing();
+    }
+    if (targetNode && tool === "select" && !spaceHeld) {
       return;
     }
     if (event.button !== 0 && event.button !== 1 && event.button !== 2) {
@@ -2155,6 +2176,10 @@ function CanvasWorkspace({
       return;
     }
 
+    if (editingTextNodeId && editingTextNodeId !== node.id) {
+      stopTextNodeEditing();
+    }
+
     event.preventDefault();
     event.stopPropagation();
     setReferenceMenuOpen(false);
@@ -2192,44 +2217,20 @@ function CanvasWorkspace({
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
-  function beginTextNodeInteraction(event, node) {
-    if (referencePicker) {
-      event.preventDefault();
-      event.stopPropagation();
-      finishCanvasReferencePicker(node.id);
-      return;
-    }
-    if (tool === "hand" || spaceHeld) {
-      return;
-    }
-    if (event.button !== 0) {
-      event.stopPropagation();
-      return;
-    }
-
+  function beginTextNodeEdit(event, node) {
     event.stopPropagation();
-    setNodeMoreOpen(false);
-    setSelectedIds([node.id]);
-
-    // An already focused textarea stays in text-editing mode so drag-selection
-    // keeps working. Before focus, wait for actual pointer movement: a click
-    // still places the caret, while a drag moves the node.
-    if (document.activeElement === event.currentTarget) {
+    if (editingTextNodeId === node.id) {
       return;
     }
 
-    interactionRef.current = {
-      type: "move-pending",
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      ids: [node.id],
-      positions: new Map([[node.id, { x: node.x, y: node.y }]]),
-      beforeSnapshot: captureCanvasSnapshot(),
-      source: event.currentTarget,
-      hasChanged: false
-    };
-    event.currentTarget.setPointerCapture(event.pointerId);
+    setSelectedIds([node.id]);
+    setEditingTextNodeId(node.id);
+    window.requestAnimationFrame(() => {
+      const input = textNodeInputRefs.current.get(node.id);
+      input?.focus({ preventScroll: true });
+      const caretPosition = input?.value?.length || 0;
+      input?.setSelectionRange(caretPosition, caretPosition);
+    });
   }
 
   function beginNodeResize(event, node, direction) {
@@ -2268,7 +2269,7 @@ function CanvasWorkspace({
     setSelectedIds([node.id]);
     setSelectedEdgeId("");
     setNodeMoreOpen(false);
-    setConnectionMenu(null);
+    clearPendingConnection();
     interactionRef.current = {
       type: "connect",
       pointerId: event.pointerId,
@@ -2311,23 +2312,6 @@ function CanvasWorkspace({
     }
 
     event.preventDefault();
-    if (interaction.type === "move-pending") {
-      const pointerDistance = Math.hypot(
-        event.clientX - interaction.startX,
-        event.clientY - interaction.startY
-      );
-      if (pointerDistance < NODE_MOVE_ACTIVATION_DISTANCE_PX) {
-        return;
-      }
-
-      interaction.type = "move";
-      if (document.activeElement === interaction.source) {
-        textEditSnapshotRef.current = null;
-        interaction.source.blur();
-      }
-      setInteractionType("move");
-    }
-
     if (interaction.type === "pan") {
       interaction.hasMoved ||= Math.hypot(
         event.clientX - interaction.startX,
@@ -2424,6 +2408,7 @@ function CanvasWorkspace({
       return;
     }
     if (interaction.type === "connect") {
+      let keepPendingConnection = false;
       const targetAttribute = interaction.startHandleType === "target"
         ? "data-connection-output"
         : "data-connection-input";
@@ -2440,20 +2425,25 @@ function CanvasWorkspace({
         const point = interaction.rawCurrent || clientPointToWorld(event.clientX, event.clientY);
         const origin = nodesRef.current.find(node => node.id === interaction.originNodeId);
         const farEnough = Math.hypot(point.x - interaction.start.x, point.y - interaction.start.y) > 48;
-        const stageRect = stageRef.current?.getBoundingClientRect();
-        if (origin && farEnough && stageRect) {
+        if (origin && farEnough && stageRef.current) {
+          keepPendingConnection = true;
+          setConnectionDraft({
+            ...interaction,
+            current: point,
+            rawCurrent: point,
+            snapTargetId: "",
+            pending: true
+          });
           setConnectionMenu({
             originNodeId: origin.id,
             startHandleType: interaction.startHandleType,
-            point,
-            position: {
-              x: clamp(event.clientX - stageRect.left, 12, Math.max(12, stageRect.width - 208)),
-              y: clamp(event.clientY - stageRect.top, 12, Math.max(12, stageRect.height - 178))
-            }
+            point
           });
         }
       }
-      setConnectionDraft(null);
+      if (!keepPendingConnection) {
+        setConnectionDraft(null);
+      }
     } else if (interaction.hasChanged && interaction.beforeSnapshot) {
       recordUndoSnapshot(interaction.beforeSnapshot);
     }
@@ -2768,6 +2758,20 @@ function CanvasWorkspace({
   );
   const stageWidth = stageRef.current?.clientWidth || 1440;
   const stageHeight = stageRef.current?.clientHeight || 900;
+  const connectionMenuStyle = connectionMenu
+    ? {
+        left: clamp(
+          viewport.x + connectionMenu.point.x * viewport.zoom,
+          12,
+          Math.max(12, stageWidth - 208)
+        ),
+        top: clamp(
+          viewport.y + connectionMenu.point.y * viewport.zoom,
+          12,
+          Math.max(12, stageHeight - 178)
+        )
+      }
+    : undefined;
   const selectionBounds = selectedNodes.length > 0
     ? {
         minimumX: Math.min(...selectedNodes.map(node => node.x)),
@@ -3006,7 +3010,7 @@ function CanvasWorkspace({
             ) : null}
           </svg>
 
-          {connectionDraft ? (
+          {connectionDraft && !connectionMenu ? (
             <div
               className={`canvas-connection-cursor${connectionDraft.snapTargetId ? " is-snapped" : ""}`}
               style={{
@@ -3027,6 +3031,7 @@ function CanvasWorkspace({
             const hasParents = (node.parentIds || []).some(parentId => visibleNodes.some(item => item.id === parentId));
             const nodeUiScale = clamp(1 / viewport.zoom, 1, 2.4);
             const isTextNode = node.type === "text";
+            const isEditingTextNode = isTextNode && editingTextNodeId === node.id;
             const isEmptyImageNode = node.type === "empty-image";
             const statusLabel = asset.status === "streaming"
               ? text("receiving")
@@ -3037,7 +3042,7 @@ function CanvasWorkspace({
               <article
                 key={node.id}
                 data-node-id={node.id}
-                className={`canvas-node${selected ? " is-selected" : ""}${asset.status === "error" ? " is-error" : ""}${isTextNode ? " is-text-node" : ""}${isEmptyImageNode ? " is-empty-image-node" : ""}`}
+                className={`canvas-node${selected ? " is-selected" : ""}${asset.status === "error" ? " is-error" : ""}${isTextNode ? " is-text-node" : ""}${isEditingTextNode ? " is-editing" : ""}${isEmptyImageNode ? " is-empty-image-node" : ""}`}
                 style={{
                   width: node.width,
                   height: node.height,
@@ -3047,8 +3052,9 @@ function CanvasWorkspace({
                 }}
                 title={asset.url ? text("preview") : statusLabel}
                 onPointerDown={event => beginNodeMove(event, node)}
-                onDoubleClick={() => {
+                onDoubleClick={event => {
                   if (isTextNode) {
+                    beginTextNodeEdit(event, node);
                     return;
                   }
                   if (asset.url) {
@@ -3060,23 +3066,53 @@ function CanvasWorkspace({
                   }
                 }}
               >
-                <div
-                  className="canvas-node-label"
-                  onPointerDown={isTextNode ? event => beginNodeMove(event, node) : undefined}
-                >
+                <div className="canvas-node-label">
                   {isTextNode ? <Type /> : <Image />}
                   <span>{isTextNode ? (node.title || text("textNodeTitle")) : (node.name || asset.task?.prompt || text("emptyImageTitle"))}</span>
                 </div>
                 {isTextNode ? (
                   <textarea
+                    ref={element => {
+                      if (element) {
+                        textNodeInputRefs.current.set(node.id, element);
+                      } else {
+                        textNodeInputRefs.current.delete(node.id);
+                      }
+                    }}
                     value={node.content || ""}
                     placeholder={text("textNodePlaceholder")}
-                    onPointerDown={event => beginTextNodeInteraction(event, node)}
+                    readOnly={!isEditingTextNode}
+                    tabIndex={isEditingTextNode ? 0 : -1}
+                    onPointerDown={event => {
+                      if (isEditingTextNode) {
+                        event.currentTarget.classList.remove("is-keyboard-input-active");
+                        event.stopPropagation();
+                        setSelectedIds([node.id]);
+                      } else {
+                        beginNodeMove(event, node);
+                      }
+                    }}
+                    onPointerMove={event => {
+                      if (isEditingTextNode) {
+                        event.currentTarget.classList.remove("is-keyboard-input-active");
+                      }
+                    }}
+                    onDoubleClick={event => beginTextNodeEdit(event, node)}
                     onFocus={() => {
                       textEditSnapshotRef.current ||= captureCanvasSnapshot();
                     }}
-                    onChange={event => updateTextNode(node.id, event.target.value)}
-                    onBlur={finishTextEdit}
+                    onKeyDown={event => {
+                      event.currentTarget.classList.add("is-keyboard-input-active");
+                    }}
+                    onChange={event => {
+                      event.currentTarget.classList.add("is-keyboard-input-active");
+                      updateTextNode(node.id, event.target.value);
+                    }}
+                    onBlur={event => {
+                      event.currentTarget.classList.remove("is-keyboard-input-active");
+                      setEditingTextNodeId(current => current === node.id ? "" : current);
+                      finishTextEdit();
+                    }}
                   />
                 ) : asset.url ? (
                   <img src={asset.url} alt={asset.name || text("localAsset")} draggable="false" />
@@ -3153,10 +3189,7 @@ function CanvasWorkspace({
           <div
             className="canvas-connection-menu canvas-floating-ui"
             data-connection-menu={connectionMenu.startHandleType}
-            style={{
-              left: connectionMenu.position.x,
-              top: connectionMenu.position.y
-            }}
+            style={connectionMenuStyle}
           >
             <strong>
               {connectionMenu.startHandleType === "target"
