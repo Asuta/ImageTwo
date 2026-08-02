@@ -7,22 +7,14 @@ import {
   CreditCard,
   Download,
   Eraser,
-  Bell,
-  Folder,
   Grid2X2,
-  History,
   Home,
-  Image,
   LogOut,
-  Menu,
   Moon,
   Plus,
   RotateCcw,
   Send,
-  Settings2,
-  Share2,
   Sparkles,
-  Star,
   Sun,
   Trash2,
   Upload,
@@ -87,24 +79,8 @@ const translations = {
     "language.label": "切换语言",
     "nav.main": "主导航",
     "nav.new": "新建生成",
-    "nav.home": "首页",
-    "nav.canvas": "画布",
-    "nav.creations": "作品",
-    "nav.models": "模型",
-    "nav.styles": "风格",
-    "nav.inspiration": "灵感",
-    "nav.assets": "素材",
-    "nav.collections": "收藏集",
-    "collections.spring": "春季情绪板",
-    "collections.brand": "品牌视觉",
-    "collections.scifi": "科幻概念",
-    "collections.architecture": "建筑",
-    "upgrade.title": "升级 Pro",
-    "upgrade.copy": "解锁高级模型、更快生成和更多额度。",
-    "upgrade.button": "立即升级",
     "topbar.credits": "额度 {count}",
     "topbar.pro": "Pro",
-    "topbar.notifications": "通知",
     "mode.classic": "经典",
     "mode.canvas": "画布",
     "theme.toggle": "切换深色模式",
@@ -116,26 +92,12 @@ const translations = {
     "common.cancel": "取消",
     "common.delete": "删除",
     "common.close": "关闭",
-    "placeholder.title": "功能暂未开放",
-    "placeholder.description": "这个按钮功能还没做呢，只是个摆设",
-    "placeholder.confirm": "知道了",
     "history.confirmClear": "确认清空",
     "history.section": "生成历史",
     "history.eyebrow": "创作档案",
     "history.title": "最近生成",
-    "history.gridView": "网格视图",
-    "history.listView": "列表视图",
-    "history.modelFilter": "筛选模型",
-    "history.allModels": "全部模型",
-    "history.filters": "历史筛选",
-    "history.all": "全部",
-    "history.drafts": "草稿",
-    "history.upscaled": "放大",
-    "history.favorites": "收藏",
     "history.loadingTitle": "正在整理创作空间",
     "history.loadingCopy": "正在读取当前浏览器里的本地生成记录。",
-    "history.select": "选择生成记录",
-    "history.selectExample": "选择示例生成记录",
     "history.editMode": "多图参考",
     "history.generateMode": "图片生成",
     "history.count": "{count} 张",
@@ -159,9 +121,6 @@ const translations = {
     "references.exampleGeneratedAlt": "示例生成图",
     "references.saved": "已保存到本地",
     "references.preview": "预览",
-    "preview.favoriteExample": "收藏示例",
-    "preview.shareExample": "分享示例",
-    "preview.moreExample": "更多示例",
     "generation.loading": "生成中...",
     "generation.receiving": "接收中...",
     "generation.receivingImage": "正在接收图片...",
@@ -185,7 +144,6 @@ const translations = {
     "composer.placeholder": "请输入你的创意，例如：雨后城市里的未来感产品海报，干净构图，高级广告摄影",
     "composer.edit": "编辑",
     "composer.generate": "生成",
-    "composer.advanced": "高级",
     "ratio.autoShort": "智能",
     "ratio.auto": "智能比例",
     "ratio.label": "图片比例",
@@ -263,24 +221,8 @@ const translations = {
     "language.label": "Switch language",
     "nav.main": "Main navigation",
     "nav.new": "New Generation",
-    "nav.home": "Home",
-    "nav.canvas": "Canvas",
-    "nav.creations": "Creations",
-    "nav.models": "Models",
-    "nav.styles": "Styles",
-    "nav.inspiration": "Inspiration",
-    "nav.assets": "Assets",
-    "nav.collections": "Collections",
-    "collections.spring": "Moodboard - Spring",
-    "collections.brand": "Brand Visuals",
-    "collections.scifi": "Concept - Sci-Fi",
-    "collections.architecture": "Architecture",
-    "upgrade.title": "Upgrade to Pro",
-    "upgrade.copy": "Unlock premium models, faster generation, and more credits.",
-    "upgrade.button": "Upgrade Now",
     "topbar.credits": "Credits {count}",
     "topbar.pro": "Pro",
-    "topbar.notifications": "Notifications",
     "mode.classic": "Classic",
     "mode.canvas": "Canvas",
     "theme.toggle": "Toggle dark mode",
@@ -292,26 +234,12 @@ const translations = {
     "common.cancel": "Cancel",
     "common.delete": "Delete",
     "common.close": "Close",
-    "placeholder.title": "Feature not available yet",
-    "placeholder.description": "This button does not do anything yet. It is just a placeholder.",
-    "placeholder.confirm": "Got it",
     "history.confirmClear": "Clear",
     "history.section": "Generation history",
     "history.eyebrow": "Creative archive",
     "history.title": "Recent Generations",
-    "history.gridView": "Grid view",
-    "history.listView": "List view",
-    "history.modelFilter": "Filter models",
-    "history.allModels": "All Models",
-    "history.filters": "History filters",
-    "history.all": "All",
-    "history.drafts": "Drafts",
-    "history.upscaled": "Upscaled",
-    "history.favorites": "Favorites",
     "history.loadingTitle": "Preparing your creative space",
     "history.loadingCopy": "Reading local generation records from this browser.",
-    "history.select": "Select generation record",
-    "history.selectExample": "Select example generation record",
     "history.editMode": "Reference edit",
     "history.generateMode": "Image generation",
     "history.count": "{count} images",
@@ -335,9 +263,6 @@ const translations = {
     "references.exampleGeneratedAlt": "Example generated image",
     "references.saved": "Saved locally",
     "references.preview": "Preview",
-    "preview.favoriteExample": "Favorite example",
-    "preview.shareExample": "Share example",
-    "preview.moreExample": "More example actions",
     "generation.loading": "Generating...",
     "generation.receiving": "Receiving...",
     "generation.receivingImage": "Receiving image...",
@@ -361,7 +286,6 @@ const translations = {
     "composer.placeholder": "Describe your idea, for example: a futuristic product poster in a rain-washed city, clean composition, premium advertising photography",
     "composer.edit": "Edit",
     "composer.generate": "Generate",
-    "composer.advanced": "Advanced",
     "ratio.autoShort": "Auto",
     "ratio.auto": "Auto ratio",
     "ratio.label": "Aspect ratio",
@@ -843,7 +767,6 @@ function setTheme(theme) {
 
 function App() {
   const [history, setHistory] = useState([]);
-  const [selectedId, setSelectedId] = useState(null);
   const [prompt, setPrompt] = useState("");
   const [quality, setQuality] = useState("medium");
   const [count, setCount] = useState("1");
@@ -891,8 +814,6 @@ function App() {
   const [historyError, setHistoryError] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [clearHistoryConfirmOpen, setClearHistoryConfirmOpen] = useState(false);
-  const [placeholderDialogOpen, setPlaceholderDialogOpen] = useState(false);
-  const [placeholderFeature, setPlaceholderFeature] = useState("");
   const historyRef = useRef([]);
   const promptTextareaRef = useRef(null);
   const previewImageRef = useRef(null);
@@ -1099,11 +1020,9 @@ function App() {
       setHistory(loadedHistory.map(task => (
         task.images.length > 0 ? task : { ...task, images: createInterruptedImages(task.count, t("error.interrupted")) }
       )));
-      setSelectedId(prev => prev || loadedHistory[0]?.id || null);
     } catch (error) {
       console.error(error);
       setHistory([]);
-      setSelectedId(null);
       setHistoryError("");
       showToast(t("toast.historyUnavailable"));
     } finally {
@@ -1162,7 +1081,6 @@ function App() {
       }
     }));
     setHistory([]);
-    setSelectedId(null);
     setClearHistoryConfirmOpen(false);
     showToast(t("toast.historyCleared"));
   }
@@ -1365,14 +1283,6 @@ function App() {
 
   function showToast(message) {
     setToast(message);
-  }
-
-  function showPlaceholderDialog(feature) {
-    setPlaceholderFeature(feature);
-    setPlaceholderDialogOpen(true);
-    setAccountOpen(false);
-    setRatioOpen(false);
-    setDeleteConfirmId(null);
   }
 
   function syncReferenceModeState(images = referenceImages) {
@@ -1681,7 +1591,6 @@ function App() {
     });
     const task = canvasContext ? { ...baseTask, canvasContext } : baseTask;
 
-    setSelectedId(task.id);
     setHistory(prev => [task, ...prev]);
     saveTask(task).catch(error => {
       console.error(error);
@@ -1729,7 +1638,6 @@ function App() {
     });
 
     setDeleteConfirmId(null);
-    setSelectedId(nextTask.id);
     setHistory(prev => [nextTask, ...prev]);
     saveTask(nextTask).catch(error => {
       console.error(error);
@@ -1748,7 +1656,6 @@ function App() {
     }
 
     setDeleteConfirmId(null);
-    setSelectedId(task.id);
     setPrompt(task.prompt);
     setAspectRatio(task.aspectRatio || "auto");
     setQuality(task.quality || "medium");
@@ -1763,7 +1670,6 @@ function App() {
 
   function usePromptFromTask(task) {
     setDeleteConfirmId(null);
-    setSelectedId(task.id);
     setPrompt(task.prompt);
     window.requestAnimationFrame(() => {
       promptTextareaRef.current?.focus();
@@ -1779,11 +1685,7 @@ function App() {
       }
     });
     setDeleteConfirmId(null);
-    setHistory(prev => {
-      const nextHistory = prev.filter(item => item.id !== task.id);
-      setSelectedId(selected => (selected === task.id ? nextHistory[0]?.id || null : selected));
-      return nextHistory;
-    });
+    setHistory(prev => prev.filter(item => item.id !== task.id));
     showToast(t("toast.deleted"));
   }
 
@@ -1973,7 +1875,6 @@ function App() {
       <Card key={row.title} className={`history-task concept-task ${row.loading ? "is-preview-loading" : ""}`}>
         <CardHeader className="task-head">
           <div className="task-title-area">
-            <Input type="checkbox" aria-label={t("history.selectExample")} readOnly />
             <ChevronUp />
           </div>
           <div className="task-copy-area">
@@ -1984,11 +1885,6 @@ function App() {
               <Badge variant="outline">{language === "en" ? "High Quality" : "高质量"}</Badge>
               <Badge variant="outline">{row.time}</Badge>
             </div>
-          </div>
-          <div className="task-more-actions">
-            <Button className="icon-button" variant="ghost" size="icon" type="button" aria-label={t("preview.favoriteExample")} onClick={() => showPlaceholderDialog(t("preview.favoriteExample"))}><Star /></Button>
-            <Button className="icon-button" variant="ghost" size="icon" type="button" aria-label={t("preview.shareExample")} onClick={() => showPlaceholderDialog(t("preview.shareExample"))}><Share2 /></Button>
-            <Button className="icon-button" variant="ghost" size="icon" type="button" aria-label={t("preview.moreExample")} onClick={() => showPlaceholderDialog(t("preview.moreExample"))}><Menu /></Button>
           </div>
         </CardHeader>
 
@@ -2195,7 +2091,6 @@ function App() {
               createAndOpenCanvas();
             }
           } else {
-            setSelectedId(null);
             setPrompt("");
           }
         }}>
@@ -2203,62 +2098,6 @@ function App() {
           {t("nav.new")}
         </Button>
 
-        <nav className="nav-stack">
-          <button className={`nav-item${workspaceMode === "classic" ? " active" : ""}`} type="button" title={t("nav.home")} onClick={() => {
-            if (workspaceMode === "canvas") {
-              openClassicWorkspace();
-            } else {
-              showPlaceholderDialog(t("nav.home"));
-            }
-          }}>
-            <span aria-hidden="true"><Home /></span>
-            <span>{t("nav.home")}</span>
-          </button>
-          <button className={`nav-item${workspaceMode === "canvas" ? " active" : ""}`} type="button" title={t("nav.canvas")} onClick={openCanvasProjects}>
-            <span aria-hidden="true"><Grid2X2 /></span>
-            <span>{t("nav.canvas")}</span>
-          </button>
-          <button className="nav-item" type="button" title={t("nav.creations")} onClick={() => showPlaceholderDialog(t("nav.creations"))}>
-            <span aria-hidden="true"><WandSparkles /></span>
-            <span>{t("nav.creations")}</span>
-          </button>
-          <button className="nav-item" type="button" title={t("nav.models")} onClick={() => showPlaceholderDialog(t("nav.models"))}>
-            <span aria-hidden="true"><Image /></span>
-            <span>{t("nav.models")}</span>
-          </button>
-          <button className="nav-item" type="button" title={t("nav.styles")} onClick={() => showPlaceholderDialog(t("nav.styles"))}>
-            <span aria-hidden="true"><Settings2 /></span>
-            <span>{t("nav.styles")}</span>
-          </button>
-          <button className="nav-item" type="button" title={t("nav.inspiration")} onClick={() => showPlaceholderDialog(t("nav.inspiration"))}>
-            <span aria-hidden="true"><History /></span>
-            <span>{t("nav.inspiration")}</span>
-          </button>
-          <button className="nav-item" type="button" title={t("nav.assets")} onClick={() => showPlaceholderDialog(t("nav.assets"))}>
-            <span aria-hidden="true"><Folder /></span>
-            <span>{t("nav.assets")}</span>
-          </button>
-        </nav>
-
-        <div className="collection-stack">
-          <div className="collection-head">
-            <span>{t("nav.collections")}</span>
-            <Plus />
-          </div>
-          <button type="button" onClick={() => showPlaceholderDialog(t("collections.spring"))}><span>{t("collections.spring")}</span><em>24</em></button>
-          <button type="button" onClick={() => showPlaceholderDialog(t("collections.brand"))}><span>{t("collections.brand")}</span><em>18</em></button>
-          <button type="button" onClick={() => showPlaceholderDialog(t("collections.scifi"))}><span>{t("collections.scifi")}</span><em>32</em></button>
-          <button type="button" onClick={() => showPlaceholderDialog(t("collections.architecture"))}><span>{t("collections.architecture")}</span><em>27</em></button>
-        </div>
-
-        <div className="nav-footer">
-          <div className="upgrade-card">
-            <Sparkles />
-            <strong>{t("upgrade.title")}</strong>
-            <span>{t("upgrade.copy")}</span>
-            <Button type="button" size="sm" onClick={() => showPlaceholderDialog(t("upgrade.button"))}>{t("upgrade.button")}</Button>
-          </div>
-        </div>
       </aside>
 
       <main className="main">
@@ -2282,9 +2121,6 @@ function App() {
                 <Sparkles data-icon="inline-start" />
                 {t("topbar.pro")}
               </a>
-            </Button>
-            <Button className="icon-button top-icon-button" variant="outline" size="icon" type="button" aria-label={t("topbar.notifications")} onClick={() => showPlaceholderDialog(t("topbar.notifications"))}>
-              <Bell />
             </Button>
             <Button
               className="glass-button"
@@ -2333,7 +2169,7 @@ function App() {
             </Dialog>
             <Button id="accountButton" className="account-button" variant="outline" type="button" data-account-trigger aria-expanded={accountOpen} aria-controls="accountPanel" onClick={() => setAccountOpen(prev => !prev)}>
               <span className="status-dot" />
-              <span>{isLoggedIn ? currentUser.email : "Ava Chen"}</span>
+              <span>{isLoggedIn ? currentUser.email : t("account.login")}</span>
             </Button>
           </div>
         </header>
@@ -2344,20 +2180,6 @@ function App() {
               <p className="eyebrow">{t("history.eyebrow")}</p>
               <h1>{t("history.title")}</h1>
             </div>
-            <div className="history-tools">
-              <Button className="view-button active" variant="secondary" size="icon" type="button" aria-label={t("history.gridView")} onClick={() => showPlaceholderDialog(t("history.gridView"))}><Grid2X2 /></Button>
-              <Button className="view-button" variant="ghost" size="icon" type="button" aria-label={t("history.listView")} onClick={() => showPlaceholderDialog(t("history.listView"))}><Menu /></Button>
-              <select aria-label={t("history.modelFilter")}>
-                <option>{t("history.allModels")}</option>
-                <option>gpt-image-2</option>
-              </select>
-            </div>
-          </div>
-          <div className="filter-tabs" aria-label={t("history.filters")}>
-            <button className="active" type="button" onClick={() => showPlaceholderDialog(t("history.all"))}><Home />{t("history.all")}</button>
-            <button type="button" onClick={() => showPlaceholderDialog(t("history.drafts"))}><Folder />{t("history.drafts")}</button>
-            <button type="button" onClick={() => showPlaceholderDialog(t("history.upscaled"))}><Image />{t("history.upscaled")}</button>
-            <button type="button" onClick={() => showPlaceholderDialog(t("history.favorites"))}><Star />{t("history.favorites")}</button>
           </div>
           <div className="history-scroll">
             {historyLoading ? (
@@ -2371,12 +2193,9 @@ function App() {
             ) : null}
             {historyError ? <div className="empty-inline">{historyError}</div> : null}
             {visibleHistory.map(task => (
-              <Card key={task.id} className={`history-task${task.id === selectedId ? " selected" : ""}`} data-id={task.id} onPointerDownCapture={handleHistoryTaskScrollbarPointerDown} onClick={() => {
-                setSelectedId(task.id);
-              }}>
+              <Card key={task.id} className="history-task" data-id={task.id} onPointerDownCapture={handleHistoryTaskScrollbarPointerDown}>
                 <CardHeader className="task-head">
                   <div className="task-title-area">
-                    <Input type="checkbox" aria-label={t("history.select")} onClick={event => event.stopPropagation()} />
                     <ChevronUp />
                   </div>
                   <div className="task-copy-area">
@@ -2613,13 +2432,6 @@ function App() {
             <Sparkles data-icon="inline-start" />
             <span>{referenceModeActive ? t("composer.edit") : t("composer.generate")}</span>
           </Button>
-          <label className="advanced-toggle">
-            <span>{t("composer.advanced")}</span>
-            <input type="checkbox" onChange={event => {
-              event.currentTarget.checked = false;
-              showPlaceholderDialog(t("composer.advanced"));
-            }} />
-          </label>
         </form>
       </section>
 
@@ -2667,22 +2479,6 @@ function App() {
           {renderRatioOptions()}
         </div>
       </div>
-
-      <Dialog open={placeholderDialogOpen} onOpenChange={setPlaceholderDialogOpen}>
-        <DialogContent className="clear-history-dialog" aria-describedby="placeholderFeatureDescription">
-          <DialogHeader>
-            <DialogTitle>{t("placeholder.title")}</DialogTitle>
-            <DialogDescription id="placeholderFeatureDescription">
-              {t("placeholder.description", { feature: placeholderFeature })}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button">{t("placeholder.confirm")}</Button>
-            </DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <section id="accountPanel" className={`account-panel${accountOpen ? "" : " hidden"}`} aria-label={t("account.section")}>
         <div className="panel-backdrop" onClick={() => setAccountOpen(false)} />

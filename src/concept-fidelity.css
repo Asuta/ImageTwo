@@ -4888,3 +4888,13 @@ body,
   margin: 0 !important;
   -webkit-appearance: none !important;
 }
+
+/* The placeholder "Advanced" control was removed. Let the real generation
+   action occupy the full right column instead of leaving an empty row. */
+@media (min-width: 981px) {
+  .studio-shell .generate-button {
+    grid-row: 1 / 3 !important;
+    align-self: stretch !important;
+    height: auto !important;
+  }
+}
