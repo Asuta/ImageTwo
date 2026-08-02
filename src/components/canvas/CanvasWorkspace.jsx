@@ -2051,6 +2051,20 @@ function CanvasWorkspace({
     onPreview?.(currentUrl, [...new Set([...parentUrls, currentUrl])]);
   }
 
+  function captureStagePointerDown(event) {
+    if (!historyPanelOpen) {
+      return;
+    }
+    const target = event.target instanceof Element ? event.target : null;
+    if (
+      target?.closest(".canvas-history-panel")
+      || target?.closest('[data-testid="canvas-history-trigger"]')
+    ) {
+      return;
+    }
+    setHistoryPanelOpen(false);
+  }
+
   function beginStageInteraction(event) {
     if (event.target.closest(".canvas-floating-ui")) {
       if (!event.target.closest(".canvas-connection-menu")) {
@@ -2865,6 +2879,7 @@ function CanvasWorkspace({
           "--canvas-grid-x": `${viewport.x % (24 * viewport.zoom)}px`,
           "--canvas-grid-y": `${viewport.y % (24 * viewport.zoom)}px`
         }}
+        onPointerDownCapture={captureStagePointerDown}
         onPointerDown={beginStageInteraction}
         onPointerMove={handleStagePointerMove}
         onPointerUp={endStageInteraction}
