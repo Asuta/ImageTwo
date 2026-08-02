@@ -38,7 +38,15 @@
   }
 
   .studio-shell {
-    grid-template-columns: 240px minmax(0, 1fr) !important;
+    --studio-home-sidebar-width: 240px;
+    --studio-home-panel-background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.49), rgba(238, 235, 252, 0.26)),
+      rgba(246, 244, 255, 0.24);
+    --studio-home-panel-border-color: rgba(255, 255, 255, 0.56);
+    --studio-home-panel-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.78),
+      inset 0 -1px 0 rgba(176, 171, 217, 0.16);
+    grid-template-columns: var(--studio-home-sidebar-width) minmax(0, 1fr) !important;
     color: #17172f !important;
     position: relative !important;
     background: transparent !important;
@@ -66,8 +74,8 @@
 
   .studio-shell .sidebar {
     z-index: 5 !important;
-    width: 240px !important;
-    min-width: 240px !important;
+    width: var(--studio-home-sidebar-width) !important;
+    min-width: var(--studio-home-sidebar-width) !important;
     padding: 24px 20px 22px !important;
     background: rgba(246, 244, 255, 0.56) !important;
     border-right: 1px solid rgba(255, 255, 255, 0.54) !important;
@@ -272,7 +280,7 @@
   }
 
   .studio-shell .main {
-    width: calc(100vw - 240px) !important;
+    width: calc(100vw - var(--studio-home-sidebar-width)) !important;
     padding: 68px 24px 0 !important;
     z-index: 4 !important;
   }
@@ -410,14 +418,9 @@
     overflow-y: auto !important;
     overflow-x: hidden !important;
     border-radius: 15px 15px 0 0 !important;
-    border: 1px solid rgba(255, 255, 255, 0.56) !important;
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.49), rgba(238, 235, 252, 0.26)),
-      rgba(246, 244, 255, 0.24) !important;
-    box-shadow:
-      0 28px 84px rgba(133, 126, 176, 0.17),
-      inset 0 1px 0 rgba(255, 255, 255, 0.78),
-      inset 0 -1px 0 rgba(176, 171, 217, 0.16) !important;
+    border: 1px solid var(--studio-home-panel-border-color) !important;
+    background: var(--studio-home-panel-background) !important;
+    box-shadow: var(--studio-home-panel-shadow) !important;
     backdrop-filter: blur(24px) saturate(145%) !important;
   }
 

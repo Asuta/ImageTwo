@@ -4970,16 +4970,15 @@
 @media (min-width: 981px) {
   .studio-shell.canvas-mode-active.canvas-hub-active {
     display: grid !important;
-    grid-template-columns: 260px minmax(0, 1fr) !important;
+    grid-template-columns: var(--studio-home-sidebar-width) minmax(0, 1fr) !important;
     min-height: 100dvh !important;
-    background:
-      radial-gradient(circle at 24% 12%, rgba(186, 158, 255, 0.3), transparent 26%),
-      linear-gradient(135deg, #efebff 0%, #faf8ff 48%, #d8ddf5 100%) !important;
+    background: transparent !important;
   }
 
   .studio-shell.canvas-mode-active.canvas-hub-active > .sidebar {
     display: flex !important;
-    width: 260px !important;
+    width: var(--studio-home-sidebar-width) !important;
+    min-width: var(--studio-home-sidebar-width) !important;
   }
 
   .studio-shell.canvas-mode-active.canvas-hub-active > .main {
@@ -5001,5 +5000,10 @@
 
   .studio-shell.canvas-mode-active.canvas-hub-active .canvas-projects-page {
     min-height: calc(100dvh - 86px);
+    border-color: var(--studio-home-panel-border-color);
+    background: var(--studio-home-panel-background);
+    box-shadow: var(--studio-home-panel-shadow);
+    backdrop-filter: blur(12px) saturate(128%);
+    -webkit-backdrop-filter: blur(12px) saturate(128%);
   }
 }
