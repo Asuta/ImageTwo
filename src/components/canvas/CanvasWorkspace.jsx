@@ -384,6 +384,41 @@ function formatHistoryDate(value) {
   return `${year}-${month}-${day}`;
 }
 
+function getCanvasTaskInputPrompt(task, node, availableNodes) {
+  const savedInputPrompt = task?.canvasContext?.inputPrompt;
+  if (typeof savedInputPrompt === "string") {
+    return savedInputPrompt;
+  }
+
+  const taskPrompt = String(task?.prompt || "").trim();
+  if (!taskPrompt || !node) {
+    return taskPrompt;
+  }
+
+  const nodeMap = new Map(availableNodes.map(item => [item.id, item]));
+  const referenceIds = [...new Set([
+    ...(node.parentIds || []),
+    ...(node.referenceNodeIds || [])
+  ])];
+  const directTextContext = referenceIds
+    .map(referenceId => nodeMap.get(referenceId))
+    .filter(reference => reference?.type === "text" && reference.content?.trim())
+    .map(reference => reference.content.trim())
+    .join("\n\n");
+
+  if (!directTextContext) {
+    return taskPrompt;
+  }
+  if (taskPrompt === directTextContext) {
+    return "";
+  }
+
+  const contextPrefix = `${directTextContext}\n\n`;
+  return taskPrompt.startsWith(contextPrefix)
+    ? taskPrompt.slice(contextPrefix.length).trim()
+    : taskPrompt;
+}
+
 function CanvasWorkspace({
   active,
   canvasId,
@@ -457,6 +492,7 @@ function CanvasWorkspace({
   const didInitialFitRef = useRef(false);
   const clipboardRef = useRef([]);
   const stagePointerClientRef = useRef(null);
+  const restoredPromptSelectionRef = useRef("");
 
   function commitNodes(nextValue) {
     const nextNodes = typeof nextValue === "function" ? nextValue(nodesRef.current) : nextValue;
@@ -2648,7 +2684,8 @@ function CanvasWorkspace({
         projectId: "default",
         parentIds: outputParentIds,
         anchor: positions[0],
-        replacedNodeId: replaceTarget?.id || ""
+        replacedNodeId: replaceTarget?.id || "",
+        inputPrompt: nextPrompt
       };
       const task = onGenerate?.({
         prompt: generationPrompt,
@@ -2780,6 +2817,30 @@ function CanvasWorkspace({
 
   const primarySelectedNode = selectedNodes.length === 1 ? selectedNodes[0] : null;
   const primarySelectedAsset = primarySelectedNode ? getNodeAsset(primarySelectedNode) : null;
+  const primarySelectedNodeId = primarySelectedNode?.id || "";
+  const selectedGeneratedTaskId = primarySelectedNode?.type === "history-image"
+    ? primarySelectedAsset?.task?.id || ""
+    : "";
+
+  useEffect(() => {
+    if (!primarySelectedNodeId || !selectedGeneratedTaskId) {
+      restoredPromptSelectionRef.current = "";
+      return;
+    }
+
+    const restorationKey = `${primarySelectedNodeId}:${selectedGeneratedTaskId}`;
+    if (restoredPromptSelectionRef.current === restorationKey) {
+      return;
+    }
+
+    restoredPromptSelectionRef.current = restorationKey;
+    commitSetting(
+      "prompt",
+      getCanvasTaskInputPrompt(primarySelectedAsset.task, primarySelectedNode, visibleNodes),
+      setPrompt
+    );
+    setMentionMenuOpen(false);
+  }, [primarySelectedNodeId, selectedGeneratedTaskId]);
   const stageWidth = stageRef.current?.clientWidth || 1440;
   const stageHeight = stageRef.current?.clientHeight || 900;
   const connectionMenuStyle = connectionMenu
