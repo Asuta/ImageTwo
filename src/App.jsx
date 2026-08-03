@@ -389,6 +389,41 @@ function getRequestedCanvasId() {
   return new URLSearchParams(window.location.search).get("canvas") || "";
 }
 
+function getWorkspaceStateFromLocation() {
+  const searchParams = new URLSearchParams(window.location.search);
+  const workspaceMode = searchParams.get("mode") === "canvas" ? "canvas" : "classic";
+  return {
+    workspaceMode,
+    activeCanvasId: workspaceMode === "canvas" ? searchParams.get("canvas") || "" : ""
+  };
+}
+
+function buildWorkspaceUrl(workspaceMode, activeCanvasId = "") {
+  const url = new URL(window.location.href);
+  if (workspaceMode === "canvas") {
+    url.searchParams.set("mode", "canvas");
+    if (activeCanvasId) {
+      url.searchParams.set("canvas", activeCanvasId);
+    } else {
+      url.searchParams.delete("canvas");
+    }
+  } else {
+    url.searchParams.delete("mode");
+    url.searchParams.delete("canvas");
+  }
+  return url;
+}
+
+function writeWorkspaceHistory(workspaceMode, activeCanvasId, { replace = false } = {}) {
+  const url = buildWorkspaceUrl(workspaceMode, activeCanvasId);
+  const currentState = window.history.state;
+  const nextState = {
+    ...(currentState && typeof currentState === "object" ? currentState : {}),
+    image2Workspace: { workspaceMode, activeCanvasId: activeCanvasId || "" }
+  };
+  window.history[replace ? "replaceState" : "pushState"](nextState, "", url);
+}
+
 function GeneratedImageGrid({ task, renderImageCard, scrollLabel }) {
   const gridRef = useRef(null);
   const scrollbarTrackRef = useRef(null);
@@ -827,20 +862,20 @@ function App() {
 
   useEffect(() => {
     localStorage.setItem("image2-workspace-mode", workspaceMode);
-    const url = new URL(window.location.href);
-    if (workspaceMode === "canvas") {
-      url.searchParams.set("mode", "canvas");
-      if (activeCanvasId) {
-        url.searchParams.set("canvas", activeCanvasId);
-      } else {
-        url.searchParams.delete("canvas");
-      }
-    } else {
-      url.searchParams.delete("mode");
-      url.searchParams.delete("canvas");
-    }
-    window.history.replaceState(window.history.state, "", url);
-  }, [workspaceMode, activeCanvasId]);
+  }, [workspaceMode]);
+
+  useEffect(() => {
+    writeWorkspaceHistory(workspaceMode, activeCanvasId, { replace: true });
+
+    const handlePopState = () => {
+      const nextWorkspace = getWorkspaceStateFromLocation();
+      setWorkspaceMode(nextWorkspace.workspaceMode);
+      setActiveCanvasId(nextWorkspace.activeCanvasId);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   useEffect(() => {
     const onError = event => {
@@ -2037,19 +2072,26 @@ function App() {
     window.addEventListener("pointerup", handlePointerUp, { once: true });
   }
 
+  function navigateWorkspace(nextWorkspaceMode, nextCanvasId = "") {
+    const resolvedCanvasId = nextWorkspaceMode === "canvas" ? String(nextCanvasId || "") : "";
+    const nextUrl = buildWorkspaceUrl(nextWorkspaceMode, resolvedCanvasId);
+    if (nextUrl.href !== window.location.href) {
+      writeWorkspaceHistory(nextWorkspaceMode, resolvedCanvasId);
+    }
+    setActiveCanvasId(resolvedCanvasId);
+    setWorkspaceMode(nextWorkspaceMode);
+  }
+
   function openCanvasProjects() {
-    setActiveCanvasId("");
-    setWorkspaceMode("canvas");
+    navigateWorkspace("canvas");
   }
 
   function openCanvasProject(canvasId) {
-    setActiveCanvasId(canvasId);
-    setWorkspaceMode("canvas");
+    navigateWorkspace("canvas", canvasId);
   }
 
   function openClassicWorkspace() {
-    setActiveCanvasId("");
-    setWorkspaceMode("classic");
+    navigateWorkspace("classic");
   }
 
   const referenceModeActive = syncReferenceModeState();
