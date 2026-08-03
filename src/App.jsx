@@ -41,7 +41,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import CanvasProjectsPage from "@/components/canvas/CanvasProjectsPage";
 import CanvasWorkspace from "@/components/canvas/CanvasWorkspace";
-import { createCanvasProject } from "@/lib/canvas-db";
 
 const DB_NAME = "image2-local-history";
 const DB_VERSION = 1;
@@ -78,11 +77,13 @@ const translations = {
     "language.toggle": "English",
     "language.label": "切换语言",
     "nav.main": "主导航",
-    "nav.new": "新建生成",
     "topbar.credits": "额度 {count}",
     "topbar.pro": "Pro",
+    "mode.section": "创作模式",
     "mode.classic": "经典",
+    "mode.classicHint": "图片生成",
     "mode.canvas": "画布",
+    "mode.canvasHint": "无限画布",
     "theme.toggle": "切换深色模式",
     "theme.light": "浅色模式",
     "theme.dark": "深色模式",
@@ -220,11 +221,13 @@ const translations = {
     "language.toggle": "中文",
     "language.label": "Switch language",
     "nav.main": "Main navigation",
-    "nav.new": "New Generation",
     "topbar.credits": "Credits {count}",
     "topbar.pro": "Pro",
+    "mode.section": "Create mode",
     "mode.classic": "Classic",
+    "mode.classicHint": "Image generation",
     "mode.canvas": "Canvas",
+    "mode.canvasHint": "Infinite canvas",
     "theme.toggle": "Toggle dark mode",
     "theme.light": "Light mode",
     "theme.dark": "Dark mode",
@@ -782,7 +785,6 @@ function App() {
   const [activeCanvasId, setActiveCanvasId] = useState(() => (
     getStoredWorkspaceMode() === "canvas" ? getRequestedCanvasId() : ""
   ));
-  const [canvasFocusSignal, setCanvasFocusSignal] = useState(0);
   const [toast, setToast] = useState("");
   const [preview, setPreview] = useState({
     isOpen: false,
@@ -2050,18 +2052,6 @@ function App() {
     setWorkspaceMode("classic");
   }
 
-  async function createAndOpenCanvas() {
-    try {
-      const project = await createCanvasProject({
-        title: language === "en" ? "Untitled canvas" : "未命名画布"
-      });
-      openCanvasProject(project.id);
-    } catch (error) {
-      console.error(error);
-      showToast(language === "en" ? "Canvas project could not be created." : "画布项目创建失败。");
-    }
-  }
-
   const referenceModeActive = syncReferenceModeState();
 
   return (
@@ -2072,31 +2062,35 @@ function App() {
           <span>Image2 Studio</span>
         </div>
 
-        <div className="workspace-mode-switch" role="group" aria-label={language === "en" ? "Workspace mode" : "工作区模式"}>
-          <button className={workspaceMode === "classic" ? "active" : ""} type="button" onClick={openClassicWorkspace}>
-            <Home />
-            <span>{t("mode.classic")}</span>
-          </button>
-          <button className={workspaceMode === "canvas" ? "active" : ""} type="button" onClick={openCanvasProjects}>
-            <Grid2X2 />
-            <span>{t("mode.canvas")}</span>
-          </button>
+        <div className="workspace-mode-section">
+          <p className="workspace-mode-label">{t("mode.section")}</p>
+          <div className="workspace-mode-switch" role="group" aria-label={language === "en" ? "Workspace mode" : "工作区模式"}>
+            <button
+              className={workspaceMode === "classic" ? "active" : ""}
+              type="button"
+              aria-pressed={workspaceMode === "classic"}
+              onClick={openClassicWorkspace}
+            >
+              <span className="workspace-mode-icon"><Home /></span>
+              <span className="workspace-mode-copy">
+                <strong>{t("mode.classic")}</strong>
+                <small>{t("mode.classicHint")}</small>
+              </span>
+            </button>
+            <button
+              className={workspaceMode === "canvas" ? "active" : ""}
+              type="button"
+              aria-pressed={workspaceMode === "canvas"}
+              onClick={openCanvasProjects}
+            >
+              <span className="workspace-mode-icon"><Grid2X2 /></span>
+              <span className="workspace-mode-copy">
+                <strong>{t("mode.canvas")}</strong>
+                <small>{t("mode.canvasHint")}</small>
+              </span>
+            </button>
+          </div>
         </div>
-
-        <Button className="new-generation-button" type="button" onClick={() => {
-          if (workspaceMode === "canvas") {
-            if (activeCanvasId) {
-              setCanvasFocusSignal(value => value + 1);
-            } else {
-              createAndOpenCanvas();
-            }
-          } else {
-            setPrompt("");
-          }
-        }}>
-          <Plus data-icon="inline-start" />
-          {t("nav.new")}
-        </Button>
 
       </aside>
 
@@ -2291,7 +2285,6 @@ function App() {
             currentUser={currentUser}
             history={history}
             historyLoading={historyLoading}
-            focusSignal={canvasFocusSignal}
             onGenerate={startGeneration}
             onRequireLogin={promptLoginBeforeGeneration}
             onToast={showToast}

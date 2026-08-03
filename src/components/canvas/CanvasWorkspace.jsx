@@ -426,7 +426,6 @@ function CanvasWorkspace({
   currentUser,
   history,
   historyLoading,
-  focusSignal,
   onGenerate,
   onRequireLogin,
   onToast,
@@ -1128,12 +1127,6 @@ function CanvasWorkspace({
       stage.removeEventListener("wheel", handleNativeWheel);
     };
   }, [active]);
-
-  useEffect(() => {
-    if (active && focusSignal) {
-      window.requestAnimationFrame(() => promptRef.current?.focus());
-    }
-  }, [active, focusSignal]);
 
   useEffect(() => {
     if (!active) {
