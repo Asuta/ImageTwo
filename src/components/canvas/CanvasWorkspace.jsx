@@ -324,18 +324,13 @@ async function readImageDimensions(blob) {
   });
 }
 
-function getIntrinsicImageSize(width, height) {
-  const intrinsicWidth = Math.round(Number(width));
-  const intrinsicHeight = Math.round(Number(height));
-  if (
-    !Number.isFinite(intrinsicWidth)
-    || !Number.isFinite(intrinsicHeight)
-    || intrinsicWidth < 1
-    || intrinsicHeight < 1
-  ) {
-    return null;
-  }
-  return { width: intrinsicWidth, height: intrinsicHeight };
+function fitNodeSize(width, height, maximumWidth = 340, maximumHeight = 300) {
+  const safeWidth = Math.max(1, Number(width) || 1);
+  const safeHeight = Math.max(1, Number(height) || 1);
+  const scale = Math.min(maximumWidth / safeWidth, maximumHeight / safeHeight, 1);
+  const fittedWidth = Math.max(140, Math.round(safeWidth * scale));
+  const fittedHeight = Math.max(120, Math.round(safeHeight * scale));
+  return { width: fittedWidth, height: fittedHeight };
 }
 
 function sizeFromAspectRatio(aspectRatio) {
@@ -753,9 +748,8 @@ function CanvasWorkspace({
         };
   }
 
-  function syncImageNodeToIntrinsicSize(nodeId, width, height) {
-    const intrinsicSize = getIntrinsicImageSize(width, height);
-    if (!intrinsicSize) {
+  function syncImageNodeToDisplaySize(nodeId, displaySize) {
+    if (!displaySize) {
       return;
     }
 
@@ -766,8 +760,8 @@ function CanvasWorkspace({
         || currentNode.type === "text"
         || currentNode.type === "empty-image"
         || (
-          currentNode.width === intrinsicSize.width
-          && currentNode.height === intrinsicSize.height
+          currentNode.width === displaySize.width
+          && currentNode.height === displaySize.height
         )
       ) {
         return previousNodes;
@@ -779,10 +773,10 @@ function CanvasWorkspace({
         node.id === nodeId
           ? {
               ...node,
-              x: centerX - intrinsicSize.width / 2,
-              y: centerY - intrinsicSize.height / 2,
-              width: intrinsicSize.width,
-              height: intrinsicSize.height,
+              x: centerX - displaySize.width / 2,
+              y: centerY - displaySize.height / 2,
+              width: displaySize.width,
+              height: displaySize.height,
               updatedAt: new Date().toISOString()
             }
           : node
@@ -1290,10 +1284,7 @@ function CanvasWorkspace({
       try {
         const file = imageFiles[index];
         const dimensions = await readImageDimensions(file);
-        const intrinsicSize = getIntrinsicImageSize(dimensions.width, dimensions.height);
-        if (!intrinsicSize) {
-          throw new Error("Unable to read image dimensions.");
-        }
+        const fitted = fitNodeSize(dimensions.width, dimensions.height);
         const cascadeOffset = index * 36;
         const connectedFromRight = connectionContext?.startHandleType === "source";
         additions.push({
@@ -1306,11 +1297,11 @@ function CanvasWorkspace({
           x: connectionContext
             ? connectedFromRight
               ? center.x + CONNECTION_HANDLE_OFFSET + cascadeOffset
-              : center.x - intrinsicSize.width - CONNECTION_HANDLE_OFFSET - cascadeOffset
-            : center.x - intrinsicSize.width / 2 + cascadeOffset,
-          y: center.y - intrinsicSize.height / 2 + cascadeOffset,
-          width: intrinsicSize.width,
-          height: intrinsicSize.height,
+              : center.x - fitted.width - CONNECTION_HANDLE_OFFSET - cascadeOffset
+            : center.x - fitted.width / 2 + cascadeOffset,
+          y: center.y - fitted.height / 2 + cascadeOffset,
+          width: fitted.width,
+          height: fitted.height,
           parentIds: connectedFromRight ? [connectionContext.originNodeId] : [],
           hidden: false,
           createdAt: new Date().toISOString(),
@@ -3220,10 +3211,14 @@ function CanvasWorkspace({
                     src={asset.url}
                     alt={asset.name || text("localAsset")}
                     draggable="false"
-                    onLoad={event => syncImageNodeToIntrinsicSize(
+                    onLoad={event => syncImageNodeToDisplaySize(
                       node.id,
-                      event.currentTarget.naturalWidth,
-                      event.currentTarget.naturalHeight
+                      node.type === "history-image"
+                        ? sizeFromAspectRatio(asset.task?.aspectRatio || "auto")
+                        : fitNodeSize(
+                            event.currentTarget.naturalWidth,
+                            event.currentTarget.naturalHeight
+                          )
                     )}
                   />
                 ) : isEmptyImageNode ? (
