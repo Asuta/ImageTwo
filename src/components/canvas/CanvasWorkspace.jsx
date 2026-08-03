@@ -37,7 +37,7 @@ import {
 import { Button } from "@/components/ui/button";
 import AnnotationEditor from "@/components/canvas/AnnotationEditor";
 import { loadCanvasSnapshot, saveCanvasSnapshot } from "@/lib/canvas-db";
-import { formatCreditAmount } from "@/lib/utils";
+import { formatCreditAmount, formatCreditBalance } from "@/lib/utils";
 
 const MIN_ZOOM = 0.02;
 const MAX_ZOOM = 4;
@@ -2979,7 +2979,7 @@ function CanvasWorkspace({
         <div className="wuli-header-actions">
           <button className="wuli-credit-pill" type="button">
             <Sparkles />
-            <span>{currentUser?.credits ?? 0}</span>
+            <span>{formatCreditBalance(currentUser?.credits ?? 0)}</span>
           </button>
           <button className="wuli-share-button" type="button" onClick={shareCanvas} title={text("share")}>
             <Link2 />

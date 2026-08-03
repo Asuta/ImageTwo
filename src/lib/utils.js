@@ -16,3 +16,7 @@ export function normalizeCreditAmount(value) {
 export function formatCreditAmount(value) {
   return String(normalizeCreditAmount(value));
 }
+
+export function formatCreditBalance(value) {
+  return normalizeCreditAmount(value).toFixed(2);
+}

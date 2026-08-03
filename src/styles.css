@@ -3,8 +3,6 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 
-@custom-variant dark (&:is(.dark *));
-
 :root {
   color-scheme: light;
   --bg: #f1edff;
@@ -66,8 +64,7 @@
 /* Final desktop lock: appended last so the approved light concept wins. */
 @media (min-width: 981px) {
   :root,
-  :root[data-theme="light"],
-  :root[data-theme="dark"] {
+  :root[data-theme="light"] {
     color-scheme: light !important;
   }
 
@@ -942,8 +939,7 @@
 /* Final desktop lock: match the approved light concept over earlier experiments. */
 @media (min-width: 981px) {
   :root,
-  :root[data-theme="light"],
-  :root[data-theme="dark"] {
+  :root[data-theme="light"] {
     color-scheme: light !important;
   }
 
@@ -1354,8 +1350,7 @@
 /* Correct target pass: light lavender glass concept */
 @media (min-width: 981px) {
   :root,
-  :root[data-theme="light"],
-  :root[data-theme="dark"] {
+  :root[data-theme="light"] {
     color-scheme: light !important;
     --background: 244 45% 95% !important;
     --foreground: 236 36% 18% !important;
@@ -2144,9 +2139,8 @@
 /* Desktop concept fidelity pass: dense violet glass workbench */
 @media (min-width: 981px) {
   :root,
-  :root[data-theme="light"],
-  :root[data-theme="dark"] {
-    color-scheme: dark;
+  :root[data-theme="light"] {
+    color-scheme: light;
     --background: 249 41% 9%;
     --foreground: 252 48% 96%;
     --card: 252 36% 15%;
@@ -2860,34 +2854,6 @@
   }
 }
 
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --bg: #0d0816;
-  --rail: #120d1d;
-  --surface: #171123;
-  --surface-soft: #20172f;
-  --surface-glass: rgba(18, 12, 29, 0.9);
-  --ink: #f6f0ff;
-  --muted: #b5a8c8;
-  --line: rgba(218, 202, 255, 0.16);
-  --line-strong: rgba(176, 129, 255, 0.36);
-  --accent: #a78bfa;
-  --accent-soft: rgba(167, 139, 250, 0.16);
-  --accent-deep: #ddd6fe;
-  --coral: #ff8a9e;
-  --blue: #a7b7ff;
-  --sidebar-bg: linear-gradient(180deg, #151023 0%, #0e0a18 58%, #171124 100%);
-  --control-bg: #181124;
-  --control-ink: #eee7fb;
-  --image-bg: #1a1328;
-  --caption-bg: rgba(4, 10, 8, 0.76);
-  --caption-ink: #f7f2ff;
-  --skeleton-bg: linear-gradient(110deg, transparent 0%, rgba(191, 167, 255, 0.14) 46%, transparent 60%),
-    linear-gradient(135deg, #171125, #261a38);
-  --selected-bg: linear-gradient(180deg, rgba(167, 139, 250, 0.17), rgba(13, 8, 22, 0));
-  --shadow: 0 24px 70px rgba(0, 0, 0, 0.46);
-}
-
 * {
   box-sizing: border-box;
 }
@@ -2902,13 +2868,6 @@ body {
     linear-gradient(20deg, rgba(168, 85, 247, 0.08), transparent 28%),
     var(--bg);
   transition: background 180ms ease, color 180ms ease;
-}
-
-:root[data-theme="dark"] body {
-  background:
-    radial-gradient(circle at 18% 10%, rgba(167, 139, 250, 0.18), transparent 28%),
-    radial-gradient(circle at 78% 78%, rgba(216, 180, 254, 0.11), transparent 30%),
-    linear-gradient(155deg, #0c0714 0%, #120c1e 44%, #0a0710 100%);
 }
 
 button,
@@ -3048,20 +3007,6 @@ button {
   gap: 10px;
 }
 
-.theme-toggle {
-  min-height: 36px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 0 13px 0 8px;
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  color: var(--control-ink);
-  background: var(--surface);
-  font-weight: 900;
-  box-shadow: 0 10px 24px rgba(21, 51, 42, 0.06);
-}
-
 .pay-button {
   min-height: 36px;
   border: 1px solid color-mix(in srgb, var(--accent) 62%, var(--line));
@@ -3090,28 +3035,6 @@ button {
   place-items: center;
   color: var(--accent-deep);
   background: rgba(255, 255, 255, 0.9);
-}
-
-.theme-toggle:hover {
-  border-color: var(--line-strong);
-  background: var(--surface-soft);
-}
-
-.theme-orb {
-  width: 24px;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  display: inline-block;
-  background:
-    linear-gradient(135deg, #f7d46b 0%, #fff4bf 48%, #ffffff 49%, #d5ece4 100%);
-  box-shadow: inset -5px -5px 8px rgba(8, 13, 11, 0.12), 0 0 0 4px rgba(17, 135, 111, 0.08);
-}
-
-:root[data-theme="dark"] .theme-orb {
-  background:
-    radial-gradient(circle at 64% 36%, #14211c 0 28%, transparent 30%),
-    linear-gradient(135deg, #e8fff6 0%, #6be8bf 100%);
-  box-shadow: 0 0 18px rgba(69, 209, 168, 0.34), 0 0 0 4px rgba(69, 209, 168, 0.1);
 }
 
 .eyebrow {
@@ -3756,18 +3679,6 @@ body.preview-open {
   color: var(--control-ink);
   background: transparent;
   font-weight: 800;
-}
-
-:root[data-theme="dark"] .composer-card,
-:root[data-theme="dark"] .mode-tab.active,
-:root[data-theme="dark"] .ratio-panel {
-  box-shadow:
-    0 24px 70px rgba(0, 0, 0, 0.58),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
-}
-
-:root[data-theme="dark"] .history-task.selected {
-  box-shadow: inset 0 0 0 1px rgba(69, 209, 168, 0.1);
 }
 
 .upload-tile {
@@ -5133,7 +5044,6 @@ select {
     gap: 8px;
   }
 
-  .theme-toggle,
   .pay-button,
   .status-pill {
     max-width: 100%;
@@ -5551,40 +5461,6 @@ select {
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
-}
-
-.dark {
-  --background: oklch(0.88 0.045 286);
-  --foreground: oklch(0.2 0.035 286);
-  --card: oklch(0.97 0.025 286 / 72%);
-  --card-foreground: oklch(0.2 0.035 286);
-  --popover: oklch(0.98 0.025 286 / 88%);
-  --popover-foreground: oklch(0.2 0.035 286);
-  --primary: oklch(0.65 0.19 292);
-  --primary-foreground: oklch(0.985 0.01 286);
-  --secondary: oklch(0.93 0.04 286 / 74%);
-  --secondary-foreground: oklch(0.32 0.05 286);
-  --muted: oklch(0.89 0.035 286 / 70%);
-  --muted-foreground: oklch(0.48 0.045 286);
-  --accent: oklch(0.89 0.055 292 / 76%);
-  --accent-foreground: oklch(0.28 0.05 286);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 44%);
-  --input: oklch(1 0 0 / 54%);
-  --ring: oklch(0.68 0.2 292);
-  --chart-1: oklch(0.78 0.18 292);
-  --chart-2: oklch(0.68 0.17 318);
-  --chart-3: oklch(0.72 0.12 255);
-  --chart-4: oklch(0.64 0.15 24);
-  --chart-5: oklch(0.58 0.12 286);
-  --sidebar: oklch(0.96 0.035 286 / 64%);
-  --sidebar-foreground: oklch(0.23 0.04 286);
-  --sidebar-primary: oklch(0.68 0.2 292);
-  --sidebar-primary-foreground: oklch(0.985 0.01 286);
-  --sidebar-accent: oklch(0.93 0.045 286 / 70%);
-  --sidebar-accent-foreground: oklch(0.28 0.05 286);
-  --sidebar-border: oklch(1 0 0 / 42%);
-  --sidebar-ring: oklch(0.68 0.2 292);
 }
 
 @layer base {
@@ -6451,22 +6327,6 @@ select {
   background: linear-gradient(135deg, #c7a7ff 0%, #7f61ff 100%) !important;
   color: white !important;
   box-shadow: 0 22px 48px rgba(126, 97, 255, 0.32) !important;
-}
-
-:root[data-theme="dark"] .studio-shell {
-  background:
-    radial-gradient(circle at 22% 16%, rgba(167, 139, 250, 0.24), transparent 28%),
-    radial-gradient(circle at 72% 78%, rgba(118, 82, 196, 0.18), transparent 34%),
-    linear-gradient(135deg, #0d0816 0%, #171124 48%, #0b0812 100%) !important;
-}
-
-:root[data-theme="dark"] .studio-shell .history-feed,
-:root[data-theme="dark"] .studio-shell .history-task,
-:root[data-theme="dark"] .studio-shell .composer-card,
-:root[data-theme="dark"] .studio-shell .account-popover,
-:root[data-theme="dark"] .studio-shell .ratio-panel {
-  background-color: rgba(26, 18, 42, 0.62) !important;
-  border-color: rgba(218, 202, 255, 0.16) !important;
 }
 
 @media (max-width: 980px) {
@@ -7545,181 +7405,6 @@ select {
   display: none !important;
 }
 
-:root[data-theme="dark"] .studio-shell .panel-backdrop {
-  background: rgba(7, 9, 18, 0.72) !important;
-  backdrop-filter: blur(12px) saturate(1.18) !important;
-}
-
-:root[data-theme="dark"] .studio-shell .account-popover {
-  position: absolute !important;
-  overflow: hidden !important;
-  color: #f8f5ff !important;
-  border-color: rgba(192, 181, 238, 0.28) !important;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 34%),
-    linear-gradient(145deg, rgba(19, 21, 35, 0.98) 0%, rgba(29, 23, 47, 0.96) 55%, rgba(13, 16, 29, 0.98) 100%) !important;
-  box-shadow:
-    0 34px 96px rgba(0, 0, 0, 0.54),
-    0 0 0 1px rgba(255, 255, 255, 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
-}
-
-:root[data-theme="dark"] .studio-shell .account-popover::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto;
-  height: 2px;
-  background: linear-gradient(90deg, rgba(124, 216, 201, 0.78), rgba(151, 119, 255, 0.86), rgba(255, 255, 255, 0));
-  pointer-events: none;
-}
-
-:root[data-theme="dark"] .studio-shell .account-panel-head,
-:root[data-theme="dark"] .studio-shell .account-panel-body {
-  position: relative !important;
-  z-index: 1 !important;
-}
-
-:root[data-theme="dark"] .studio-shell .account-panel-head .eyebrow {
-  color: #93e5d7 !important;
-}
-
-:root[data-theme="dark"] .studio-shell .account-panel-head h2 {
-  color: #fffaff !important;
-  text-shadow: 0 1px 18px rgba(151, 119, 255, 0.28);
-}
-
-:root[data-theme="dark"] .studio-shell .account-panel-head .icon-button {
-  color: #d9d4ee !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
-  background: rgba(255, 255, 255, 0.06) !important;
-}
-
-:root[data-theme="dark"] .studio-shell .account-panel-head .icon-button:hover {
-  color: #ffffff !important;
-  background: rgba(255, 255, 255, 0.12) !important;
-}
-
-:root[data-theme="dark"] .studio-shell .account-summary {
-  border-color: rgba(147, 229, 215, 0.24) !important;
-  background:
-    linear-gradient(135deg, rgba(40, 52, 68, 0.9), rgba(31, 27, 50, 0.86)),
-    rgba(18, 20, 32, 0.92) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 14px 34px rgba(0, 0, 0, 0.24) !important;
-}
-
-:root[data-theme="dark"] .studio-shell .account-summary .status-dot {
-  background: #58d7c5 !important;
-  box-shadow:
-    0 0 0 5px rgba(88, 215, 197, 0.14),
-    0 0 22px rgba(88, 215, 197, 0.42) !important;
-}
-
-:root[data-theme="dark"] .studio-shell .account-summary strong {
-  color: #fffaff !important;
-}
-
-:root[data-theme="dark"] .studio-shell .account-summary span:last-child {
-  color: #cfc8ea !important;
-}
-
-:root[data-theme="dark"] .studio-shell .account-control {
-  color: #f4f0ff !important;
-}
-
-:root[data-theme="dark"] .studio-shell .account-control span {
-  color: #c5bfdc !important;
-}
-
-:root[data-theme="dark"] .studio-shell .account-control input {
-  color: #fffaff !important;
-  border-color: rgba(195, 184, 232, 0.24) !important;
-  background: rgba(10, 13, 24, 0.68) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    0 0 0 1px rgba(0, 0, 0, 0.08) !important;
-}
-
-:root[data-theme="dark"] .studio-shell .account-control input::placeholder {
-  color: #aaa3c6 !important;
-}
-
-:root[data-theme="dark"] .studio-shell .account-control input:focus-visible {
-  border-color: rgba(126, 220, 204, 0.7) !important;
-  box-shadow:
-    0 0 0 3px rgba(126, 220, 204, 0.14),
-    0 12px 28px rgba(0, 0, 0, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
-}
-
-:root[data-theme="dark"] .studio-shell .code-send-button {
-  color: #e7e1ff !important;
-  border-color: rgba(157, 132, 255, 0.34) !important;
-  background: rgba(103, 78, 195, 0.28) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
-}
-
-:root[data-theme="dark"] .studio-shell .code-send-button:hover:not(:disabled) {
-  color: #ffffff !important;
-  border-color: rgba(147, 229, 215, 0.42) !important;
-  background: rgba(126, 220, 204, 0.18) !important;
-}
-
-:root[data-theme="dark"] .studio-shell .code-send-button:disabled {
-  color: rgba(207, 200, 234, 0.52) !important;
-  border-color: rgba(214, 205, 245, 0.12) !important;
-  background: rgba(255, 255, 255, 0.055) !important;
-  box-shadow: none !important;
-}
-
-:root[data-theme="dark"] .studio-shell .buy-gift-card-button {
-  color: #e7e1ff !important;
-  border-color: rgba(157, 132, 255, 0.34) !important;
-  background: rgba(103, 78, 195, 0.28) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
-}
-
-:root[data-theme="dark"] .studio-shell .buy-gift-card-button:hover {
-  color: #ffffff !important;
-  border-color: rgba(147, 229, 215, 0.42) !important;
-  background: rgba(126, 220, 204, 0.18) !important;
-}
-
-:root[data-theme="dark"] .studio-shell .panel-actions .soft-button {
-  border-color: rgba(126, 220, 204, 0.3) !important;
-  background: linear-gradient(135deg, #4fc7b8 0%, #7a62f1 100%) !important;
-  color: #ffffff !important;
-  box-shadow:
-    0 16px 34px rgba(79, 199, 184, 0.18),
-    0 12px 28px rgba(122, 98, 241, 0.22) !important;
-}
-
-:root[data-theme="dark"] .studio-shell .panel-actions .soft-button:hover {
-  filter: brightness(1.06);
-}
-
-:root[data-theme="dark"] .studio-shell .panel-actions .soft-button:disabled {
-  color: rgba(207, 200, 234, 0.52) !important;
-  border-color: rgba(214, 205, 245, 0.12) !important;
-  background: rgba(255, 255, 255, 0.06) !important;
-  box-shadow: none !important;
-  filter: none !important;
-}
-
-:root[data-theme="dark"] .studio-shell .panel-actions .soft-button[variant="outline"],
-:root[data-theme="dark"] .studio-shell .panel-actions .soft-button:last-child {
-  color: #e6e0f8 !important;
-  border-color: rgba(214, 205, 245, 0.22) !important;
-  background: rgba(255, 255, 255, 0.07) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
-}
-
-:root[data-theme="dark"] .studio-shell .panel-actions .soft-button:last-child:hover {
-  color: #ffffff !important;
-  background: rgba(255, 255, 255, 0.12) !important;
-}
-
 .studio-shell .toast {
   z-index: 160 !important;
 }
@@ -7980,8 +7665,7 @@ select {
 /* Final desktop lock: appended last so the approved light concept wins. */
 @media (min-width: 981px) {
   :root,
-  :root[data-theme="light"],
-  :root[data-theme="dark"] {
+  :root[data-theme="light"] {
     color-scheme: light !important;
   }
 
@@ -8666,94 +8350,6 @@ select {
 .clear-history-dialog [data-slot="dialog-close"]:hover {
   color: #2d2840 !important;
   background: rgba(255, 255, 255, 0.86) !important;
-}
-
-:root[data-theme="dark"] .studio-shell .task-action-button,
-:root[data-theme="dark"] .studio-shell .task-delete-button,
-:root[data-theme="dark"] .studio-shell .delete-confirm-popover button {
-  border-color: rgba(255, 255, 255, 0.12) !important;
-  background: rgba(255, 255, 255, 0.07) !important;
-  color: rgba(231, 225, 255, 0.78) !important;
-}
-
-:root[data-theme="dark"] .studio-shell .task-action-button:hover {
-  color: #ffffff !important;
-  background: rgba(145, 117, 255, 0.22) !important;
-}
-
-:root[data-theme="dark"] .studio-shell .prompt-hover-button {
-  border-color: rgba(178, 158, 255, 0.2) !important;
-  background: rgba(88, 72, 142, 0.92) !important;
-  color: rgba(238, 233, 255, 0.92) !important;
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
-}
-
-:root[data-theme="dark"] .studio-shell .prompt-hover-button:hover {
-  border-color: rgba(192, 174, 255, 0.34) !important;
-  background: rgba(116, 92, 185, 0.96) !important;
-  color: #ffffff !important;
-}
-
-:root[data-theme="dark"] .studio-shell .task-delete-button {
-  color: rgba(255, 174, 186, 0.86) !important;
-  background: rgba(255, 98, 119, 0.12) !important;
-}
-
-:root[data-theme="dark"] .studio-shell .task-delete-button:hover,
-:root[data-theme="dark"] .studio-shell .task-delete-button[aria-expanded="true"] {
-  color: #ffd7dd !important;
-  background: rgba(255, 98, 119, 0.22) !important;
-}
-
-:root[data-theme="dark"] .studio-shell .delete-confirm-popover {
-  border-color: rgba(255, 255, 255, 0.16) !important;
-  color: #f2edff !important;
-  background:
-    linear-gradient(145deg, rgba(38, 31, 58, 0.98), rgba(24, 20, 38, 0.96)),
-    rgba(24, 20, 38, 0.96) !important;
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
-}
-
-:root[data-theme="dark"] .studio-shell .delete-confirm-popover span {
-  color: rgba(231, 225, 255, 0.68) !important;
-}
-
-:root[data-theme="dark"] .clear-history-dialog {
-  border-color: rgba(255, 255, 255, 0.16) !important;
-  color: #f2edff !important;
-  background:
-    linear-gradient(145deg, rgba(39, 32, 59, 0.98), rgba(21, 18, 34, 0.97)),
-    rgba(22, 18, 34, 0.98) !important;
-  box-shadow:
-    0 30px 82px rgba(0, 0, 0, 0.44),
-    0 10px 32px rgba(0, 0, 0, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
-}
-
-:root[data-theme="dark"] .clear-history-dialog [data-slot="dialog-title"] {
-  color: #f8f4ff !important;
-}
-
-:root[data-theme="dark"] .clear-history-dialog [data-slot="dialog-description"] {
-  color: rgba(238, 230, 255, 0.72) !important;
-}
-
-:root[data-theme="dark"] .clear-history-dialog [data-slot="dialog-footer"] {
-  border-top-color: rgba(255, 255, 255, 0.1) !important;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(13, 11, 23, 0.52)),
-    rgba(16, 13, 27, 0.56) !important;
-}
-
-:root[data-theme="dark"] .clear-history-dialog [data-slot="dialog-close"] {
-  color: rgba(242, 237, 255, 0.66) !important;
-  border-color: rgba(255, 255, 255, 0.12) !important;
-  background: rgba(255, 255, 255, 0.06) !important;
-}
-
-:root[data-theme="dark"] .clear-history-dialog [data-slot="dialog-close"]:hover {
-  color: #ffffff !important;
-  background: rgba(255, 255, 255, 0.12) !important;
 }
 
 .studio-shell .prompt-top .prompt-textarea {

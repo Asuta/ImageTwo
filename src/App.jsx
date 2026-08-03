@@ -10,12 +10,10 @@ import {
   Grid2X2,
   Home,
   LogOut,
-  Moon,
   Plus,
   RotateCcw,
   Send,
   Sparkles,
-  Sun,
   Trash2,
   Upload,
   WandSparkles,
@@ -41,7 +39,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import CanvasProjectsPage from "@/components/canvas/CanvasProjectsPage";
 import CanvasWorkspace from "@/components/canvas/CanvasWorkspace";
-import { formatCreditAmount, normalizeCreditAmount } from "@/lib/utils";
+import { formatCreditAmount, formatCreditBalance, normalizeCreditAmount } from "@/lib/utils";
 
 const DB_NAME = "image2-local-history";
 const DB_VERSION = 1;
@@ -85,9 +83,6 @@ const translations = {
     "mode.classicHint": "图片生成",
     "mode.canvas": "画布",
     "mode.canvasHint": "无限画布",
-    "theme.toggle": "切换深色模式",
-    "theme.light": "浅色模式",
-    "theme.dark": "深色模式",
     "history.clear": "清空本地历史",
     "history.clearTitle": "清空本地历史？",
     "history.clearDescription": "此操作会删除当前浏览器中保存的全部生成历史和图片记录。清空之后不可恢复，请确认是否继续。",
@@ -230,9 +225,6 @@ const translations = {
     "mode.classicHint": "Image generation",
     "mode.canvas": "Canvas",
     "mode.canvasHint": "Infinite canvas",
-    "theme.toggle": "Toggle dark mode",
-    "theme.light": "Light mode",
-    "theme.dark": "Dark mode",
     "history.clear": "Clear local history",
     "history.clearTitle": "Clear local history?",
     "history.clearDescription": "This will delete all generation history and image records saved in this browser. This cannot be undone.",
@@ -796,16 +788,6 @@ function getTaskReferenceThumbs(task) {
     .filter(Boolean);
 }
 
-function getThemeFromStorage() {
-  return localStorage.getItem("image2-theme") || document.documentElement.dataset.theme || "light";
-}
-
-function setTheme(theme) {
-  document.documentElement.dataset.theme = theme;
-  document.documentElement.classList.toggle("dark", theme === "dark");
-  localStorage.setItem("image2-theme", theme);
-}
-
 function App() {
   const [history, setHistory] = useState([]);
   const [prompt, setPrompt] = useState("");
@@ -818,7 +800,6 @@ function App() {
   const [generationCostCredits, setGenerationCostCredits] = useState(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [ratioOpen, setRatioOpen] = useState(false);
-  const [theme, setThemeState] = useState(getThemeFromStorage());
   const [language, setLanguage] = useState(getStoredLanguage());
   const [workspaceMode, setWorkspaceMode] = useState(getStoredWorkspaceMode());
   const [activeCanvasId, setActiveCanvasId] = useState(() => (
@@ -859,10 +840,6 @@ function App() {
   const promptTextareaRef = useRef(null);
   const previewImageRef = useRef(null);
   const toastTimerRef = useRef(null);
-
-  useEffect(() => {
-    setTheme(theme);
-  }, [theme]);
 
   useEffect(() => {
     localStorage.setItem("image2-workspace-mode", workspaceMode);
@@ -1326,7 +1303,7 @@ function App() {
 
       setGiftKey("");
       setCurrentUser(payload.user);
-      showToast(t("toast.redeemed", { added: payload.creditsAdded, credits: payload.user.credits }));
+      showToast(t("toast.redeemed", { added: payload.creditsAdded, credits: formatCreditBalance(payload.user.credits) }));
     } catch (error) {
       showToast(error instanceof Error ? error.message : String(error));
     }
@@ -2163,7 +2140,7 @@ function App() {
               onClick={() => setAccountOpen(true)}
             >
               <CreditCard data-icon="inline-start" />
-              <span>{t("topbar.credits", { count: isLoggedIn ? formatCreditAmount(currentUser.credits) : "0" })}</span>
+              <span>{t("topbar.credits", { count: formatCreditBalance(isLoggedIn ? currentUser.credits : 0) })}</span>
               <Plus data-icon="inline-end" />
             </Button>
             <Button className="premium-button" asChild>
@@ -2180,20 +2157,6 @@ function App() {
               onClick={toggleLanguage}
             >
               <span>{t("language.toggle")}</span>
-            </Button>
-            <Button
-              className="glass-button top-icon-button"
-              variant="outline"
-              size="icon"
-              type="button"
-              aria-label={theme === "dark" ? t("theme.light") : t("theme.dark")}
-              title={theme === "dark" ? t("theme.light") : t("theme.dark")}
-              onClick={() => {
-              const nextTheme = theme === "dark" ? "light" : "dark";
-              setThemeState(nextTheme);
-              }}
-            >
-              {theme === "dark" ? <Sun data-icon="inline-start" /> : <Moon data-icon="inline-start" />}
             </Button>
             <Dialog open={clearHistoryConfirmOpen} onOpenChange={setClearHistoryConfirmOpen}>
               <DialogTrigger asChild>
@@ -2269,7 +2232,7 @@ function App() {
                       <Badge variant="outline">{task.quality || "medium"}</Badge>
                       <Badge variant="outline">{t("history.count", { count: task.count || task.images.length })}</Badge>
                       {task.costCredits ? <Badge variant="secondary">{t("history.points", { count: formatCreditAmount(task.costCredits) })}</Badge> : null}
-                      {Number.isFinite(task.remainingCreditsSnapshot) ? <Badge variant="secondary">{t("history.balance", { count: formatCreditAmount(task.remainingCreditsSnapshot) })}</Badge> : null}
+                      {Number.isFinite(task.remainingCreditsSnapshot) ? <Badge variant="secondary">{t("history.balance", { count: formatCreditBalance(task.remainingCreditsSnapshot) })}</Badge> : null}
                       <Badge variant="outline">{formatTime(new Date(task.createdAt), language)}</Badge>
                     </div>
                   </div>
@@ -2550,7 +2513,7 @@ function App() {
                 <span className="status-dot" />
                 <div>
                   <strong>{currentUser.email}</strong>
-                  <span>{t("history.points", { count: formatCreditAmount(currentUser.credits) })}</span>
+                  <span>{t("history.points", { count: formatCreditBalance(currentUser.credits) })}</span>
                 </div>
                 <Button className="buy-gift-card-button" variant="outline" size="sm" asChild>
                   <a href={GIFT_CARD_SHOP_URL} target="_blank" rel="noreferrer">
