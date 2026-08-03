@@ -11,7 +11,7 @@
 Image2 服务 -> 当前启用供应商图片接口
 ```
 
-如果生成数量是 `N`，前端会并行发送 `N` 次 `POST /api/generate`。每一次本地请求都会触发一次独立的上游图片请求；当前默认单张成本为 0，不扣额度。
+如果生成数量是 `N`，前端会并行发送 `N` 次 `POST /api/generate`。每一次本地请求都会触发一次独立的上游图片请求；当前默认单张成本为 0.05 点。
 
 ## 2. 前端发送给 Image2 服务
 
@@ -65,21 +65,21 @@ Image2 服务收到 `/api/generate` 后会先读取 `image2_session` cookie，�
 
 ```text
 每生成 1 张图片 = IMAGE2_GENERATION_COST_CREDITS 点
-当前默认值 = 0 点
+当前默认值 = 0.05 点
 ```
 
 扣费流程：
 
 ```text
 1. 校验登录 session
-2. 根据配置计算成本；当前为 0 时不减少余额
-3. 记录 usage log（costCredits 为 0）
+2. 根据配置计算成本并预扣额度；默认每张预扣 0.05 点
+3. 记录 usage log（默认 costCredits 为 0.05）
 4. 调用上游供应商
 5. 成功则确认消耗
 6. 成本大于 0 时，失败返还预扣额度
 ```
 
-如果用户一次生成多张图，前端仍会并行发送多次 `/api/generate`。当前每个请求成本为 0；以后将 `IMAGE2_GENERATION_COST_CREDITS` 改为 `1` 即可恢复每张扣 1 点。
+如果用户一次生成多张图，前端仍会并行发送多次 `/api/generate`。默认每个请求成本为 0.05 点，因此生成 `N` 张共扣除 `N × 0.05` 点；失败请求会返还对应预扣额度。
 
 ### 3.1 登录与礼品卡兑换
 
@@ -110,7 +110,7 @@ Content-Type: application/json
 }
 ```
 
-登录成功后，服务端写入 `image2_session` cookie。新账号默认获得 100 点额度，具体值可通过 `IMAGE2_SIGNUP_CREDITS` 配置。
+登录成功后，服务端写入 `image2_session` cookie。新账号默认获得 5 点额度，具体值可通过 `IMAGE2_SIGNUP_CREDITS` 配置。
 
 查询当前账号：
 
@@ -407,8 +407,8 @@ Image2 服务不会把图片长期写入服务器磁盘，而是把图片 base64
   "outputFormat": "png",
   "mimeType": "image/png",
   "imageBase64": "iVBORw0KGgoAAAANSUhE...",
-  "costCredits": 1,
-  "remainingCredits": 99
+  "costCredits": 0.05,
+  "remainingCredits": 99.95
 }
 ```
 
@@ -536,8 +536,8 @@ GET /api/admin/audit-logs
 ```json
 {
   "error": "额度不足，请兑换礼品卡后再生成。",
-  "costCredits": 1,
-  "remainingCredits": 2
+  "costCredits": 0.05,
+  "remainingCredits": 0.04
 }
 ```
 

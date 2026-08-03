@@ -5,7 +5,7 @@
 ## 功能
 
 - 邮箱验证码登录：不使用密码，验证码通过后写入 HttpOnly session cookie。
-- 账号额度：新账号默认获得 100 点；当前临时免费生成，默认不扣额度。可通过 `IMAGE2_GENERATION_COST_CREDITS` 恢复或调整单张成本。
+- 账号额度：新账号默认获得 5 点；每生成一张图片默认扣除 0.05 点。初始额度和单张成本可分别通过 `IMAGE2_SIGNUP_CREDITS`、`IMAGE2_GENERATION_COST_CREDITS` 调整。
 - 礼品卡兑换：管理员批量生成 `gift_...` 礼品卡，用户登录后输入 Key 兑换额度。
 - 卡密管理：管理员访问 `/admin` 并输入 `IMAGE2_ADMIN_KEY` 后进入独立后台，支持批次创建、状态查询、复制新卡密、作废、启用、撤销已兑换卡和审计日志。
 - 供应商配置：后台可配置不同图片服务商和接口格式，包括 Responses、图片编辑、Compilation、Right Code Draw 以及 AI Pixel Images。
@@ -44,8 +44,8 @@ IMAGE2_API_KEY=your_api_key_here
 IMAGE2_MODEL=gpt-image-2
 IMAGE2_ADMIN_KEY=change_this_admin_key
 IMAGE2_DATA_DIR=./data
-IMAGE2_SIGNUP_CREDITS=100
-IMAGE2_GENERATION_COST_CREDITS=0
+IMAGE2_SIGNUP_CREDITS=5
+IMAGE2_GENERATION_COST_CREDITS=0.05
 IMAGE2_SECURE_COOKIES=false
 IMAGE2_MAIL_PROVIDER=auto
 TENCENT_SES_SECRET_ID=

@@ -39,7 +39,7 @@
 - 验证码邮件发信平台由 `IMAGE2_MAIL_PROVIDER` 控制；`auto` 会优先使用腾讯云邮件推送配置，再回退到 SendCloud，未配置时走开发验证码输出。
 - 腾讯云邮件推送需要 `TENCENT_SES_SECRET_ID`、`TENCENT_SES_SECRET_KEY`、`TENCENT_SES_REGION`、`TENCENT_SES_FROM`；默认 `TENCENT_SES_CONTENT_MODE=simple` 会直接发送项目内验证码 HTML/纯文本内容。如腾讯云账号不支持 Simple 模式，可切到 `template` 并配置 `TENCENT_SES_TEMPLATE_ID`，模板变量默认使用 `{{code}}`，可通过 `TENCENT_SES_TEMPLATE_DATA_KEY` 调整。
 - 用户、session、礼品卡、额度和生成历史默认写入 `IMAGE2_DATA_DIR` 下的数据文件。修改数据结构时，要兼容已有本地数据或写清迁移方式。
-- 单次生图成本由 `IMAGE2_GENERATION_COST_CREDITS` 控制，当前默认值为 `0`，表示临时免费生成但仍保留 usage log；以后设为 `1` 可恢复每张扣 1 点，失败返还逻辑继续兼容非零成本。
+- 新账号初始额度由 `IMAGE2_SIGNUP_CREDITS` 控制，当前默认值为 `5`；单次生图成本由 `IMAGE2_GENERATION_COST_CREDITS` 控制，当前默认值为 `0.05`，表示每张图片扣 0.05 点；余额、预扣、失败返还和统计统一保留两位小数。
 - 经典历史保存在浏览器 `image2-local-history` IndexedDB；Canvas 项目清单以及每个项目按 `canvasId` 隔离的布局、本地上传素材、节点内直接上传的 `referenceAssets` 和画布标注结果保存在独立的 `image2-canvas-workspace` IndexedDB。数据库从旧单画布结构升级时会把原节点迁入 `default-workspace` 项目。为覆盖刷新前的保存窗口，各画布还会把不含 Blob 的布局、视口和设置写入独立的 `localStorage` 兜底键；生成图片节点只持久化 `taskId` / `imageId` 引用，不复制经典历史中的生成 Blob。
 - 本地环境不能发送真实邮箱验证码。测试登录相关流程时使用 `pnpm run dev:api`，不要依赖真实邮件；该脚本会强制 `IMAGE2_MAIL_PROVIDER=dev`，避免全局 `.image2.env` 中的生产邮件配置被误用。
 

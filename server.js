@@ -23,8 +23,12 @@ const historyAssetsDir = join(dataDir, "history-assets");
 const DEFAULT_HISTORY_MAX_BYTES = 3 * 1024 * 1024 * 1024;
 const HISTORY_MAX_BYTES = Math.max(0, Number.parseInt(process.env.IMAGE2_HISTORY_MAX_BYTES || String(DEFAULT_HISTORY_MAX_BYTES), 10));
 const HISTORY_THUMB_SIZE = Math.max(64, Number.parseInt(process.env.IMAGE2_HISTORY_THUMB_SIZE || "256", 10));
-const DEFAULT_SIGNUP_CREDITS = Number.parseInt(process.env.IMAGE2_SIGNUP_CREDITS || "100", 10);
-const GENERATION_COST_CREDITS = Math.max(0, Number.parseInt(process.env.IMAGE2_GENERATION_COST_CREDITS || "0", 10) || 0);
+const DEFAULT_SIGNUP_CREDITS = Math.max(0, parseCreditAmount(process.env.IMAGE2_SIGNUP_CREDITS, 5));
+const DEFAULT_GENERATION_COST_CREDITS = 0.05;
+const GENERATION_COST_CREDITS = Math.max(
+  0,
+  parseCreditAmount(process.env.IMAGE2_GENERATION_COST_CREDITS, DEFAULT_GENERATION_COST_CREDITS)
+);
 const LOGIN_CODE_TTL_MS = 10 * 60 * 1000;
 const LOGIN_CODE_COOLDOWN_MS = 60 * 1000;
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -51,6 +55,30 @@ const mimeTypes = {
   ".webp": "image/webp",
   ".svg": "image/svg+xml; charset=utf-8"
 };
+
+function normalizeCreditAmount(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return 0;
+  }
+  return Math.round((numeric + Math.sign(numeric) * Number.EPSILON) * 100) / 100;
+}
+
+function parseCreditAmount(value, fallback = 0) {
+  if (value === undefined || value === null || String(value).trim() === "") {
+    return normalizeCreditAmount(fallback);
+  }
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? normalizeCreditAmount(numeric) : normalizeCreditAmount(fallback);
+}
+
+function normalizeUsers(users) {
+  return users.map(user => ({
+    ...user,
+    credits: Math.max(0, normalizeCreditAmount(user.credits))
+  }));
+}
+
 mkdirSync(dataDir, { recursive: true });
 mkdirSync(historyAssetsDir, { recursive: true });
 ensureDataFile();
@@ -210,7 +238,7 @@ function readData() {
   try {
     const data = JSON.parse(readFileSync(dataPath, "utf8").replace(/^\uFEFF/, ""));
     return {
-      users: Array.isArray(data.users) ? data.users : [],
+      users: normalizeUsers(Array.isArray(data.users) ? data.users : []),
       sessions: Array.isArray(data.sessions) ? data.sessions : [],
       emailCodes: Array.isArray(data.emailCodes) ? data.emailCodes : [],
       giftCardBatches: Array.isArray(data.giftCardBatches) ? data.giftCardBatches : [],
@@ -240,7 +268,7 @@ function readData() {
 function writeData(data, { persistProviders = false } = {}) {
   const tmpPath = `${dataPath}.tmp`;
   const storableData = {
-    users: Array.isArray(data.users) ? data.users : [],
+    users: normalizeUsers(Array.isArray(data.users) ? data.users : []),
     sessions: Array.isArray(data.sessions) ? data.sessions : [],
     emailCodes: Array.isArray(data.emailCodes) ? data.emailCodes : [],
     giftCardBatches: Array.isArray(data.giftCardBatches) ? data.giftCardBatches : [],
@@ -629,7 +657,7 @@ function publicUser(user) {
   return {
     id: user.id,
     email: user.email,
-    credits: user.credits,
+    credits: Math.max(0, normalizeCreditAmount(user.credits)),
     createdAt: user.createdAt,
     updatedAt: user.updatedAt
   };
@@ -1167,7 +1195,7 @@ function getHistoryAnalytics(records) {
       successRate: records.length ? succeeded / records.length : 0,
       avgDurationMs: durations.length ? Math.round(durations.reduce((sum, value) => sum + value, 0) / durations.length) : 0,
       activeUsersToday: todayUsers.size,
-      creditsToday: todayRecords.reduce((sum, record) => sum + Number(record.costCredits || 0), 0),
+      creditsToday: normalizeCreditAmount(todayRecords.reduce((sum, record) => sum + Number(record.costCredits || 0), 0)),
       assetBytes: usageBytes,
       assetMaxBytes: maxBytes,
       assetPercent: maxBytes ? Math.min(1, usageBytes / maxBytes) : 0,
@@ -1230,7 +1258,7 @@ function getTopUsers(records) {
     const key = record.email || record.userId || "unknown";
     const existing = users.get(key) || { email: record.email || "", userId: record.userId || "", count: 0, credits: 0 };
     existing.count += 1;
-    existing.credits += Number(record.costCredits || 0);
+    existing.credits = normalizeCreditAmount(existing.credits + Number(record.costCredits || 0));
     users.set(key, existing);
   }
   return [...users.values()].sort((a, b) => b.count - a.count).slice(0, 8);
@@ -1747,7 +1775,7 @@ function reserveCredits({ userId, prompt, quality, mode, imageCount }) {
   const user = data.users.find(item => item.id === userId);
   const requestId = createRequestId();
   const now = new Date().toISOString();
-  const costCredits = imageCount * GENERATION_COST_CREDITS;
+  const costCredits = normalizeCreditAmount(imageCount * GENERATION_COST_CREDITS);
 
   if (!user) {
     return {
@@ -1769,7 +1797,7 @@ function reserveCredits({ userId, prompt, quality, mode, imageCount }) {
     };
   }
 
-  user.credits -= costCredits;
+  user.credits = normalizeCreditAmount(user.credits - costCredits);
   user.updatedAt = now;
   data.usageLogs.unshift({
     id: randomUUID(),
@@ -1807,7 +1835,7 @@ function finishUsage(requestId, status, errorMessage = "") {
   const now = new Date().toISOString();
 
   if (status === "failed" && log.status === "reserved" && user) {
-    user.credits += log.costCredits;
+    user.credits = normalizeCreditAmount(user.credits + log.costCredits);
     user.updatedAt = now;
     log.status = "refunded";
   } else {
@@ -2050,11 +2078,12 @@ async function handleAdmin(req, res, url) {
   const userCreditsMatch = /^\/api\/admin\/users\/([^/]+)\/credits$/.exec(url.pathname);
   if (req.method === "POST" && userCreditsMatch) {
     const body = JSON.parse(await readBody(req) || "{}");
-    const delta = Number.parseInt(body.delta, 10);
-    if (!Number.isFinite(delta)) {
+    const rawDelta = Number(body.delta);
+    if (body.delta === undefined || body.delta === null || String(body.delta).trim() === "" || !Number.isFinite(rawDelta)) {
       sendJson(res, 400, { error: "delta 必须是数字。" });
       return;
     }
+    const delta = normalizeCreditAmount(rawDelta);
 
     const data = readData();
     const user = data.users.find(item => item.id === userCreditsMatch[1]);
@@ -2064,7 +2093,7 @@ async function handleAdmin(req, res, url) {
     }
 
     const now = new Date().toISOString();
-    user.credits = Math.max(0, user.credits + delta);
+    user.credits = Math.max(0, normalizeCreditAmount(user.credits + delta));
     user.updatedAt = now;
     data.creditLogs.unshift({
       id: randomUUID(),
@@ -2254,7 +2283,7 @@ async function handleAdmin(req, res, url) {
 
       const user = data.users.find(item => item.id === card.redeemedByUserId);
       if (user) {
-        user.credits = Math.max(0, user.credits - card.credits);
+        user.credits = Math.max(0, normalizeCreditAmount(user.credits - card.credits));
         user.updatedAt = now;
         data.creditLogs.unshift({
           id: randomUUID(),
@@ -2609,7 +2638,7 @@ async function handleAuth(req, res, url) {
       user = {
         id: randomUUID(),
         email,
-        credits: Math.max(0, DEFAULT_SIGNUP_CREDITS || 100),
+        credits: DEFAULT_SIGNUP_CREDITS,
         createdAt: now,
         updatedAt: now
       };
@@ -2710,7 +2739,7 @@ async function handleRedeem(req, res) {
   card.redeemedByUserId = user.id;
   card.redeemedAt = now;
   card.updatedAt = now;
-  user.credits += card.credits;
+  user.credits = normalizeCreditAmount(user.credits + card.credits);
   user.updatedAt = now;
   data.creditLogs.unshift({
     id: randomUUID(),

@@ -1450,7 +1450,7 @@ function App() {
         return {
           ...item,
           model: result.model || item.model,
-          costCredits: (item.costCredits || 0) + (result.costCredits || 0),
+          costCredits: Math.round(((item.costCredits || 0) + (result.costCredits || 0)) * 100) / 100,
           remainingCreditsSnapshot: result.remainingCredits,
           images: item.images.map(image => image.id === imageId ? doneImage : image)
         };
