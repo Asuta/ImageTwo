@@ -41,6 +41,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import CanvasProjectsPage from "@/components/canvas/CanvasProjectsPage";
 import CanvasWorkspace from "@/components/canvas/CanvasWorkspace";
+import { formatCreditAmount, normalizeCreditAmount } from "@/lib/utils";
 
 const DB_NAME = "image2-local-history";
 const DB_VERSION = 1;
@@ -145,6 +146,7 @@ const translations = {
     "composer.placeholder": "请输入你的创意，例如：雨后城市里的未来感产品海报，干净构图，高级广告摄影",
     "composer.edit": "编辑",
     "composer.generate": "生成",
+    "composer.cost": "预计消耗 {cost} 点",
     "ratio.autoShort": "智能",
     "ratio.auto": "智能比例",
     "ratio.label": "图片比例",
@@ -289,6 +291,7 @@ const translations = {
     "composer.placeholder": "Describe your idea, for example: a futuristic product poster in a rain-washed city, clean composition, premium advertising photography",
     "composer.edit": "Edit",
     "composer.generate": "Generate",
+    "composer.cost": "Estimated cost: {cost} credits",
     "ratio.autoShort": "Auto",
     "ratio.auto": "Auto ratio",
     "ratio.label": "Aspect ratio",
@@ -812,6 +815,7 @@ function App() {
   const [referenceImages, setReferenceImages] = useState([]);
   const [referenceDockExpanded, setReferenceDockExpanded] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [generationCostCredits, setGenerationCostCredits] = useState(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [ratioOpen, setRatioOpen] = useState(false);
   const [theme, setThemeState] = useState(getThemeFromStorage());
@@ -990,6 +994,9 @@ function App() {
 
   const isLoggedIn = Boolean(currentUser);
   const t = (key, values) => formatMessage(translations[language]?.[key] || translations[DEFAULT_LANGUAGE][key] || key, values);
+  const estimatedGenerationCost = Number.isFinite(generationCostCredits)
+    ? formatCreditAmount(getCountValue(count) * generationCostCredits)
+    : "—";
   const trimmedEmail = email.trim();
   const trimmedCode = code.trim();
   const isLoginEmailValid = EMAIL_PATTERN.test(trimmedEmail);
@@ -1164,12 +1171,19 @@ function App() {
       const response = await fetch("/api/auth/me");
       const payload = await response.json();
       setCurrentUser(payload.user || null);
+      const runtimeGenerationCost = Number(payload.generationCostCredits);
+      setGenerationCostCredits(
+        Number.isFinite(runtimeGenerationCost) && runtimeGenerationCost >= 0
+          ? normalizeCreditAmount(runtimeGenerationCost)
+          : null
+      );
       if (payload.user?.email) {
         setEmail(payload.user.email);
       }
     } catch (error) {
       console.error(error);
       setCurrentUser(null);
+      setGenerationCostCredits(null);
     } finally {
       setAccountLoading(false);
     }
@@ -2149,7 +2163,7 @@ function App() {
               onClick={() => setAccountOpen(true)}
             >
               <CreditCard data-icon="inline-start" />
-              <span>{t("topbar.credits", { count: isLoggedIn ? currentUser.credits : "0" })}</span>
+              <span>{t("topbar.credits", { count: isLoggedIn ? formatCreditAmount(currentUser.credits) : "0" })}</span>
               <Plus data-icon="inline-end" />
             </Button>
             <Button className="premium-button" asChild>
@@ -2254,8 +2268,8 @@ function App() {
                       <Badge variant="outline">{getRatioLabel(task.aspectRatio || "auto", t)}</Badge>
                       <Badge variant="outline">{task.quality || "medium"}</Badge>
                       <Badge variant="outline">{t("history.count", { count: task.count || task.images.length })}</Badge>
-                      {task.costCredits ? <Badge variant="secondary">{t("history.points", { count: task.costCredits })}</Badge> : null}
-                      {Number.isFinite(task.remainingCreditsSnapshot) ? <Badge variant="secondary">{t("history.balance", { count: task.remainingCreditsSnapshot })}</Badge> : null}
+                      {task.costCredits ? <Badge variant="secondary">{t("history.points", { count: formatCreditAmount(task.costCredits) })}</Badge> : null}
+                      {Number.isFinite(task.remainingCreditsSnapshot) ? <Badge variant="secondary">{t("history.balance", { count: formatCreditAmount(task.remainingCreditsSnapshot) })}</Badge> : null}
                       <Badge variant="outline">{formatTime(new Date(task.createdAt), language)}</Badge>
                     </div>
                   </div>
@@ -2325,6 +2339,7 @@ function App() {
             canvasId={activeCanvasId}
             language={language}
             currentUser={currentUser}
+            generationCostCredits={generationCostCredits}
             history={history}
             historyLoading={historyLoading}
             onGenerate={startGeneration}
@@ -2465,7 +2480,10 @@ function App() {
 
           <Button className="generate-button" type="submit">
             <Sparkles data-icon="inline-start" />
-            <span>{referenceModeActive ? t("composer.edit") : t("composer.generate")}</span>
+            <span className="generate-button-copy">
+              <strong>{referenceModeActive ? t("composer.edit") : t("composer.generate")}</strong>
+              <small>{t("composer.cost", { cost: estimatedGenerationCost })}</small>
+            </span>
           </Button>
         </form>
       </section>
@@ -2532,7 +2550,7 @@ function App() {
                 <span className="status-dot" />
                 <div>
                   <strong>{currentUser.email}</strong>
-                  <span>{t("history.points", { count: currentUser.credits })}</span>
+                  <span>{t("history.points", { count: formatCreditAmount(currentUser.credits) })}</span>
                 </div>
                 <Button className="buy-gift-card-button" variant="outline" size="sm" asChild>
                   <a href={GIFT_CARD_SHOP_URL} target="_blank" rel="noreferrer">

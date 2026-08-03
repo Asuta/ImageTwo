@@ -37,6 +37,7 @@ import {
 import { Button } from "@/components/ui/button";
 import AnnotationEditor from "@/components/canvas/AnnotationEditor";
 import { loadCanvasSnapshot, saveCanvasSnapshot } from "@/lib/canvas-db";
+import { formatCreditAmount } from "@/lib/utils";
 
 const MIN_ZOOM = 0.02;
 const MAX_ZOOM = 4;
@@ -87,6 +88,7 @@ const canvasCopy = {
     count: "数量",
     generate: "生成",
     loginGenerate: "登录后生成",
+    generationCost: "预计消耗 {cost} 点",
     promptRequired: "请输入提示词或引用一个有内容的文本节点。",
     uploadOnlyImages: "请选择图片文件。",
     uploadFailed: "图片添加失败。",
@@ -176,6 +178,7 @@ const canvasCopy = {
     count: "Count",
     generate: "Generate",
     loginGenerate: "Sign in to generate",
+    generationCost: "Estimated cost: {cost} credits",
     promptRequired: "Enter a prompt or reference a text node with content.",
     uploadOnlyImages: "Choose image files.",
     uploadFailed: "Could not add the image.",
@@ -412,6 +415,7 @@ function CanvasWorkspace({
   canvasId,
   language = "zh",
   currentUser,
+  generationCostCredits,
   history,
   historyLoading,
   onGenerate,
@@ -457,6 +461,9 @@ function CanvasWorkspace({
   const [historyDragPreview, setHistoryDragPreview] = useState(null);
   const [pointerContextMenu, setPointerContextMenu] = useState(null);
   const [projectTitle, setProjectTitle] = useState(text("projectTitle"));
+  const estimatedGenerationCost = Number.isFinite(generationCostCredits)
+    ? formatCreditAmount(clamp(Number(count) || 1, 1, MAX_GENERATION_COUNT) * generationCostCredits)
+    : "—";
 
   const stageRef = useRef(null);
   const promptRef = useRef(null);
@@ -3685,7 +3692,10 @@ function CanvasWorkspace({
               </div>
               <Button className="wuli-generate-cost" type="submit">
                 <Sparkles />
-                <span>{currentUser ? count : text("loginGenerate")}</span>
+                <span className="wuli-generate-copy">
+                  <strong>{currentUser ? text("generate") : text("loginGenerate")}</strong>
+                  <small>{text("generationCost", { cost: estimatedGenerationCost })}</small>
+                </span>
               </Button>
             </div>
           </form>

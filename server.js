@@ -2534,7 +2534,8 @@ async function handleAuth(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/auth/me") {
     const sessionUser = getSessionUser(req);
     sendJson(res, 200, {
-      user: sessionUser ? publicUser(sessionUser.user) : null
+      user: sessionUser ? publicUser(sessionUser.user) : null,
+      generationCostCredits: GENERATION_COST_CREDITS
     });
     return;
   }

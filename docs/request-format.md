@@ -118,6 +118,15 @@ Content-Type: application/json
 GET /api/auth/me
 ```
 
+无论是否登录，响应都会包含当前运行环境的单张生成成本，前端据此计算经典模式和 Canvas 生成按钮上的预计消耗：
+
+```json
+{
+  "user": null,
+  "generationCostCredits": 0.05
+}
+```
+
 兑换礼品卡：
 
 ```http

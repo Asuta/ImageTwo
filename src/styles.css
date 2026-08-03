@@ -5088,6 +5088,25 @@ select {
   }
 }
 
+.studio-shell .generate-button .generate-button-copy {
+  display: grid;
+  gap: 2px;
+  align-items: center;
+  justify-items: start;
+  line-height: 1.1;
+}
+
+.studio-shell .generate-button .generate-button-copy strong {
+  font: inherit;
+  font-weight: 800;
+}
+
+.studio-shell .generate-button .generate-button-copy small {
+  font-size: 11px;
+  font-weight: 650;
+  opacity: 0.82;
+}
+
 @media (max-width: 680px) {
   body {
     min-height: 100svh;

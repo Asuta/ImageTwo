@@ -4742,3 +4742,29 @@
     -webkit-backdrop-filter: blur(12px) saturate(128%);
   }
 }
+
+.studio-shell .wuli-context-controls .wuli-generate-cost {
+  min-width: 112px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  padding: 0 12px !important;
+  border-radius: 19px !important;
+}
+
+.wuli-generate-copy {
+  display: grid;
+  gap: 1px;
+  justify-items: start;
+  line-height: 1.05;
+}
+
+.wuli-generate-copy strong {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.wuli-generate-copy small {
+  font-size: 8px;
+  font-weight: 550;
+  opacity: 0.76;
+}
