@@ -1,9 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
-  Bot,
   ChevronDown,
-  CirclePlus,
   Copy,
   CopyPlus,
   Download,
@@ -20,7 +18,6 @@ import {
   LocateFixed,
   MapPin,
   Maximize2,
-  MessageCircle,
   Minus,
   MoreHorizontal,
   MousePointer2,
@@ -29,7 +26,6 @@ import {
   Plus,
   Redo2,
   RotateCcw,
-  Send,
   Sparkles,
   Trash2,
   Type,
@@ -79,7 +75,7 @@ const canvasCopy = {
     zoomOut: "缩小",
     zoomIn: "放大",
     emptyTitle: "在这里展开你的创意",
-    emptyCopy: "拖入图片，或在下方输入提示词生成第一组画面。",
+    emptyCopy: "拖入图片，或添加图像节点后在节点面板中描述画面。",
     emptyAction: "添加图片",
     referenceHint: "选中的图片会作为下一次生成的参考",
     references: "已选 {count} 张参考图",
@@ -126,11 +122,7 @@ const canvasCopy = {
     textNodePlaceholder: "输入创意、描述或分镜内容…",
     emptyImageTitle: "图片节点",
     emptyImageCopy: "选择此节点后描述画面，生成结果会从这里延展",
-    openAgent: "打开 AI 创作助手",
-    closeAgent: "关闭",
-    agentGreeting: "hi~ 今天想创作点什么？",
-    newChat: "新对话",
-    historyChat: "历史对话",
+    close: "关闭",
     generatedHistory: "历史生成图片",
     generatedHistoryHint: "拖拽图片到画布中使用",
     generatedHistoryEmpty: "还没有可用的历史图片",
@@ -172,7 +164,7 @@ const canvasCopy = {
     zoomOut: "Zoom out",
     zoomIn: "Zoom in",
     emptyTitle: "Build your ideas here",
-    emptyCopy: "Drop in images, or describe your first visual below.",
+    emptyCopy: "Drop in images, or add an image node and describe the visual in its node panel.",
     emptyAction: "Add images",
     referenceHint: "Selected images become references for the next generation",
     references: "{count} reference image(s) selected",
@@ -219,11 +211,7 @@ const canvasCopy = {
     textNodePlaceholder: "Write an idea, description, or storyboard…",
     emptyImageTitle: "Image node",
     emptyImageCopy: "Select this node and describe the visual to branch from here",
-    openAgent: "Open AI creator",
-    closeAgent: "Close",
-    agentGreeting: "Hi~ What would you like to create today?",
-    newChat: "New chat",
-    historyChat: "History",
+    close: "Close",
     generatedHistory: "Generated history",
     generatedHistoryHint: "Drag an image onto the canvas",
     generatedHistoryEmpty: "No generated images yet",
@@ -452,7 +440,6 @@ function CanvasWorkspace({
   const [redoStack, setRedoStack] = useState([]);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState(null);
-  const [assistantOpen, setAssistantOpen] = useState(false);
   const [nodeMoreOpen, setNodeMoreOpen] = useState(false);
   const [selectedEdgeId, setSelectedEdgeId] = useState("");
   const [selectionBox, setSelectionBox] = useState(null);
@@ -1183,7 +1170,6 @@ function CanvasWorkspace({
         }
         setAddMenuOpen(false);
         setContextMenu(null);
-        setAssistantOpen(false);
         setNodeMoreOpen(false);
         setHelpOpen(false);
         setMentionMenuOpen(false);
@@ -2932,7 +2918,7 @@ function CanvasWorkspace({
   }
 
   return (
-    <section className={`canvas-workspace wuli-canvas${active ? " is-active" : " mode-hidden"}${assistantOpen ? " is-assistant-open" : ""}`} aria-label={text("title")}>
+    <section className={`canvas-workspace wuli-canvas${active ? " is-active" : " mode-hidden"}`} aria-label={text("title")}>
       <header className="wuli-canvas-header canvas-floating-ui">
         <div className="wuli-project-switcher">
           <button className="wuli-home-button" type="button" onClick={onExit} title={text("exitClassic")}>
@@ -3305,7 +3291,7 @@ function CanvasWorkspace({
           </div>
         ) : null}
 
-        {primarySelectedNode && !assistantOpen && !referencePicker ? (
+        {primarySelectedNode && !referencePicker ? (
           <div className="canvas-context-toolbar canvas-floating-ui" style={contextualToolbarStyle}>
             <button className="canvas-toolbar-more-trigger" type="button" title="More" onClick={() => setNodeMoreOpen(value => !value)}><MoreHorizontal /></button>
             <i />
@@ -3380,7 +3366,7 @@ function CanvasWorkspace({
           </div>
         ) : null}
 
-        {hydrated && visibleNodes.length === 0 && !assistantOpen ? (
+        {hydrated && visibleNodes.length === 0 ? (
           <div className="canvas-empty canvas-floating-ui">
             <span><ImagePlus /></span>
             <h2>{text("emptyTitle")}</h2>
@@ -3463,7 +3449,7 @@ function CanvasWorkspace({
                 <span>{text("generatedHistoryHint")}</span>
               </div>
               <b>{text("generatedHistoryCount", { count: historyImageCount })}</b>
-              <button type="button" onClick={() => setHistoryPanelOpen(false)} title={text("closeAgent")}><X /></button>
+              <button type="button" onClick={() => setHistoryPanelOpen(false)} title={text("close")}><X /></button>
             </header>
             <div className="canvas-history-scroll">
               {historyLoading ? (
@@ -3564,88 +3550,7 @@ function CanvasWorkspace({
           </div>
         ) : null}
 
-        <button className="wuli-agent-trigger canvas-floating-ui" type="button" onClick={() => setAssistantOpen(true)} title={text("openAgent")}>
-          <MessageCircle />
-          <Sparkles />
-        </button>
-
-        <aside
-          className={`wuli-agent-drawer canvas-floating-ui${assistantOpen ? " is-open" : ""}`}
-          aria-hidden={!assistantOpen}
-          inert={!assistantOpen}
-        >
-          <div className="wuli-agent-head">
-            <div><span><Bot /></span><strong>{projectTitle}</strong><ChevronDown /></div>
-            <nav>
-              <button type="button" title={text("historyChat")}><RotateCcw /></button>
-              <button type="button" title={text("newChat")}><CirclePlus /></button>
-              <button type="button" title={text("closeAgent")} onClick={() => setAssistantOpen(false)}><X /></button>
-            </nav>
-          </div>
-          <div className="wuli-agent-empty">
-            <span><Sparkles /></span>
-            <p>{text("agentGreeting")}</p>
-          </div>
-          <form className="wuli-agent-composer" onSubmit={event => {
-            event.preventDefault();
-            generateOnCanvas();
-          }}>
-            {generationInputNodes.length > 0 || directReferenceAssets.length > 0 ? (
-              <div className="wuli-agent-reference-strip">
-                {generationInputNodes.map(node => {
-                  const asset = getNodeAsset(node);
-                  return (
-                    <button className="wuli-reference-card" key={node.id} type="button" title={text("removeReference")} onClick={() => removeGenerationReference(node.id)}>
-                      {node.type === "text" ? <Type /> : asset.url ? <img src={asset.url} alt="" /> : <Image />}
-                      <span>{node.type === "text" ? (node.content || text("textNodeTitle")) : (asset.name || text("emptyImageTitle"))}</span>
-                      <X />
-                    </button>
-                  );
-                })}
-                {directReferenceAssets.map(reference => (
-                  <button
-                    className="wuli-reference-card"
-                    key={`${reference.ownerNodeId}-${reference.id}`}
-                    type="button"
-                    title={text("removeReference")}
-                    onClick={() => removeDirectReference(reference.ownerNodeId, reference.id)}
-                  >
-                    <img src={reference.url} alt="" />
-                    <span>{reference.name || text("localAsset")}</span>
-                    <X />
-                  </button>
-                ))}
-              </div>
-            ) : null}
-            <textarea
-              ref={promptRef}
-              value={prompt}
-              placeholder={text("prompt")}
-              onChange={event => handlePromptChange(event.target.value)}
-              onKeyDown={event => {
-                if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
-                  event.preventDefault();
-                  generateOnCanvas();
-                }
-              }}
-            />
-            {renderMentionMenu()}
-            <div>
-              <button type="button" title={text("addReference")} onClick={() => {
-                const target = getReferenceTarget();
-                if (target) {
-                  requestReferenceUpload(target.id);
-                } else {
-                  onToast?.(text("selectSingleReferenceTarget"));
-                }
-              }}><Plus /></button>
-              <button className="wuli-mode-pill" type="button"><Link2 />{text("defaultMode")}<ChevronDown /></button>
-              <button className="wuli-agent-send" type="submit"><Send /></button>
-            </div>
-          </form>
-        </aside>
-
-        {selectedNodes.length > 0 && !assistantOpen && !referencePicker ? (
+        {selectedNodes.length > 0 && !referencePicker ? (
           <form className="canvas-composer wuli-context-composer canvas-floating-ui" style={contextualComposerStyle} onSubmit={event => {
             event.preventDefault();
             generateOnCanvas();

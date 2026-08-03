@@ -447,22 +447,6 @@
   background: #f0f0f0;
 }
 
-.wuli-agent-trigger {
-  bottom: 16px;
-  width: 44px;
-  height: 44px;
-  border-width: 3px;
-  box-shadow: none;
-  transition:
-    transform 140ms cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 140ms ease;
-}
-
-.wuli-agent-trigger:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(96, 70, 176, 0.14);
-}
-
 .wuli-context-composer {
   position: absolute;
   right: auto;
@@ -2576,9 +2560,7 @@
 
 .wuli-project-switcher,
 .wuli-header-actions,
-.wuli-project-title,
-.wuli-agent-head > div,
-.wuli-agent-head nav {
+.wuli-project-title {
   display: flex;
   align-items: center;
 }
@@ -3101,217 +3083,6 @@
   font-size: 11px;
 }
 
-.wuli-agent-trigger {
-  position: absolute;
-  bottom: 20px;
-  left: 24px;
-  z-index: 185;
-  display: grid;
-  width: 45px;
-  height: 45px;
-  padding: 0;
-  place-items: center;
-  color: #6c4ed4;
-  border: 4px solid #c6b7ff;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 6px 20px rgba(85, 64, 148, 0.18);
-  cursor: pointer;
-}
-
-.wuli-agent-trigger > svg:first-child {
-  width: 19px;
-  height: 19px;
-}
-
-.wuli-agent-trigger > svg:last-child {
-  position: absolute;
-  top: -4px;
-  right: -3px;
-  width: 12px;
-  height: 12px;
-  color: #fff;
-  border-radius: 50%;
-  background: #8064dd;
-}
-
-.wuli-agent-drawer {
-  position: absolute;
-  top: 12px;
-  bottom: 12px;
-  left: 12px;
-  z-index: 230;
-  display: grid;
-  width: min(440px, calc(100vw - 24px));
-  grid-template-rows: 52px minmax(0, 1fr) auto;
-  overflow: hidden;
-  border: 1px solid rgba(24, 24, 29, 0.07);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow: 8px 0 36px rgba(28, 27, 36, 0.12);
-  opacity: 0;
-  pointer-events: none;
-  transform: translateX(calc(-100% - 20px));
-  transition: opacity 180ms ease, transform 220ms ease;
-}
-
-.wuli-agent-drawer.is-open {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateX(0);
-}
-
-.wuli-agent-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 9px 12px;
-  border-bottom: 1px solid #f0eff1;
-}
-
-.wuli-agent-head > div {
-  min-width: 0;
-  gap: 7px;
-}
-
-.wuli-agent-head > div > span {
-  display: grid;
-  width: 28px;
-  height: 28px;
-  place-items: center;
-  color: #6a4acb;
-  border-radius: 9px;
-  background: #eee9fc;
-}
-
-.wuli-agent-head strong {
-  max-width: 230px;
-  overflow: hidden;
-  font-size: 13px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.wuli-agent-head svg {
-  width: 15px;
-  height: 15px;
-}
-
-.wuli-agent-head nav {
-  gap: 2px;
-}
-
-.wuli-agent-head button {
-  display: grid;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  place-items: center;
-  color: #68686e;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  cursor: pointer;
-}
-
-.wuli-agent-head button:hover {
-  background: #f2f1f4;
-}
-
-.wuli-agent-empty {
-  display: grid;
-  place-items: center;
-  align-content: center;
-  gap: 18px;
-  color: #36363b;
-}
-
-.wuli-agent-empty > span {
-  display: grid;
-  width: 70px;
-  height: 70px;
-  place-items: center;
-  color: #7658d8;
-  border: 9px solid #ddd4ff;
-  border-radius: 50%;
-  background: #fff;
-}
-
-.wuli-agent-empty svg {
-  width: 27px;
-  height: 27px;
-}
-
-.wuli-agent-empty p {
-  margin: 0;
-  font-size: 14px;
-}
-
-.wuli-agent-composer {
-  display: grid;
-  min-height: 206px;
-  margin: 0 16px 16px;
-  padding: 12px;
-  border: 1px solid #dedde2;
-  border-radius: 14px;
-  background: #fff;
-}
-
-.wuli-agent-composer textarea {
-  width: 100% !important;
-  min-height: 105px !important;
-  padding: 4px 0 !important;
-  resize: none !important;
-  border: 0 !important;
-  outline: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  font: inherit !important;
-  font-size: 13px !important;
-}
-
-.wuli-agent-composer > div {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.wuli-agent-composer button {
-  display: inline-flex;
-  height: 34px;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 0 10px;
-  color: #525258;
-  border: 1px solid #ecebef;
-  border-radius: 17px;
-  background: #fff;
-  font: inherit;
-  font-size: 11px;
-  cursor: pointer;
-}
-
-.wuli-agent-composer button:first-child {
-  width: 34px;
-  padding: 0;
-}
-
-.wuli-agent-composer .wuli-agent-send {
-  width: 36px;
-  height: 36px;
-  margin-left: auto;
-  padding: 0;
-  color: #fff;
-  border: 0;
-  background: #aaaab0;
-}
-
-.wuli-agent-composer svg {
-  width: 14px;
-  height: 14px;
-}
-
 .wuli-context-composer {
   bottom: 78px;
   width: min(650px, calc(100vw - 120px));
@@ -3498,10 +3269,6 @@
   background: rgba(246, 243, 253, 0.82);
 }
 
-.wuli-canvas.is-assistant-open .wuli-canvas-toolbar {
-  left: calc(50% + 220px);
-}
-
 @media (max-width: 980px) {
   .wuli-project-title small,
   .canvas-context-toolbar button span,
@@ -3518,9 +3285,6 @@
     transform: none;
   }
 
-  .wuli-canvas.is-assistant-open .wuli-canvas-toolbar {
-    left: 50%;
-  }
 }
 
 /* Keep interaction hit targets and eight resize directions above the base skin. */
@@ -3818,14 +3582,6 @@
   background: #f0f0f0;
 }
 
-.wuli-agent-trigger {
-  bottom: 16px;
-  width: 44px;
-  height: 44px;
-  border-width: 3px;
-  box-shadow: none;
-}
-
 .wuli-context-composer {
   position: absolute;
   right: auto;
@@ -4112,24 +3868,6 @@
 .wuli-context-composer .wuli-reference-strip {
   position: relative;
   overflow: visible;
-}
-
-.wuli-agent-composer > .wuli-agent-reference-strip {
-  display: flex;
-  min-height: 48px;
-  overflow-x: auto;
-  align-items: center;
-  gap: 7px;
-  padding-bottom: 6px;
-}
-
-.wuli-agent-composer .wuli-agent-reference-strip .wuli-reference-card,
-.wuli-agent-composer .wuli-agent-reference-strip .wuli-reference-card:first-child {
-  width: 46px;
-  height: 46px;
-  flex: 0 0 46px;
-  padding: 0;
-  border-radius: 8px;
 }
 
 .wuli-context-composer .wuli-reference-strip > button:first-child.is-active {
@@ -4481,108 +4219,15 @@
 
 .canvas-projects-hero > p {
   max-width: 620px;
-  margin: 10px 0 18px;
+  margin: 10px 0 0;
   color: #777187;
   font-size: 14px;
   line-height: 1.65;
 }
 
-.canvas-projects-prompt {
-  display: grid;
-  width: min(790px, 100%);
-  min-height: 146px;
-  padding: 16px 16px 12px;
-  border: 1px solid rgba(135, 103, 255, 0.26);
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.7);
-  box-shadow:
-    0 20px 56px rgba(103, 81, 179, 0.12),
-    0 0 0 3px rgba(170, 139, 255, 0.055),
-    inset 0 1px 0 rgba(255, 255, 255, 0.92);
-  text-align: left;
-  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
-}
-
-.canvas-projects-prompt:focus-within {
-  border-color: rgba(126, 91, 244, 0.5);
-  background: rgba(255, 255, 255, 0.88);
-  box-shadow: 0 24px 68px rgba(104, 78, 197, 0.18), 0 0 0 4px rgba(132, 97, 255, 0.09);
-}
-
-.canvas-projects-prompt textarea {
-  width: 100%;
-  min-height: 76px;
-  padding: 0 2px;
-  resize: none;
-  color: #28243a;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  font: inherit;
-  font-size: 15px;
-  line-height: 1.55;
-}
-
-.canvas-projects-prompt textarea::placeholder {
-  color: #9893a4;
-}
-
-.canvas-projects-prompt > div {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.canvas-projects-prompt > div > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 32px;
-  padding: 0 12px;
-  color: #625a79;
-  border: 1px solid rgba(117, 103, 151, 0.12);
-  border-radius: 999px;
-  background: rgba(247, 244, 253, 0.8);
-  font-size: 12px;
-  font-weight: 720;
-}
-
-.canvas-projects-prompt > div > span svg {
-  width: 14px;
-  height: 14px;
-  color: #7d5af1;
-}
-
-.studio-shell .canvas-projects-prompt button {
-  display: grid;
-  width: 36px !important;
-  min-width: 36px !important;
-  height: 36px !important;
-  min-height: 36px !important;
-  padding: 0 !important;
-  place-items: center;
-  color: #fff !important;
-  border: 0 !important;
-  border-radius: 999px !important;
-  background: #282431 !important;
-  box-shadow: 0 10px 22px rgba(43, 36, 58, 0.22) !important;
-}
-
-.studio-shell .canvas-projects-prompt button:disabled {
-  color: #fff !important;
-  background: #c7c4cc !important;
-  box-shadow: none !important;
-  cursor: not-allowed;
-}
-
-.canvas-projects-prompt button svg {
-  width: 17px;
-  height: 17px;
-}
-
 .canvas-projects-section {
   width: min(1260px, 100%);
-  margin: 42px auto 0;
+  margin: 32px auto 0;
 }
 
 .canvas-projects-section-header {
@@ -4998,7 +4643,6 @@
   color: #9e97ab;
 }
 
-:root[data-theme="dark"] .canvas-projects-prompt,
 :root[data-theme="dark"] .canvas-project-search,
 :root[data-theme="dark"] .canvas-project-new-card,
 :root[data-theme="dark"] .canvas-project-card {
@@ -5007,13 +4651,11 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
 }
 
-:root[data-theme="dark"] .canvas-projects-prompt textarea,
 :root[data-theme="dark"] .canvas-project-search input,
 :root[data-theme="dark"] .canvas-project-card-copy strong {
   color: #f4f0fa;
 }
 
-:root[data-theme="dark"] .canvas-projects-prompt > div > span,
 :root[data-theme="dark"] .canvas-project-new-card > span,
 :root[data-theme="dark"] .canvas-project-menu {
   color: #d6cee1;

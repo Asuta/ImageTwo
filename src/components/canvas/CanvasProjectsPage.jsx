@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  ArrowUp,
   Clock3,
   FileImage,
   Grid2X2,
@@ -33,8 +32,6 @@ const projectCopy = {
     title: "欢迎来到 Image2 无限画布",
     titleAccent: "无限画布",
     subtitle: "从一个想法开始，或继续已有的创作项目。每个画布都会独立保存。",
-    promptPlaceholder: "描述你的想法，创建画布后继续完善…",
-    createFromPrompt: "创建并开始",
     quickStart: "快速开始",
     allProjects: "全部项目",
     newProject: "新建项目",
@@ -66,8 +63,6 @@ const projectCopy = {
     title: "Welcome to Image2 Infinite Canvas",
     titleAccent: "Infinite Canvas",
     subtitle: "Start from an idea or continue an existing project. Every canvas is saved independently.",
-    promptPlaceholder: "Describe an idea, then continue shaping it inside a new canvas…",
-    createFromPrompt: "Create and start",
     quickStart: "Quick start",
     allProjects: "All projects",
     newProject: "New project",
@@ -152,7 +147,6 @@ function CanvasProjectsPage({ active, language = "zh", history = [], onOpenProje
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [quickPrompt, setQuickPrompt] = useState("");
   const [query, setQuery] = useState("");
   const [menuId, setMenuId] = useState("");
   const [renamingId, setRenamingId] = useState("");
@@ -204,21 +198,15 @@ function CanvasProjectsPage({ active, language = "zh", history = [], onOpenProje
     };
   }, [active]);
 
-  async function createProject(initialPrompt = "", { openAfterCreate = true } = {}) {
+  async function createProject() {
     if (creating) {
       return;
     }
     setCreating(true);
     try {
-      const prompt = initialPrompt.trim();
       const project = await createCanvasProject({
-        title: prompt ? prompt.slice(0, 28) : copy.untitled,
-        initialPrompt: prompt
+        title: copy.untitled
       });
-      if (openAfterCreate) {
-        onOpenProject(project.id);
-        return;
-      }
       setProjects(current => [
         { ...project, nodeCount: 0, cover: null },
         ...current
@@ -277,25 +265,6 @@ function CanvasProjectsPage({ active, language = "zh", history = [], onOpenProje
           {copy.title.split(copy.titleAccent)[1]}
         </h1>
         <p>{copy.subtitle}</p>
-        <form className="canvas-projects-prompt" onSubmit={event => {
-          event.preventDefault();
-          if (quickPrompt.trim()) {
-            createProject(quickPrompt);
-          }
-        }}>
-          <textarea
-            value={quickPrompt}
-            onChange={event => setQuickPrompt(event.target.value)}
-            placeholder={copy.promptPlaceholder}
-            aria-label={copy.promptPlaceholder}
-          />
-          <div>
-            <span><Sparkles /> Image2</span>
-            <button type="submit" disabled={!quickPrompt.trim() || creating} aria-label={copy.createFromPrompt} title={copy.createFromPrompt}>
-              <ArrowUp />
-            </button>
-          </div>
-        </form>
       </div>
 
       <div className="canvas-projects-section">
@@ -316,7 +285,7 @@ function CanvasProjectsPage({ active, language = "zh", history = [], onOpenProje
         ) : (
           <div className="canvas-project-grid">
             {!query ? (
-              <button className="canvas-project-new-card" type="button" onClick={() => createProject("", { openAfterCreate: false })} disabled={creating}>
+              <button className="canvas-project-new-card" type="button" onClick={createProject} disabled={creating}>
                 <span><Plus /></span>
                 <strong>{copy.newProject}</strong>
               </button>
