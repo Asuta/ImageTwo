@@ -324,13 +324,18 @@ async function readImageDimensions(blob) {
   });
 }
 
-function fitNodeSize(width, height, maximumWidth = 340, maximumHeight = 300) {
-  const safeWidth = Math.max(1, Number(width) || 1);
-  const safeHeight = Math.max(1, Number(height) || 1);
-  const scale = Math.min(maximumWidth / safeWidth, maximumHeight / safeHeight, 1);
-  const fittedWidth = Math.max(140, Math.round(safeWidth * scale));
-  const fittedHeight = Math.max(120, Math.round(safeHeight * scale));
-  return { width: fittedWidth, height: fittedHeight };
+function getIntrinsicImageSize(width, height) {
+  const intrinsicWidth = Math.round(Number(width));
+  const intrinsicHeight = Math.round(Number(height));
+  if (
+    !Number.isFinite(intrinsicWidth)
+    || !Number.isFinite(intrinsicHeight)
+    || intrinsicWidth < 1
+    || intrinsicHeight < 1
+  ) {
+    return null;
+  }
+  return { width: intrinsicWidth, height: intrinsicHeight };
 }
 
 function sizeFromAspectRatio(aspectRatio) {
@@ -746,6 +751,43 @@ function CanvasWorkspace({
           status: "loading",
           error: ""
         };
+  }
+
+  function syncImageNodeToIntrinsicSize(nodeId, width, height) {
+    const intrinsicSize = getIntrinsicImageSize(width, height);
+    if (!intrinsicSize) {
+      return;
+    }
+
+    commitNodes(previousNodes => {
+      const currentNode = previousNodes.find(node => node.id === nodeId);
+      if (
+        !currentNode
+        || currentNode.type === "text"
+        || currentNode.type === "empty-image"
+        || (
+          currentNode.width === intrinsicSize.width
+          && currentNode.height === intrinsicSize.height
+        )
+      ) {
+        return previousNodes;
+      }
+
+      const centerX = currentNode.x + currentNode.width / 2;
+      const centerY = currentNode.y + currentNode.height / 2;
+      return previousNodes.map(node => (
+        node.id === nodeId
+          ? {
+              ...node,
+              x: centerX - intrinsicSize.width / 2,
+              y: centerY - intrinsicSize.height / 2,
+              width: intrinsicSize.width,
+              height: intrinsicSize.height,
+              updatedAt: new Date().toISOString()
+            }
+          : node
+      ));
+    });
   }
 
   function captureCanvasSnapshot() {
@@ -1248,7 +1290,10 @@ function CanvasWorkspace({
       try {
         const file = imageFiles[index];
         const dimensions = await readImageDimensions(file);
-        const fitted = fitNodeSize(dimensions.width, dimensions.height);
+        const intrinsicSize = getIntrinsicImageSize(dimensions.width, dimensions.height);
+        if (!intrinsicSize) {
+          throw new Error("Unable to read image dimensions.");
+        }
         const cascadeOffset = index * 36;
         const connectedFromRight = connectionContext?.startHandleType === "source";
         additions.push({
@@ -1261,11 +1306,11 @@ function CanvasWorkspace({
           x: connectionContext
             ? connectedFromRight
               ? center.x + CONNECTION_HANDLE_OFFSET + cascadeOffset
-              : center.x - fitted.width - CONNECTION_HANDLE_OFFSET - cascadeOffset
-            : center.x - fitted.width / 2 + cascadeOffset,
-          y: center.y - fitted.height / 2 + cascadeOffset,
-          width: fitted.width,
-          height: fitted.height,
+              : center.x - intrinsicSize.width - CONNECTION_HANDLE_OFFSET - cascadeOffset
+            : center.x - intrinsicSize.width / 2 + cascadeOffset,
+          y: center.y - intrinsicSize.height / 2 + cascadeOffset,
+          width: intrinsicSize.width,
+          height: intrinsicSize.height,
           parentIds: connectedFromRight ? [connectionContext.originNodeId] : [],
           hidden: false,
           createdAt: new Date().toISOString(),
@@ -2273,6 +2318,9 @@ function CanvasWorkspace({
   }
 
   function beginNodeResize(event, node, direction) {
+    if (node.type !== "text") {
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
     setSelectedIds([node.id]);
@@ -3168,7 +3216,16 @@ function CanvasWorkspace({
                     }}
                   />
                 ) : asset.url ? (
-                  <img src={asset.url} alt={asset.name || text("localAsset")} draggable="false" />
+                  <img
+                    src={asset.url}
+                    alt={asset.name || text("localAsset")}
+                    draggable="false"
+                    onLoad={event => syncImageNodeToIntrinsicSize(
+                      node.id,
+                      event.currentTarget.naturalWidth,
+                      event.currentTarget.naturalHeight
+                    )}
+                  />
                 ) : isEmptyImageNode ? (
                   <div className="canvas-empty-image">
                     <ImagePlus />
@@ -3209,7 +3266,7 @@ function CanvasWorkspace({
                 </button>
                 {selected && selectedIds.length === 1 ? (
                   <>
-                    {RESIZE_HANDLES.map(direction => (
+                    {isTextNode ? RESIZE_HANDLES.map(direction => (
                       <button
                         key={direction}
                         className={`canvas-resize-handle is-${direction}`}
@@ -3217,7 +3274,7 @@ function CanvasWorkspace({
                         aria-label={language === "en" ? `Resize ${direction}` : `${direction} 方向缩放`}
                         onPointerDown={event => beginNodeResize(event, node, direction)}
                       />
-                    ))}
+                    )) : null}
                     <span className="canvas-node-dimensions">{Math.round(node.width)} × {Math.round(node.height)}</span>
                   </>
                 ) : null}
