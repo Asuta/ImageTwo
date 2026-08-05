@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  ArrowLeft,
   Clock3,
   FileImage,
   Grid2X2,
@@ -34,6 +35,7 @@ const projectCopy = {
     subtitle: "从一个想法开始，或继续已有的创作项目。每个画布都会独立保存。",
     quickStart: "快速开始",
     allProjects: "全部项目",
+    classicMode: "经典模式",
     newProject: "新建项目",
     search: "搜索画布项目",
     emptySearch: "没有找到匹配的画布",
@@ -65,6 +67,7 @@ const projectCopy = {
     subtitle: "Start from an idea or continue an existing project. Every canvas is saved independently.",
     quickStart: "Quick start",
     allProjects: "All projects",
+    classicMode: "Classic mode",
     newProject: "New project",
     search: "Search canvas projects",
     emptySearch: "No matching canvases",
@@ -142,7 +145,7 @@ function ProjectCover({ project, historyImageMap }) {
     );
 }
 
-function CanvasProjectsPage({ active, language = "zh", history = [], onOpenProject, onToast }) {
+function CanvasProjectsPage({ active, language = "zh", history = [], onOpenProject, onOpenClassic, onToast }) {
   const copy = projectCopy[language] || projectCopy.zh;
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -257,6 +260,14 @@ function CanvasProjectsPage({ active, language = "zh", history = [], onOpenProje
       aria-label={copy.allProjects}
       onClick={() => setMenuId("")}
     >
+      <header className="canvas-projects-mobile-nav">
+        <span><Sparkles /> Image2</span>
+        <button type="button" onClick={onOpenClassic}>
+          <ArrowLeft />
+          {copy.classicMode}
+        </button>
+      </header>
+
       <div className="canvas-projects-hero">
         <span className="canvas-projects-hero-mark" aria-hidden="true"><Sparkles /></span>
         <h1>

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  CircleUserRound,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
@@ -8,6 +9,7 @@ import {
   Download,
   Eraser,
   Grid2X2,
+  GripHorizontal,
   Home,
   LogOut,
   Plus,
@@ -56,7 +58,6 @@ const LOGIN_CODE_PATTERN = /^\d{6}$/;
 const GIFT_CARD_SHOP_URL = "https://pay.ldxp.cn/shop/2C8QL88T";
 const DEFAULT_LANGUAGE = "zh";
 const SUPPORTED_LANGUAGES = ["zh", "en"];
-const WORKSPACE_MODES = new Set(["classic", "canvas"]);
 
 const ratioChoices = [
   { value: "auto", labelKey: "ratio.autoShort", shape: "auto" },
@@ -142,6 +143,8 @@ const translations = {
     "composer.edit": "编辑",
     "composer.generate": "生成",
     "composer.cost": "预计消耗 {cost} 点",
+    "composer.mobileTitle": "创作设置",
+    "composer.mobileCollapse": "收起生成面板",
     "ratio.autoShort": "智能",
     "ratio.auto": "智能比例",
     "ratio.label": "图片比例",
@@ -284,6 +287,8 @@ const translations = {
     "composer.edit": "Edit",
     "composer.generate": "Generate",
     "composer.cost": "Estimated cost: {cost} credits",
+    "composer.mobileTitle": "Creation settings",
+    "composer.mobileCollapse": "Collapse generation panel",
     "ratio.autoShort": "Auto",
     "ratio.auto": "Auto ratio",
     "ratio.label": "Aspect ratio",
@@ -371,13 +376,9 @@ function saveLanguagePreference(language) {
   localStorage.setItem("image2-language", language);
 }
 
-function getStoredWorkspaceMode() {
+function getInitialWorkspaceMode() {
   const requestedMode = new URLSearchParams(window.location.search).get("mode");
-  if (WORKSPACE_MODES.has(requestedMode)) {
-    return requestedMode;
-  }
-  const storedMode = localStorage.getItem("image2-workspace-mode");
-  return WORKSPACE_MODES.has(storedMode) ? storedMode : "classic";
+  return requestedMode === "canvas" ? "canvas" : "classic";
 }
 
 function getRequestedCanvasId() {
@@ -796,14 +797,16 @@ function App() {
   const [aspectRatio, setAspectRatio] = useState("auto");
   const [referenceImages, setReferenceImages] = useState([]);
   const [referenceDockExpanded, setReferenceDockExpanded] = useState(false);
+  const [mobileComposerExpanded, setMobileComposerExpanded] = useState(false);
+  const [mobileComposerDragOffset, setMobileComposerDragOffset] = useState(0);
   const [currentUser, setCurrentUser] = useState(null);
   const [generationCostCredits, setGenerationCostCredits] = useState(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [ratioOpen, setRatioOpen] = useState(false);
   const [language, setLanguage] = useState(getStoredLanguage());
-  const [workspaceMode, setWorkspaceMode] = useState(getStoredWorkspaceMode());
+  const [workspaceMode, setWorkspaceMode] = useState(getInitialWorkspaceMode());
   const [activeCanvasId, setActiveCanvasId] = useState(() => (
-    getStoredWorkspaceMode() === "canvas" ? getRequestedCanvasId() : ""
+    getInitialWorkspaceMode() === "canvas" ? getRequestedCanvasId() : ""
   ));
   const [toast, setToast] = useState("");
   const [preview, setPreview] = useState({
@@ -838,12 +841,34 @@ function App() {
   const [clearHistoryConfirmOpen, setClearHistoryConfirmOpen] = useState(false);
   const historyRef = useRef([]);
   const promptTextareaRef = useRef(null);
+  const mobileComposerDragStartRef = useRef(null);
   const previewImageRef = useRef(null);
   const toastTimerRef = useRef(null);
 
   useEffect(() => {
-    localStorage.setItem("image2-workspace-mode", workspaceMode);
+    if (workspaceMode !== "classic") {
+      setMobileComposerExpanded(false);
+      setMobileComposerDragOffset(0);
+    }
   }, [workspaceMode]);
+
+  useEffect(() => {
+    const media = window.matchMedia?.("(max-width: 720px) and (orientation: portrait)");
+    if (!media) {
+      return undefined;
+    }
+
+    const handleViewportChange = event => {
+      if (!event.matches) {
+        setMobileComposerExpanded(false);
+        setMobileComposerDragOffset(0);
+        setReferenceDockExpanded(false);
+      }
+    };
+
+    media.addEventListener?.("change", handleViewportChange);
+    return () => media.removeEventListener?.("change", handleViewportChange);
+  }, []);
 
   useEffect(() => {
     writeWorkspaceHistory(workspaceMode, activeCanvasId, { replace: true });
@@ -886,6 +911,10 @@ function App() {
         setAccountOpen(false);
         setRatioOpen(false);
         setHistoryOpen(false);
+        setMobileComposerExpanded(false);
+        setMobileComposerDragOffset(0);
+        setReferenceDockExpanded(false);
+        promptTextareaRef.current?.blur();
         return;
       }
 
@@ -1380,8 +1409,90 @@ function App() {
     return window.matchMedia?.("(max-width: 720px) and (orientation: portrait)").matches;
   }
 
+  function openMobileComposer({ focusPrompt = false } = {}) {
+    if (workspaceMode !== "classic" || !isPortraitPhoneViewport()) {
+      return;
+    }
+
+    setMobileComposerExpanded(true);
+    setMobileComposerDragOffset(0);
+    if (referenceImages.length > 0) {
+      setReferenceDockExpanded(true);
+    }
+
+    if (focusPrompt) {
+      window.requestAnimationFrame(() => promptTextareaRef.current?.focus());
+    }
+  }
+
+  function closeMobileComposer() {
+    setMobileComposerExpanded(false);
+    setMobileComposerDragOffset(0);
+    setRatioOpen(false);
+    setReferenceDockExpanded(false);
+    promptTextareaRef.current?.blur();
+  }
+
+  function handleMobileComposerDragStart(event) {
+    if (!isPortraitPhoneViewport() || event.target.closest("button")) {
+      return;
+    }
+
+    mobileComposerDragStartRef.current = {
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      offset: 0
+    };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  }
+
+  function handleMobileComposerDragMove(event) {
+    const drag = mobileComposerDragStartRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+
+    drag.offset = Math.min(180, Math.max(0, event.clientY - drag.startY));
+    setMobileComposerDragOffset(drag.offset);
+  }
+
+  function handleMobileComposerDragEnd(event) {
+    const drag = mobileComposerDragStartRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+
+    mobileComposerDragStartRef.current = null;
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if (drag.offset >= 72) {
+      closeMobileComposer();
+      return;
+    }
+    setMobileComposerDragOffset(0);
+  }
+
+  function revealMobileGeneratedTask(taskId) {
+    if (!isPortraitPhoneViewport()) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        const taskElement = [...document.querySelectorAll(".history-task")]
+          .find(element => element.dataset.id === taskId);
+        taskElement?.scrollIntoView({
+          behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+          block: "start"
+        });
+      });
+    });
+  }
+
   function handleReferencePreview(image) {
     if (isPortraitPhoneViewport() && !referenceDockExpanded) {
+      openMobileComposer();
       setReferenceDockExpanded(true);
       return;
     }
@@ -1642,6 +1753,10 @@ function App() {
     });
     if (task) {
       setPrompt("");
+      if (isPortraitPhoneViewport()) {
+        closeMobileComposer();
+        revealMobileGeneratedTask(task.id);
+      }
     }
   }
 
@@ -1690,9 +1805,13 @@ function App() {
     setCount(String(getCountValue(task.count || 1)));
     if (task.referenceImages?.length) {
       setReferenceImages(task.referenceImages);
+      if (isPortraitPhoneViewport()) {
+        setReferenceDockExpanded(true);
+      }
     } else {
       clearReferences();
     }
+    openMobileComposer({ focusPrompt: true });
     showToast(t("toast.reused"));
   }
 
@@ -2088,7 +2207,7 @@ function App() {
   const referenceModeActive = syncReferenceModeState();
 
   return (
-    <div className={`studio-shell${workspaceMode !== "classic" ? " canvas-mode-active" : ""}${workspaceMode === "canvas" && !activeCanvasId ? " canvas-hub-active" : ""}`} data-workspace-mode={workspaceMode}>
+    <div className={`studio-shell${workspaceMode !== "classic" ? " canvas-mode-active" : ""}${workspaceMode === "canvas" && !activeCanvasId ? " canvas-hub-active" : ""}${workspaceMode === "classic" && mobileComposerExpanded ? " mobile-composer-expanded" : ""}`} data-workspace-mode={workspaceMode}>
       <aside className="sidebar" aria-label={t("nav.main")}>
         <div className="logo">
           <span className="logo-mark"><Sparkles /></span>
@@ -2128,6 +2247,42 @@ function App() {
       </aside>
 
       <main className="main">
+        <header className="mobile-classic-header" aria-label={language === "en" ? "Classic mobile navigation" : "经典模式手机导航"}>
+          <div className="mobile-classic-brand">
+            <span className="logo-mark"><Sparkles /></span>
+            <strong>Image2</strong>
+          </div>
+          <div className="mobile-classic-actions">
+            <Button className="mobile-canvas-entry" variant="outline" size="icon" type="button" aria-label={t("mode.canvas")} onClick={openCanvasProjects}>
+              <Grid2X2 />
+            </Button>
+            <Button
+              className="mobile-credit-pill"
+              variant="outline"
+              type="button"
+              data-account-trigger
+              aria-expanded={accountOpen}
+              aria-controls="accountPanel"
+              onClick={() => setAccountOpen(true)}
+            >
+              <CreditCard />
+              <span>{t("topbar.credits", { count: formatCreditBalance(isLoggedIn ? currentUser.credits : 0) })}</span>
+            </Button>
+            <Button
+              className="mobile-account-button"
+              variant="outline"
+              size="icon"
+              type="button"
+              data-account-trigger
+              aria-label={isLoggedIn ? currentUser.email : t("account.login")}
+              aria-expanded={accountOpen}
+              aria-controls="accountPanel"
+              onClick={() => setAccountOpen(prev => !prev)}
+            >
+              <CircleUserRound />
+            </Button>
+          </div>
+        </header>
         <header className="topbar">
           <div className="topbar-actions">
             <Button
@@ -2292,6 +2447,7 @@ function App() {
             language={language}
             history={history}
             onOpenProject={openCanvasProject}
+            onOpenClassic={openClassicWorkspace}
             onToast={showToast}
           />
         ) : null}
@@ -2314,11 +2470,66 @@ function App() {
         ) : null}
       </main>
 
-      <section className={`composer${workspaceMode === "classic" ? "" : " mode-hidden"}`} aria-label={t("composer.section")}>
-        <form className={`composer-card${isLoggedIn ? "" : " is-disabled"}`} noValidate onSubmit={async event => {
-          event.preventDefault();
-          await generateNewTask();
-        }}>
+      <section className={`composer${workspaceMode === "classic" ? "" : " mode-hidden"}${mobileComposerExpanded ? " is-mobile-expanded" : " is-mobile-collapsed"}`} aria-label={t("composer.section")}>
+        <button className="mobile-composer-backdrop" type="button" aria-label={t("composer.mobileCollapse")} onClick={closeMobileComposer} />
+        <form
+          className={`composer-card${isLoggedIn ? "" : " is-disabled"}`}
+          style={{ ["--mobile-composer-drag-offset"]: `${mobileComposerDragOffset}px` }}
+          noValidate
+          onSubmit={async event => {
+            event.preventDefault();
+            await generateNewTask();
+          }}
+        >
+          <div
+            className="mobile-composer-sheet-head"
+            onPointerDown={handleMobileComposerDragStart}
+            onPointerMove={handleMobileComposerDragMove}
+            onPointerUp={handleMobileComposerDragEnd}
+            onPointerCancel={handleMobileComposerDragEnd}
+          >
+            <GripHorizontal aria-hidden="true" />
+            <strong>{t("composer.mobileTitle")}</strong>
+            <Button variant="ghost" size="icon" type="button" aria-label={t("composer.mobileCollapse")} onClick={closeMobileComposer}>
+              <X />
+            </Button>
+          </div>
+
+          {referenceImages.length > 0 ? (
+            <section className={`mobile-reference-panel${mobileComposerExpanded ? "" : " hidden"}`} aria-label={t("composer.selectedReferences", { count: referenceImages.length })}>
+              <div className="mobile-reference-panel-head">
+                <span>{t("references.title", { count: referenceImages.length })}</span>
+              </div>
+              <div className="mobile-reference-strip">
+                {referenceImages.map((image, index) => (
+                  <figure className="mobile-reference-card" key={`mobile-${image.id}`}>
+                    <button
+                      className="mobile-reference-preview"
+                      type="button"
+                      aria-label={t("composer.previewReference", { name: image.name || index + 1 })}
+                      onClick={() => openImagePreview(image.dataUrl, {
+                        items: referenceImages.map(item => item.dataUrl),
+                        index
+                      })}
+                    >
+                      <img src={image.dataUrl} alt={image.name} />
+                    </button>
+                    <button className="mobile-reference-remove" type="button" aria-label={t("composer.removeReference")} onClick={() => removeReference(image.id)}>
+                      <X />
+                    </button>
+                  </figure>
+                ))}
+                <label className="mobile-reference-add" title={t("composer.addReference")}>
+                  <input type="file" accept="image/*" multiple onChange={async event => {
+                    await addReferenceFiles(event.target.files || []);
+                    event.target.value = "";
+                  }} />
+                  <Plus />
+                </label>
+              </div>
+            </section>
+          ) : null}
+
           {referenceImages.length === 0 ? (
             <label className="upload-tile upload-tile-compact" title={t("composer.uploadReference")}>
               <input type="file" accept="image/*" multiple onChange={async event => {
@@ -2347,7 +2558,14 @@ function App() {
                 type="button"
                 aria-expanded={referenceDockExpanded}
                 aria-label={referenceDockExpanded ? t("composer.collapseReferences") : t("composer.expandReferences", { count: referenceImages.length })}
-                onClick={() => setReferenceDockExpanded(prev => !prev)}
+                onClick={() => {
+                  if (isPortraitPhoneViewport()) {
+                    openMobileComposer();
+                    setReferenceDockExpanded(true);
+                    return;
+                  }
+                  setReferenceDockExpanded(prev => !prev);
+                }}
               >
                 <span>{referenceImages.length}</span>
                 <ChevronUp />
@@ -2400,6 +2618,7 @@ function App() {
                 value={prompt}
                 onChange={event => setPrompt(event.target.value)}
                 onPaste={handlePromptPaste}
+                onFocus={() => openMobileComposer()}
                 rows={3}
                 placeholder={t("composer.placeholder")}
                 required
@@ -2450,51 +2669,6 @@ function App() {
           </Button>
         </form>
       </section>
-
-      {referenceImages.length > 0 ? (
-        <section className={`mobile-reference-panel${referenceDockExpanded ? "" : " hidden"}`} aria-label={t("composer.selectedReferences", { count: referenceImages.length })}>
-          <div className="mobile-reference-panel-head">
-            <span>{t("references.title", { count: referenceImages.length })}</span>
-            <button type="button" aria-label={t("composer.collapseReferences")} onClick={() => setReferenceDockExpanded(false)}>
-              <ChevronUp />
-            </button>
-          </div>
-          <div className="mobile-reference-strip">
-            {referenceImages.map((image, index) => (
-              <figure className="mobile-reference-card" key={`mobile-${image.id}`}>
-                <button
-                  className="mobile-reference-preview"
-                  type="button"
-                  aria-label={t("composer.previewReference", { name: image.name || index + 1 })}
-                  onClick={() => openImagePreview(image.dataUrl, {
-                    items: referenceImages.map(item => item.dataUrl),
-                    index
-                  })}
-                >
-                  <img src={image.dataUrl} alt={image.name} />
-                </button>
-                <button className="mobile-reference-remove" type="button" aria-label={t("composer.removeReference")} onClick={() => removeReference(image.id)}>
-                  <X />
-                </button>
-              </figure>
-            ))}
-            <label className="mobile-reference-add" title={t("composer.addReference")}>
-              <input type="file" accept="image/*" multiple onChange={async event => {
-                await addReferenceFiles(event.target.files || []);
-                event.target.value = "";
-              }} />
-              <Plus />
-            </label>
-          </div>
-        </section>
-      ) : null}
-
-      <div className={`ratio-panel mobile-ratio-panel${ratioOpen ? "" : " hidden"}`}>
-        <p>{t("ratio.label")}</p>
-        <div className="ratio-options" aria-label={t("ratio.label")}>
-          {renderRatioOptions()}
-        </div>
-      </div>
 
       <section id="accountPanel" className={`account-panel${accountOpen ? "" : " hidden"}`} aria-label={t("account.section")}>
         <div className="panel-backdrop" onClick={() => setAccountOpen(false)} />

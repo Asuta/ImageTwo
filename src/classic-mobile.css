@@ -1,0 +1,772 @@
+.mobile-classic-header,
+.mobile-composer-backdrop,
+.mobile-composer-sheet-head,
+.mobile-reference-panel {
+  display: none;
+}
+
+@media (max-width: 720px) and (orientation: portrait) {
+  html:has(.studio-shell[data-workspace-mode="classic"]),
+  body:has(.studio-shell[data-workspace-mode="classic"]),
+  #root:has(.studio-shell[data-workspace-mode="classic"]) {
+    width: 100%;
+    min-width: 0;
+    height: 100dvh;
+    min-height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    max-height: 100dvh !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .sidebar,
+  .studio-shell[data-workspace-mode="classic"] .topbar {
+    display: none !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] > .main {
+    position: relative !important;
+    inset: auto !important;
+    display: grid !important;
+    grid-template-rows: 58px minmax(0, 1fr) !important;
+    gap: 8px !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    max-height: 100dvh !important;
+    margin: 0 !important;
+    padding: max(8px, env(safe-area-inset-top, 0px)) 10px calc(82px + env(safe-area-inset-bottom, 0px)) !important;
+    overflow: hidden !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .mobile-classic-header {
+    position: relative;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
+    height: 58px;
+    padding: 6px 4px;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .mobile-classic-brand,
+  .studio-shell[data-workspace-mode="classic"] .mobile-classic-actions {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .mobile-classic-brand {
+    flex: 1 1 auto;
+    gap: 8px;
+    color: #1e1b35;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .mobile-classic-brand .logo-mark {
+    display: grid !important;
+    place-items: center !important;
+    flex: 0 0 34px !important;
+    width: 34px !important;
+    min-width: 34px !important;
+    height: 34px !important;
+    border-radius: 12px !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .mobile-classic-brand .logo-mark svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .mobile-classic-brand strong {
+    overflow: hidden;
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .mobile-classic-actions {
+    flex: 0 0 auto;
+    gap: 6px;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .mobile-canvas-entry,
+  .studio-shell[data-workspace-mode="classic"] .mobile-account-button,
+  .studio-shell[data-workspace-mode="classic"] .mobile-credit-pill {
+    height: 40px !important;
+    min-height: 40px !important;
+    border: 1px solid rgba(255, 255, 255, 0.78) !important;
+    background: rgba(255, 255, 255, 0.72) !important;
+    color: #4a446b !important;
+    box-shadow: 0 10px 24px rgba(67, 58, 119, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+    backdrop-filter: blur(16px) saturate(130%);
+    -webkit-backdrop-filter: blur(16px) saturate(130%);
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .mobile-canvas-entry,
+  .studio-shell[data-workspace-mode="classic"] .mobile-account-button {
+    width: 40px !important;
+    min-width: 40px !important;
+    padding: 0 !important;
+    border-radius: 13px !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .mobile-credit-pill {
+    max-width: 110px !important;
+    min-width: 0 !important;
+    padding: 0 10px !important;
+    gap: 6px !important;
+    border-radius: 13px !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .mobile-credit-pill span {
+    overflow: hidden;
+    font-size: 12px;
+    font-weight: 760;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .mobile-classic-actions svg {
+    flex: 0 0 auto;
+    width: 17px !important;
+    height: 17px !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .history-feed {
+    grid-row: 2 !important;
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+    gap: 8px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 12px 10px 10px !important;
+    overflow: hidden !important;
+    border: 1px solid rgba(255, 255, 255, 0.64) !important;
+    border-radius: 20px !important;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.58), rgba(246, 244, 255, 0.34)) !important;
+    box-shadow: 0 18px 48px rgba(89, 78, 145, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.82) !important;
+    backdrop-filter: blur(12px) saturate(120%) !important;
+    -webkit-backdrop-filter: blur(12px) saturate(120%) !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .history-toolbar {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    min-height: 30px !important;
+    margin: 0 !important;
+    padding: 0 2px !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .history-toolbar .eyebrow {
+    display: none !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .history-toolbar h1 {
+    max-width: none !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    color: #292443 !important;
+    font-size: 18px !important;
+    font-weight: 820 !important;
+    line-height: 1.2 !important;
+    text-overflow: clip !important;
+    white-space: normal !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .history-scroll {
+    display: grid !important;
+    grid-auto-rows: max-content !important;
+    gap: 10px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 2px 20px 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior-y: contain !important;
+    scroll-padding-top: 8px !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .history-task {
+    scroll-margin-top: 8px;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer {
+    position: fixed !important;
+    left: 10px !important;
+    right: 10px !important;
+    bottom: max(8px, env(safe-area-inset-bottom, 0px)) !important;
+    z-index: 100 !important;
+    display: block !important;
+    width: calc(100vw - 20px) !important;
+    min-width: 0 !important;
+    max-width: calc(100vw - 20px) !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: none !important;
+    translate: none !important;
+    pointer-events: none;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer-card {
+    pointer-events: auto;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer-card::before {
+    display: none !important;
+    content: none !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-collapsed .composer-card {
+    display: grid !important;
+    grid-template-columns: 46px minmax(0, 1fr) 108px !important;
+    grid-template-rows: 56px !important;
+    gap: 7px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: 68px !important;
+    min-height: 68px !important;
+    max-height: 68px !important;
+    padding: 6px !important;
+    overflow: hidden !important;
+    border: 1px solid rgba(255, 255, 255, 0.76) !important;
+    border-radius: 20px !important;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(247, 244, 255, 0.72)) !important;
+    box-shadow: 0 18px 42px rgba(55, 45, 111, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.92) !important;
+    backdrop-filter: blur(22px) saturate(138%) !important;
+    -webkit-backdrop-filter: blur(22px) saturate(138%) !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-collapsed .mobile-composer-sheet-head,
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-collapsed .mobile-reference-panel,
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-collapsed .control-row,
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-collapsed .desktop-ratio-panel {
+    display: none !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-collapsed .upload-tile,
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-collapsed .reference-dock {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    align-self: stretch !important;
+    display: grid !important;
+    place-items: center !important;
+    width: 46px !important;
+    min-width: 46px !important;
+    max-width: 46px !important;
+    height: 56px !important;
+    min-height: 56px !important;
+    max-height: 56px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    border-radius: 15px !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-collapsed .reference-dock-stack,
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-collapsed .reference-dock-add,
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-collapsed .reference-dock-hover-plate {
+    display: none !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-collapsed .reference-dock-toggle {
+    position: static !important;
+    inset: auto !important;
+    z-index: auto !important;
+    display: grid !important;
+    place-items: center !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: inherit !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: #6f4df4 !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-collapsed .reference-dock-toggle span {
+    display: grid !important;
+    place-items: center !important;
+    width: 24px !important;
+    height: 24px !important;
+    border-radius: 999px !important;
+    background: rgba(111, 77, 244, 0.12) !important;
+    font-size: 11px !important;
+    font-weight: 850 !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-collapsed .reference-dock-toggle svg {
+    display: none !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-collapsed .prompt-zone {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 56px !important;
+    min-height: 56px !important;
+    padding: 0 !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-collapsed .prompt-top,
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-collapsed .prompt-textarea {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 56px !important;
+    min-height: 56px !important;
+    max-height: 56px !important;
+    margin: 0 !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-collapsed .prompt-textarea {
+    padding: 16px 12px !important;
+    overflow: hidden !important;
+    border-radius: 15px !important;
+    font-size: 14px !important;
+    line-height: 22px !important;
+    resize: none !important;
+    white-space: nowrap;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-collapsed .generate-button {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    align-self: stretch !important;
+    width: 108px !important;
+    min-width: 108px !important;
+    max-width: 108px !important;
+    height: 56px !important;
+    min-height: 56px !important;
+    margin: 0 !important;
+    padding: 0 10px !important;
+    border-radius: 15px !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-collapsed .generate-button-copy {
+    gap: 1px !important;
+    justify-items: center !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-collapsed .generate-button-copy strong {
+    font-size: 14px !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-collapsed .generate-button-copy small {
+    font-size: 9px !important;
+    white-space: nowrap !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded {
+    inset: 0 !important;
+    z-index: 150 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    pointer-events: none !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .mobile-composer-backdrop {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 0 !important;
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: rgba(24, 20, 47, 0.32) !important;
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+    pointer-events: auto !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .composer-card {
+    position: fixed !important;
+    left: 10px !important;
+    right: 10px !important;
+    bottom: max(8px, env(safe-area-inset-bottom, 0px)) !important;
+    z-index: 1 !important;
+    display: grid !important;
+    grid-template-columns: 56px minmax(0, 1fr) !important;
+    grid-template-rows: max-content max-content max-content max-content !important;
+    grid-auto-rows: max-content !important;
+    gap: 10px !important;
+    width: calc(100vw - 20px) !important;
+    min-width: 0 !important;
+    max-width: calc(100vw - 20px) !important;
+    height: auto !important;
+    min-height: min(430px, calc(100dvh - 24px)) !important;
+    max-height: min(68dvh, 620px) !important;
+    margin: 0 !important;
+    padding: 10px !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+    border: 1px solid rgba(255, 255, 255, 0.8) !important;
+    border-radius: 24px !important;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(245, 242, 255, 0.94)) !important;
+    box-shadow: 0 28px 72px rgba(30, 24, 71, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.94) !important;
+    backdrop-filter: blur(24px) saturate(138%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(138%) !important;
+    transform: translateY(var(--mobile-composer-drag-offset, 0px)) !important;
+    transition: transform 180ms ease, opacity 180ms ease !important;
+    pointer-events: auto !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .mobile-composer-sheet-head {
+    grid-column: 1 / -1 !important;
+    grid-row: 1 !important;
+    display: grid !important;
+    grid-template-columns: 34px minmax(0, 1fr) 38px !important;
+    align-items: center !important;
+    gap: 8px !important;
+    min-height: 40px !important;
+    padding: 0 0 4px !important;
+    color: #2b2645 !important;
+    touch-action: none;
+    user-select: none;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .mobile-composer-sheet-head > svg {
+    width: 24px !important;
+    height: 24px !important;
+    color: #9189ad !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .mobile-composer-sheet-head strong {
+    font-size: 15px !important;
+    font-weight: 820 !important;
+    text-align: center !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .mobile-composer-sheet-head button {
+    width: 38px !important;
+    min-width: 38px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 0 !important;
+    border-radius: 13px !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .mobile-reference-panel {
+    position: static !important;
+    inset: auto !important;
+    grid-column: 1 / -1 !important;
+    grid-row: 2 !important;
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 10px !important;
+    transform: none !important;
+    border: 1px solid rgba(143, 125, 214, 0.16) !important;
+    border-radius: 17px !important;
+    background: rgba(246, 243, 255, 0.72) !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .mobile-reference-panel.hidden {
+    display: none !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .mobile-reference-panel-head {
+    margin-bottom: 8px !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .mobile-reference-strip {
+    gap: 8px !important;
+    padding-bottom: 2px !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .mobile-reference-card,
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .mobile-reference-add {
+    flex-basis: 62px !important;
+    width: 62px !important;
+    min-width: 62px !important;
+    height: 76px !important;
+    border-radius: 13px !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .reference-dock {
+    display: none !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .upload-tile {
+    grid-column: 1 !important;
+    grid-row: 3 !important;
+    align-self: stretch !important;
+    width: 56px !important;
+    min-width: 56px !important;
+    max-width: 56px !important;
+    height: 112px !important;
+    min-height: 112px !important;
+    max-height: 112px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 17px !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .prompt-zone {
+    grid-column: 2 !important;
+    grid-row: 3 !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 10px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .composer-card:has(.reference-dock) .prompt-zone {
+    grid-column: 1 / -1 !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .composer-card:not(:has(.mobile-reference-panel)) .upload-tile,
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .composer-card:not(:has(.mobile-reference-panel)) .prompt-zone {
+    grid-row: 2 !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .prompt-top,
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .prompt-textarea {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 112px !important;
+    min-height: 112px !important;
+    max-height: 160px !important;
+    margin: 0 !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .prompt-textarea {
+    padding: 13px 14px !important;
+    overflow-y: auto !important;
+    border-radius: 17px !important;
+    font-size: 15px !important;
+    line-height: 1.45 !important;
+    resize: none !important;
+    white-space: pre-wrap !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .control-row {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.86fr) !important;
+    gap: 8px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .ratio-control,
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .ratio-button,
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .control-row select {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    border-radius: 14px !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .ratio-control {
+    position: relative !important;
+    display: grid !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .desktop-ratio-panel {
+    position: static !important;
+    inset: auto !important;
+    z-index: auto !important;
+    display: block !important;
+    width: calc(200% + 8px) !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    max-height: 210px !important;
+    margin: 8px 0 0 !important;
+    padding: 10px !important;
+    overflow-y: auto !important;
+    transform: none !important;
+    border-radius: 16px !important;
+    pointer-events: auto !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .desktop-ratio-panel.hidden {
+    display: none !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .ratio-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 7px !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .ratio-option {
+    min-height: 42px !important;
+    border-radius: 13px !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .count-control {
+    grid-column: 1 / -1 !important;
+    display: grid !important;
+    grid-template-columns: 44px minmax(0, 1fr) 44px !important;
+    gap: 8px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    padding: 5px !important;
+    border-radius: 15px !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .count-control > span:not([aria-hidden="true"]) {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    margin: -1px !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    clip: rect(0 0 0 0) !important;
+    clip-path: inset(50%) !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .count-control input {
+    grid-column: 2 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 0 !important;
+    text-align: center !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .generate-button {
+    grid-column: 1 / -1 !important;
+    grid-row: 4 !important;
+    align-self: stretch !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: 56px !important;
+    min-height: 56px !important;
+    margin: 0 !important;
+    border-radius: 17px !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .composer-card:not(:has(.mobile-reference-panel)) .generate-button {
+    grid-row: 3 !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .mobile-ratio-panel {
+    display: none !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .account-panel {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 210 !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .account-popover {
+    position: fixed !important;
+    left: 10px !important;
+    right: 10px !important;
+    bottom: max(10px, env(safe-area-inset-bottom, 0px)) !important;
+    width: calc(100vw - 20px) !important;
+    max-width: calc(100vw - 20px) !important;
+    max-height: min(78dvh, 600px) !important;
+    overflow-y: auto !important;
+    border-radius: 22px !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"] .toast {
+    left: 12px !important;
+    right: 12px !important;
+    top: auto !important;
+    bottom: calc(86px + env(safe-area-inset-bottom, 0px)) !important;
+    z-index: 230 !important;
+    width: auto !important;
+    max-width: none !important;
+    transform: none !important;
+    pointer-events: none !important;
+  }
+
+  .studio-shell[data-workspace-mode="classic"].mobile-composer-expanded .toast {
+    top: max(72px, env(safe-area-inset-top, 0px)) !important;
+    bottom: auto !important;
+  }
+
+  :root[data-theme="dark"] .studio-shell[data-workspace-mode="classic"] .mobile-classic-brand,
+  :root[data-theme="dark"] .studio-shell[data-workspace-mode="classic"] .history-toolbar h1,
+  :root[data-theme="dark"] .studio-shell[data-workspace-mode="classic"] .mobile-composer-sheet-head {
+    color: #f1efff !important;
+  }
+
+  :root[data-theme="dark"] .studio-shell[data-workspace-mode="classic"] .mobile-canvas-entry,
+  :root[data-theme="dark"] .studio-shell[data-workspace-mode="classic"] .mobile-account-button,
+  :root[data-theme="dark"] .studio-shell[data-workspace-mode="classic"] .mobile-credit-pill {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    background: rgba(20, 21, 31, 0.82) !important;
+    color: #e4e0ff !important;
+  }
+
+  :root[data-theme="dark"] .studio-shell[data-workspace-mode="classic"] .history-feed {
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    background: linear-gradient(180deg, rgba(17, 18, 27, 0.9), rgba(11, 12, 19, 0.78)) !important;
+  }
+
+  :root[data-theme="dark"] .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-collapsed .composer-card,
+  :root[data-theme="dark"] .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .composer-card {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    background: linear-gradient(180deg, rgba(25, 26, 37, 0.98), rgba(15, 16, 25, 0.96)) !important;
+    box-shadow: 0 28px 72px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+  }
+
+  :root[data-theme="dark"] .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .mobile-reference-panel {
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .composer-card {
+      transition: none !important;
+    }
+  }
+}
