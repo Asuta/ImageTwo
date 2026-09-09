@@ -1768,7 +1768,7 @@ body,
 
   .studio-shell .composer-card {
     grid-template-columns: 118px minmax(320px, 1fr) 168px !important;
-    grid-template-rows: 58px 32px !important;
+    grid-template-rows: 58px auto !important;
     align-items: stretch !important;
     gap: 8px 14px !important;
     min-height: 116px !important;

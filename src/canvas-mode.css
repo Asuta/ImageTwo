@@ -517,6 +517,34 @@
   gap: 6px;
 }
 
+.wuli-model-pill {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.wuli-model-pill > svg {
+  position: absolute;
+  left: 9px;
+  width: 14px;
+  height: 14px;
+  color: #58585e;
+  pointer-events: none;
+}
+
+.wuli-context-controls .wuli-model-pill select {
+  width: auto !important;
+  min-width: 166px;
+  padding-left: 28px !important;
+  cursor: pointer;
+}
+
+.wuli-context-controls .wuli-model-pill select:focus-visible {
+  outline: 2px solid #a983ff !important;
+  outline-offset: 2px !important;
+}
+
 .wuli-context-controls button,
 .wuli-context-controls select,
 .wuli-context-controls input {

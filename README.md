@@ -43,7 +43,7 @@ macOS / Linux 默认读取：
 ```text
 IMAGE2_API_URL=https://ai-pixel.online
 IMAGE2_API_KEY=your_api_key_here
-IMAGE2_MODEL=gpt-image-2
+IMAGE2_MODEL=gpt-image-2.5-flare
 IMAGE2_ADMIN_KEY=change_this_admin_key
 IMAGE2_DATA_DIR=./data
 IMAGE2_SIGNUP_CREDITS=5
@@ -130,7 +130,10 @@ Invoke-RestMethod -Method Post -Uri http://localhost:5173/api/admin/users/<user-
 
 ## 说明
 
-- 模型：`gpt-image-2`
+- 可选模型：`gpt-image-2.5-flare`（默认）和 `gpt-image-2.5-sunburst`。经典模式和 Canvas 的生成面板都提供模型选择，文生图和参考图编辑使用同一所选模型。
+- 经典模式记住最近选择；Canvas 按项目保存模型，选回生成节点时恢复该任务的模型。历史“重新编辑 / 再次生成”沿用记录中的可用模型，旧模型记录重新生成时默认使用 Flare，历史原始信息保持不变。
+- Canvas 发起的生成结果只自动加入所属画布；其他项目仍可从历史抽屉手动拖入该图片。
+- 用户选择的模型随每次 `/api/generate` 请求传入，优先于供应商默认模型，不修改共享供应商配置。旧配置 `gpt-image-2` / `gpt-image-2-codex` 在读取时兼容为 Flare。两个模型继续使用 `IMAGE2_GENERATION_COST_CREDITS` 定义的站内单张成本。
 - 默认图片接口：`https://ai-pixel.online`（AI Pixel Images 格式）
 - 图片不会长期保存在服务器；浏览器会把生成结果保存到当前浏览器的 IndexedDB。
 - API key 从系统环境变量、全局共享 env 文件或项目根目录 `.env` 读取，`.env` 不会提交到 Git。

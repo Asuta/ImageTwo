@@ -661,7 +661,7 @@ function resetProviderForm() {
   providerLabel.value = "";
   providerApiUrl.value = "";
   providerApiKey.value = "";
-  providerModel.value = "gpt-image-2";
+  providerModel.value = "gpt-image-2.5-flare";
   providerApiFormat.value = "compilation";
   providerEnabled.checked = true;
   providerNote.value = "";
@@ -673,7 +673,7 @@ function fillProviderForm(provider) {
   providerLabel.value = provider.label || "";
   providerApiUrl.value = provider.apiUrl || "";
   providerApiKey.value = provider.apiKey || "";
-  providerModel.value = provider.model || "gpt-image-2";
+  providerModel.value = provider.model || "gpt-image-2.5-flare";
   providerApiFormat.value = provider.apiFormat || "compilation";
   providerEnabled.checked = Boolean(provider.enabled);
   providerNote.value = provider.note || "";

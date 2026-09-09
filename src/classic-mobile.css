@@ -605,6 +605,10 @@
     border-radius: 14px !important;
   }
 
+  .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .model-select {
+    grid-column: 1 / -1 !important;
+  }
+
   .studio-shell[data-workspace-mode="classic"] .composer.is-mobile-expanded .ratio-control {
     position: relative !important;
     display: grid !important;

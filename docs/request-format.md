@@ -29,6 +29,7 @@ Content-Type: application/json
 ```json
 {
   "prompt": "用户输入的提示词",
+  "model": "gpt-image-2.5-flare",
   "aspectRatio": "auto",
   "quality": "medium",
   "mode": "generate",
@@ -39,6 +40,7 @@ Content-Type: application/json
 字段说明：
 
 - `prompt`：用户输入的提示词，不能为空。
+- `model`：可选 `gpt-image-2.5-flare` 或 `gpt-image-2.5-sunburst`。经典模式和 Canvas 均显式提交所选模型；不支持的值返回 HTTP 400，且不预扣额度。不传该字段的旧客户端沿用供应商默认模型；旧配置 `gpt-image-2` / `gpt-image-2-codex` 读取时兼容为 Flare。
 - `aspectRatio`：图片比例。可选值为 `auto`、`9:21`、`9:16`、`2:3`、`3:4`、`1:1`、`4:3`、`3:2`、`16:9`、`21:9`。
 - `quality`：图片质量。可选值为 `low`、`medium`、`high`。
 - `mode`：`generate` 表示普通文生图，`edit` 表示参考图编辑。
@@ -204,6 +206,8 @@ Image2 服务会把用户提示词包装成 `imagePrompt`。
 
 上游请求取决于后台供应商的 `apiFormat`：
 
+下列请求中的 `model` 均以本次用户选择为准，文生图 JSON 和参考图编辑 multipart 都透传相同的模型 ID。每次任务在创建时固定模型，供应商默认配置及其他并行任务不会覆盖它；前端历史、服务端历史和成功响应的 `model` 都保留本次请求模型，不使用上游返回的内部模型别名覆盖。
+
 - `responses`：文生图和参考图都走配置的 Responses 地址，参考图会作为 `input_image` 放进 JSON。
 - `responses-edits`：文生图走配置的 Responses 地址；带参考图时切换到同域名的 `/v1/images/edits`，用 multipart 上传 `image` 字段。AI Hub 这类供应商使用此格式。
 - `compilation`：文生图走 `/v1/images/generations`，参考图走 `/v1/images/edits`，参考图字段名沿用 `image[]`。
@@ -222,7 +226,7 @@ Content-Type: application/json
 
 ```json
 {
-  "model": "gpt-5.4-mini",
+  "model": "gpt-image-2.5-flare",
   "input": "请直接调用图片生成工具生成一张图片，不要只回复文字。\n图片比例：9:16\n\n用户提示词：\n用户输入的提示词",
   "tools": [
     {
@@ -237,7 +241,7 @@ Content-Type: application/json
 
 ```json
 {
-  "model": "gpt-5.4-mini",
+  "model": "gpt-image-2.5-flare",
   "input": [
     {
       "role": "user",
@@ -287,7 +291,7 @@ Content-Type: multipart/form-data
 表单字段：
 
 ```text
-model=gpt-image-2
+model=gpt-image-2.5-flare
 prompt=<服务端提示词>
 n=1
 thinking=medium
@@ -310,7 +314,7 @@ Content-Type: application/json
 
 ```json
 {
-  "model": "gpt-image-2",
+  "model": "gpt-image-2.5-flare",
   "prompt": "<服务端提示词>",
   "image": [
     "data:image/png;base64,..."
@@ -335,7 +339,7 @@ Content-Type: application/json
 
 ```json
 {
-  "model": "gpt-image-2",
+  "model": "gpt-image-2.5-flare",
   "prompt": "<服务端提示词>",
   "size": "1024x1024 / 1536x1024 / 1024x1536",
   "response_format": "b64_json",
@@ -354,7 +358,7 @@ Content-Type: multipart/form-data
 表单字段：
 
 ```text
-model=gpt-image-2
+model=gpt-image-2.5-flare
 prompt=<服务端提示词>
 n=1
 response_format=b64_json
@@ -373,7 +377,7 @@ image[]=<参考图文件>
 ```json
 {
   "id": "resp_xxx",
-  "model": "gpt-5.4-mini-2026-03-17",
+  "model": "gpt-image-2.5-flare",
   "output": [
     {
       "type": "image_generation_call",
@@ -411,7 +415,7 @@ Image2 服务不会把图片长期写入服务器磁盘，而是把图片 base64
 {
   "id": "resp_xxx",
   "requestId": "image2_req_xxx",
-  "model": "gpt-5.4-mini-2026-03-17",
+  "model": "gpt-image-2.5-flare",
   "status": "completed",
   "outputFormat": "png",
   "mimeType": "image/png",

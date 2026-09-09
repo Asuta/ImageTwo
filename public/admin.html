@@ -60,8 +60,12 @@
                   <input id="providerApiKey" type="text" placeholder="留空则沿用全局密钥" />
                 </label>
                 <label>
-                  <span>模型名</span>
-                  <input id="providerModel" type="text" placeholder="gpt-image-2" required />
+                  <span>默认模型（用户生成时可另选）</span>
+                  <input id="providerModel" type="text" list="imageModels" placeholder="gpt-image-2.5-flare" required />
+                  <datalist id="imageModels">
+                    <option value="gpt-image-2.5-flare"></option>
+                    <option value="gpt-image-2.5-sunburst"></option>
+                  </datalist>
                 </label>
                 <label>
                   <span>接口格式</span>

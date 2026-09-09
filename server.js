@@ -5,6 +5,7 @@ import { homedir } from "node:os";
 import { extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
+import { isSupportedImageModel, upgradeLegacyImageModel } from "./src/lib/image-models.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const publicDir = join(__dirname, "public");
@@ -16,7 +17,7 @@ loadLocalEnv();
 const START_PORT = Number(process.env.PORT || 5180);
 const HOST = process.env.HOST || "0.0.0.0";
 const DEFAULT_API_URL = process.env.IMAGE2_API_URL || "https://ai-pixel.online";
-const DEFAULT_MODEL = process.env.IMAGE2_MODEL || "gpt-image-2";
+const DEFAULT_MODEL = upgradeLegacyImageModel(process.env.IMAGE2_MODEL);
 const dataDir = process.env.IMAGE2_DATA_DIR || join(__dirname, "data");
 const dataPath = join(dataDir, "image2-data.json");
 const historyAssetsDir = join(dataDir, "history-assets");
@@ -407,7 +408,7 @@ function normalizeProvider(provider, now = new Date().toISOString()) {
     label: String(provider?.label || provider?.name || "未命名供应商").trim().slice(0, 80),
     apiUrl,
     apiKey: String(provider?.apiKey || "").trim(),
-    model: String(provider?.model || DEFAULT_MODEL).trim().slice(0, 120),
+    model: upgradeLegacyImageModel(provider?.model || DEFAULT_MODEL).slice(0, 120),
     apiFormat,
     enabled: provider?.enabled !== false,
     note: String(provider?.note || "").trim().slice(0, 200),
@@ -2775,6 +2776,10 @@ async function handleGenerate(req, res) {
 
     const body = JSON.parse(await readBody(req) || "{}");
     const prompt = String(body.prompt || "").trim();
+    if (body.model !== undefined && !isSupportedImageModel(body.model)) {
+      sendJson(res, 400, { error: "请选择有效的图片模型：gpt-image-2.5-flare 或 gpt-image-2.5-sunburst。" });
+      return;
+    }
     const clientTaskId = String(body.clientTaskId || "").trim();
     const clientImageId = String(body.clientImageId || "").trim();
     const quality = qualityOptions.has(body.quality) ? body.quality : "medium";
@@ -2790,11 +2795,13 @@ async function handleGenerate(req, res) {
     }
 
     const data = readData();
-    const provider = getActiveProvider(data);
-    if (!provider) {
+    const activeProvider = getActiveProvider(data);
+    if (!activeProvider) {
       sendJson(res, 500, { error: "没有可用的供应商配置，请先在后台启用一个供应商。" });
       return;
     }
+    const model = body.model ?? activeProvider.model ?? DEFAULT_MODEL;
+    const provider = { ...activeProvider, model };
 
     reservation = reserveCredits({
       userId: sessionUser.user.id,
@@ -2858,6 +2865,7 @@ async function handleGenerate(req, res) {
 
     runGenerationJob({
       requestId: reservation.requestId,
+      model,
       input,
       prompt: imagePrompt,
       aspectRatio,
@@ -2870,6 +2878,7 @@ async function handleGenerate(req, res) {
 
     sendJson(res, 202, {
       requestId: reservation.requestId,
+      model,
       status: "pending",
       costCredits: reservation.costCredits,
       remainingCredits: reservation.remainingCredits
@@ -2895,15 +2904,17 @@ async function handleGenerate(req, res) {
   }
 }
 
-async function runGenerationJob({ requestId, input, prompt, aspectRatio, referenceImages = [], quality, costCredits, remainingCredits }) {
+async function runGenerationJob({ requestId, model, input, prompt, aspectRatio, referenceImages = [], quality, costCredits, remainingCredits }) {
   try {
     const currentJob = generationJobs.get(requestId);
     const providerId = currentJob?.provider?.id || "";
     const data = readData();
-    const provider = data.providers.find(item => item.id === providerId && item.enabled) || getActiveProvider(data);
-    if (!provider) {
+    const configuredProvider = data.providers.find(item => item.id === providerId && item.enabled) || getActiveProvider(data);
+    if (!configuredProvider) {
       throw new Error("没有可用的供应商配置。");
     }
+    // 模型属于当前任务，不能被重新读取的供应商默认值覆盖。
+    const provider = { ...configuredProvider, model };
 
     updateJob(requestId, { status: "running", provider: publicProviderSummary(provider) });
 
@@ -2967,7 +2978,7 @@ async function runGenerationJob({ requestId, input, prompt, aspectRatio, referen
     completeHistoryRecord(requestId, {
       status: "succeeded",
       errorMessage: "",
-      model: payload.model || provider.model || DEFAULT_MODEL,
+      model,
       providerId: provider.id || "",
       providerLabel: provider.label || provider.id || "",
       remainingCredits: usage?.remainingCredits ?? remainingCredits,
@@ -2979,7 +2990,7 @@ async function runGenerationJob({ requestId, input, prompt, aspectRatio, referen
       status: "succeeded",
       id: payload.id,
       requestId,
-      model: payload.model || provider.model || DEFAULT_MODEL,
+      model,
       imageStatus: imageResult.status,
       outputFormat,
       mimeType,

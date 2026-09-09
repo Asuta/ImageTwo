@@ -1,6 +1,8 @@
+import { DEFAULT_IMAGE_MODEL } from "./image-models.js";
+
 const CANVAS_DB_NAME = "image2-canvas-workspace";
 const CANVAS_DB_VERSION = 2;
-const LEGACY_CANVAS_ID = "default-workspace";
+export const LEGACY_CANVAS_ID = "default-workspace";
 const CANVAS_FALLBACK_KEY = "image2-canvas-workspace-fallback";
 const CANVAS_FALLBACK_PREFIX = `${CANVAS_FALLBACK_KEY}:`;
 
@@ -235,6 +237,7 @@ export async function createCanvasProject({ title, initialPrompt = "" } = {}) {
     viewport: { x: 32, y: 32, zoom: 1 },
     settings: {
       prompt: String(initialPrompt || ""),
+      model: DEFAULT_IMAGE_MODEL,
       aspectRatio: "auto",
       quality: "medium",
       count: 1

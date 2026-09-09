@@ -36,8 +36,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AnnotationEditor from "@/components/canvas/AnnotationEditor";
-import { loadCanvasSnapshot, saveCanvasSnapshot } from "@/lib/canvas-db";
+import { LEGACY_CANVAS_ID, loadCanvasSnapshot, saveCanvasSnapshot } from "@/lib/canvas-db";
 import { formatCreditAmount, formatCreditBalance } from "@/lib/utils";
+import { DEFAULT_IMAGE_MODEL, IMAGE_MODELS, normalizeImageModel } from "@/lib/image-models";
 
 const MIN_ZOOM = 0.02;
 const MAX_ZOOM = 4;
@@ -140,7 +141,7 @@ const canvasCopy = {
     invalidReferenceTarget: "不能把节点自身设为参考。",
     referenceAdded: "已添加 {count} 张参考图。",
     invalidReferenceSource: "请选择图片或文本节点作为参考。",
-    imageModel: "Image2",
+    imageModel: "图片模型",
     annotate: "标注"
   },
   en: {
@@ -230,7 +231,7 @@ const canvasCopy = {
     invalidReferenceTarget: "A node cannot reference itself.",
     referenceAdded: "Added {count} reference image(s).",
     invalidReferenceSource: "Choose an image or text node as the reference.",
-    imageModel: "Image2",
+    imageModel: "Image model",
     annotate: "Annotate"
   }
 };
@@ -434,6 +435,7 @@ function CanvasWorkspace({
   const [prompt, setPrompt] = useState("");
   const [aspectRatio, setAspectRatio] = useState("auto");
   const [quality, setQuality] = useState("medium");
+  const [model, setModel] = useState(DEFAULT_IMAGE_MODEL);
   const [count, setCount] = useState(1);
   const [hydrated, setHydrated] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -478,7 +480,7 @@ function CanvasWorkspace({
   const nodesRef = useRef(nodes);
   const viewportRef = useRef(viewport);
   const selectedIdsRef = useRef(selectedIds);
-  const settingsRef = useRef({ prompt, aspectRatio, quality, count });
+  const settingsRef = useRef({ prompt, aspectRatio, quality, count, model });
   const interactionRef = useRef(null);
   const suppressContextMenuRef = useRef(false);
   const wheelEndTimerRef = useRef(0);
@@ -531,8 +533,8 @@ function CanvasWorkspace({
   }, [selectedIds]);
 
   useEffect(() => {
-    settingsRef.current = { prompt, aspectRatio, quality, count };
-  }, [prompt, aspectRatio, quality, count]);
+    settingsRef.current = { prompt, aspectRatio, quality, count, model };
+  }, [prompt, aspectRatio, quality, count, model]);
 
   useEffect(() => {
     let cancelled = false;
@@ -564,6 +566,7 @@ function CanvasWorkspace({
 
         if (snapshot.settings) {
           const restoredSettings = {
+            model: normalizeImageModel(snapshot.settings.model),
             prompt: String(snapshot.settings.prompt || ""),
             aspectRatio: ratioOptions.includes(snapshot.settings.aspectRatio) ? snapshot.settings.aspectRatio : "auto",
             quality: ["low", "medium", "high"].includes(snapshot.settings.quality) ? snapshot.settings.quality : "medium",
@@ -573,6 +576,7 @@ function CanvasWorkspace({
           setPrompt(restoredSettings.prompt);
           setAspectRatio(restoredSettings.aspectRatio);
           setQuality(restoredSettings.quality);
+          setModel(restoredSettings.model);
           setCount(restoredSettings.count);
         }
       })
@@ -603,7 +607,7 @@ function CanvasWorkspace({
         canvasId,
         nodes,
         viewport,
-        settings: { prompt, aspectRatio, quality, count }
+        settings: { prompt, aspectRatio, quality, count, model }
       })
         .catch(error => {
           console.error(error);
@@ -613,7 +617,7 @@ function CanvasWorkspace({
     }, SAVE_DEBOUNCE_MS);
 
     return () => window.clearTimeout(timer);
-  }, [canvasId, nodes, viewport, prompt, aspectRatio, quality, count, hydrated]);
+  }, [canvasId, nodes, viewport, prompt, aspectRatio, quality, count, model, hydrated]);
 
   useEffect(() => {
     if (!hydrated) {
@@ -955,8 +959,15 @@ function CanvasWorkspace({
       });
     });
     const availableImageIds = new Set(availableImages.map(item => item.image.id));
+    const canvasImages = availableImages.filter(({ task }) => {
+      const context = task.canvasContext;
+      if (!context) return false;
+      const taskCanvasId = context.canvasId
+        || (context.projectId && context.projectId !== "default" ? context.projectId : LEGACY_CANVAS_ID);
+      return taskCanvasId === canvasId;
+    });
     const replacedNodeIds = new Set(
-      availableImages
+      canvasImages
         .map(item => item.task.canvasContext?.replacedNodeId)
         .filter(Boolean)
     );
@@ -972,9 +983,7 @@ function CanvasWorkspace({
       const existingImageIds = new Set(
         reconciledNodes.filter(node => node.type === "history-image").map(node => node.imageId)
       );
-      const additions = availableImages.filter(item => (
-        item.task.canvasContext && !existingImageIds.has(item.image.id)
-      ));
+      const additions = canvasImages.filter(item => !existingImageIds.has(item.image.id));
 
       if (additions.length === 0) {
         return changed ? reconciledNodes : previousNodes;
@@ -999,7 +1008,7 @@ function CanvasWorkspace({
         const anchorX = Number(anchor?.x);
         const anchorY = Number(anchor?.y);
         return {
-          id: `history-${item.image.id}`,
+          id: `history-${canvasId}-${item.image.id}`,
           type: "history-image",
           taskId: item.task.id,
           imageId: item.image.id,
@@ -1026,7 +1035,7 @@ function CanvasWorkspace({
 
       return nextNodes;
     });
-  }, [history, historyLoading, hydrated, active]);
+  }, [canvasId, history, historyLoading, hydrated, active]);
 
   const visibleNodes = useMemo(() => nodes.filter(node => !node.hidden), [nodes]);
   const selectedNodes = useMemo(
@@ -2153,6 +2162,9 @@ function CanvasWorkspace({
     if (asset.task?.quality && ["low", "medium", "high"].includes(asset.task.quality)) {
       commitSetting("quality", asset.task.quality, setQuality);
     }
+    if (asset.task) {
+      commitSetting("model", normalizeImageModel(asset.task.model), setModel);
+    }
     onToast?.(text("branchReady"));
     window.requestAnimationFrame(() => promptRef.current?.focus());
   }
@@ -2706,7 +2718,8 @@ function CanvasWorkspace({
         replaceTarget ? { x: replaceTarget.x, y: replaceTarget.y } : undefined
       );
       const canvasContext = {
-        projectId: "default",
+        canvasId,
+        projectId: canvasId,
         parentIds: outputParentIds,
         anchor: positions[0],
         replacedNodeId: replaceTarget?.id || "",
@@ -2714,6 +2727,7 @@ function CanvasWorkspace({
       };
       const task = onGenerate?.({
         prompt: generationPrompt,
+        model,
         aspectRatio,
         quality,
         count: generationCount,
@@ -2727,7 +2741,7 @@ function CanvasWorkspace({
       }
 
       const canvasNodes = task.images.map((image, index) => ({
-        id: `history-${image.id}`,
+        id: `history-${canvasId}-${image.id}`,
         type: "history-image",
         taskId: task.id,
         imageId: image.id,
@@ -2859,6 +2873,7 @@ function CanvasWorkspace({
     }
 
     restoredPromptSelectionRef.current = restorationKey;
+    commitSetting("model", normalizeImageModel(primarySelectedAsset.task.model), setModel);
     commitSetting(
       "prompt",
       getCanvasTaskInputPrompt(primarySelectedAsset.task, primarySelectedNode, visibleNodes),
@@ -3666,7 +3681,12 @@ function CanvasWorkspace({
             />
             {renderMentionMenu()}
             <div className="wuli-context-controls">
-              <button className="wuli-model-pill" type="button"><Sparkles />{text("imageModel")}<ChevronDown /></button>
+              <label className="wuli-model-pill">
+                <Sparkles />
+                <select value={model} onChange={event => commitSetting("model", event.target.value, setModel)} aria-label={text("imageModel")}>
+                  {IMAGE_MODELS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </label>
               <div className="wuli-generation-settings">
                 <label>
                   <select value={aspectRatio} onChange={event => commitSetting("aspectRatio", event.target.value, setAspectRatio)}>

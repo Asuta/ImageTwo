@@ -42,6 +42,7 @@ import { Textarea } from "@/components/ui/textarea";
 import CanvasProjectsPage from "@/components/canvas/CanvasProjectsPage";
 import CanvasWorkspace from "@/components/canvas/CanvasWorkspace";
 import { formatCreditAmount, formatCreditBalance, normalizeCreditAmount } from "@/lib/utils";
+import { DEFAULT_IMAGE_MODEL, IMAGE_MODELS, normalizeImageModel } from "@/lib/image-models";
 
 const DB_NAME = "image2-local-history";
 const DB_VERSION = 1;
@@ -149,6 +150,7 @@ const translations = {
     "ratio.auto": "智能比例",
     "ratio.label": "图片比例",
     "quality.label": "图片质量",
+    "model.label": "图片模型",
     "count.label": "数量",
     "count.decrease": "减少生成数量",
     "count.increase": "增加生成数量",
@@ -293,6 +295,7 @@ const translations = {
     "ratio.auto": "Auto ratio",
     "ratio.label": "Aspect ratio",
     "quality.label": "Image quality",
+    "model.label": "Image model",
     "count.label": "Count",
     "count.decrease": "Decrease generation count",
     "count.increase": "Increase generation count",
@@ -749,7 +752,7 @@ const previewRows = [
   }
 ];
 
-function createTask({ prompt, aspectRatio, quality, count, mode, referenceImages }) {
+function createTask({ prompt, aspectRatio, quality, count, mode, referenceImages, model }) {
   const id = createLocalId();
   return {
     id,
@@ -758,7 +761,7 @@ function createTask({ prompt, aspectRatio, quality, count, mode, referenceImages
     quality,
     count,
     mode,
-    model: "gpt-image-2",
+    model: normalizeImageModel(model),
     createdAt: new Date().toISOString(),
     costCredits: 0,
     remainingCreditsSnapshot: null,
@@ -793,6 +796,13 @@ function App() {
   const [history, setHistory] = useState([]);
   const [prompt, setPrompt] = useState("");
   const [quality, setQuality] = useState("medium");
+  const [model, setModel] = useState(() => {
+    try {
+      return normalizeImageModel(localStorage.getItem("image2-selected-model"));
+    } catch {
+      return DEFAULT_IMAGE_MODEL;
+    }
+  });
   const [count, setCount] = useState("1");
   const [aspectRatio, setAspectRatio] = useState("auto");
   const [referenceImages, setReferenceImages] = useState([]);
@@ -851,6 +861,14 @@ function App() {
       setMobileComposerDragOffset(0);
     }
   }, [workspaceMode]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("image2-selected-model", model);
+    } catch {
+      // 存储不可用时仍允许在当前页面切换和使用模型。
+    }
+  }, [model]);
 
   useEffect(() => {
     const media = window.matchMedia?.("(max-width: 720px) and (orientation: portrait)");
@@ -1543,6 +1561,7 @@ function App() {
           clientTaskId: task.id,
           clientImageId: imageId,
           prompt: task.prompt,
+          model: task.model,
           aspectRatio: task.aspectRatio || "auto",
           quality: task.quality || "medium",
           mode: task.mode,
@@ -1701,6 +1720,7 @@ function App() {
 
   function startGeneration({
     prompt: requestedPrompt,
+    model: requestedModel = DEFAULT_IMAGE_MODEL,
     aspectRatio: requestedAspectRatio = "auto",
     quality: requestedQuality = "medium",
     count: requestedCount = 1,
@@ -1722,6 +1742,7 @@ function App() {
     const mode = requestedReferences.length > 0 ? "edit" : "generate";
     const baseTask = createTask({
       prompt: nextPrompt,
+      model: requestedModel,
       aspectRatio: requestedAspectRatio,
       quality: requestedQuality,
       count: nextCount,
@@ -1746,6 +1767,7 @@ function App() {
   async function generateNewTask() {
     const task = startGeneration({
       prompt,
+      model,
       aspectRatio,
       quality,
       count,
@@ -1773,6 +1795,7 @@ function App() {
 
     const nextTask = createTask({
       prompt: task.prompt,
+      model: task.model,
       aspectRatio: task.aspectRatio || "auto",
       quality: task.quality || "medium",
       count: getCountValue(task.count || task.images.length || 1),
@@ -1801,6 +1824,7 @@ function App() {
     setDeleteConfirmId(null);
     setPrompt(task.prompt);
     setAspectRatio(task.aspectRatio || "auto");
+    setModel(normalizeImageModel(task.model));
     setQuality(task.quality || "medium");
     setCount(String(getCountValue(task.count || 1)));
     if (task.referenceImages?.length) {
@@ -2626,6 +2650,9 @@ function App() {
             </div>
 
             <div className="control-row">
+              <select className="model-select" value={model} onChange={event => setModel(event.target.value)} aria-label={t("model.label")}>
+                {IMAGE_MODELS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
               <div className="ratio-control">
                 <Button className="ratio-button" variant="outline" type="button" aria-expanded={ratioOpen} onClick={() => setRatioOpen(prev => !prev)}>
                   <span className={`ratio-icon ${ratioChoices.find(item => item.value === aspectRatio)?.shape || "auto"}`} aria-hidden="true" />
