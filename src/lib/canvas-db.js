@@ -219,6 +219,28 @@ export async function loadCanvasProjects() {
     .sort((left, right) => new Date(right.updatedAt) - new Date(left.updatedAt));
 }
 
+// 包含未打开项目、隐藏节点及刷新前尚未落入 IndexedDB 的布局快照。
+export async function loadCanvasHistoryImageIds() {
+  const database = await openCanvasDatabase();
+  const transaction = database.transaction("nodes", "readonly");
+  const done = transactionToPromise(transaction);
+  const nodes = await requestToPromise(transaction.objectStore("nodes").getAll());
+  await done;
+  const imageIds = new Set();
+  const collect = entries => entries?.forEach(node => {
+    if (node.type === "history-image" && node.imageId) imageIds.add(node.imageId);
+  });
+  collect(nodes);
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index);
+    if (key === CANVAS_FALLBACK_KEY || key?.startsWith(CANVAS_FALLBACK_PREFIX)) {
+      // 读失败时让调用方中止清理，不能把未知引用当成没有引用。
+      collect(JSON.parse(localStorage.getItem(key) || "null")?.nodes);
+    }
+  }
+  return imageIds;
+}
+
 export async function createCanvasProject({ title, initialPrompt = "" } = {}) {
   const database = await openCanvasDatabase();
   const id = createCanvasId();

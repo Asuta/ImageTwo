@@ -45,6 +45,8 @@ Content-Type: application/json
 - `quality`：图片质量。可选值为 `low`、`medium`、`high`。
 - `mode`：`generate` 表示普通文生图，`edit` 表示参考图编辑。
 - `referenceImages`：参考图数组。普通文生图为空数组；参考图编辑时可以包含多张图。
+- `clientTaskId` / `clientImageId`：前端持久化的任务和图片 ID。同一登录用户使用同一对 ID 重试时返回原任务，不再次调用上游或扣费；“再次生成”必须创建新 ID。
+- `clientUserId`：前端记录的任务所属用户 ID，只用于检测提交期间账号切换，不替代 session 认证；与登录账号不一致时返回 403，不创建或扣费。
 
 参考图格式：
 
@@ -58,6 +60,14 @@ Content-Type: application/json
 ```
 
 注意：前端的“生成数量”不传给单次 `/api/generate`。它只用于决定前端并行发送多少次请求。
+
+### 2.1 异步结果与刷新恢复
+
+首次接受请求返回 HTTP 202 和 `requestId`、`status: pending`、模型、成本及余额。前端在提交前持久化任务与各图片 ID，收到响应后保存 `requestId`，随后通过 `GET /api/generate/{requestId}` 轮询。刷新后同一账号继续轮询；如果上次响应丢失而没有拿到 `requestId`，使用原客户端 ID 重发 POST 来获取原任务。
+
+查询接口必须携带登录 Cookie，并校验任务归属：未登录返回 401，其他用户的任务返回 404。返回值不包含供应商配置。运行中可返回 `pending`、`running` 或 `streaming`；成功返回 `succeeded`、图片 Base64、模型、扣点、余额快照及完成时间，失败返回 HTTP 500 和 `status: failed`。重复 POST 也可能直接返回上述原任务状态，客户端不能假设总是 202。
+
+成功结果可从服务器归档恢复，不受进程内缓存过期或服务重启影响；归档被容量清理或主动删除后，图片不可恢复时返回 410，已经删除的任务返回 404。服务启动时结算遗留任务：已有归档结果则完成结算，无结果的中断任务标记失败并返还预扣，退款幂等。前端成功保存图片时会在同一 IndexedDB 事务中更新该任务的累计扣点与余额快照。
 
 ## 3. 额度校验
 

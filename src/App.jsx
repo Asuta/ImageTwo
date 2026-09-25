@@ -43,13 +43,14 @@ import CanvasProjectsPage from "@/components/canvas/CanvasProjectsPage";
 import CanvasWorkspace from "@/components/canvas/CanvasWorkspace";
 import { formatCreditAmount, formatCreditBalance, normalizeCreditAmount } from "@/lib/utils";
 import { DEFAULT_IMAGE_MODEL, IMAGE_MODELS, normalizeImageModel } from "@/lib/image-models";
+import { loadCanvasHistoryImageIds } from "@/lib/canvas-db";
 
 const DB_NAME = "image2-local-history";
 const DB_VERSION = 1;
 const MAX_LOCAL_IMAGES = 300;
 const MAX_GENERATION_COUNT = 8;
 const GENERATION_POLL_INTERVAL_MS = 2500;
-const GENERATION_POLL_TIMEOUT_MS = 10 * 60 * 1000;
+const GENERATION_POLL_TIMEOUT_MS = 20 * 60 * 1000;
 const HISTORY_LOAD_TIMEOUT_MS = 3500;
 const HISTORY_IMAGE_SCALE = 100;
 const LOGIN_CODE_COOLDOWN_SECONDS = 60;
@@ -850,6 +851,9 @@ function App() {
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [clearHistoryConfirmOpen, setClearHistoryConfirmOpen] = useState(false);
   const historyRef = useRef([]);
+  const inFlightImagesRef = useRef(new Set());
+  const currentUserIdRef = useRef(null);
+  currentUserIdRef.current = currentUser?.id;
   const promptTextareaRef = useRef(null);
   const mobileComposerDragStartRef = useRef(null);
   const previewImageRef = useRef(null);
@@ -989,6 +993,15 @@ function App() {
   }, [history]);
 
   useEffect(() => {
+    if (historyLoading || !currentUser) return;
+    const tasks = historyRef.current.filter(task => task.userId === currentUser.id);
+    tasks.forEach(task => {
+      const pending = task.images.filter(image => image.recoverable || image.status === "loading" || image.status === "streaming");
+      if (pending.length) runTaskImages(task, pending);
+    });
+  }, [historyLoading, currentUser?.id]);
+
+  useEffect(() => {
     document.body.classList.toggle("preview-open", preview.isOpen);
     return () => {
       document.body.classList.remove("preview-open");
@@ -1072,7 +1085,7 @@ function App() {
 
       images.forEach(image => {
         const url = image.blob ? URL.createObjectURL(image.blob) : "";
-        const imageRecord = { ...image, url };
+        const imageRecord = { ...image, url, status: image.recoverable ? "loading" : image.status };
         imagesByTask.set(image.taskId, [...(imagesByTask.get(image.taskId) || []), imageRecord]);
       });
 
@@ -1100,21 +1113,50 @@ function App() {
 
   async function saveTask(task) {
     const db = await openHistoryDb();
-    const transaction = db.transaction("tasks", "readwrite");
+    const transaction = db.transaction(["tasks", "images"], "readwrite");
     const done = transactionDone(transaction);
     const { images: _images, ...storableTask } = task;
     transaction.objectStore("tasks").put(storableTask);
+    for (const image of task.images) {
+      const { url: _url, ...stored } = image;
+      transaction.objectStore("images").put({ ...stored, taskId: task.id });
+    }
     await done;
+    db.close();
   }
 
   async function saveImage(taskId, image) {
     const db = await openHistoryDb();
-    const transaction = db.transaction("images", "readwrite");
+    const transaction = db.transaction(["tasks", "images"], "readwrite");
     const done = transactionDone(transaction);
+    const taskStore = transaction.objectStore("tasks");
+    const imageStore = transaction.objectStore("images");
+    const task = await storeRequest(taskStore, "get", taskId);
+    if (!task) {
+      await done;
+      db.close();
+      return null; // 用户已主动删除，完成回调不能把历史重新创建出来。
+    }
+    const storedImage = await storeRequest(imageStore, "get", image.id);
+    if (storedImage?.status === "done" && image.status !== "done") {
+      await done;
+      db.close();
+      return null; // 其他标签页已保存成功结果，迟到的错误或 pending 不能覆盖它。
+    }
     const { url: _url, ...storableImage } = image;
-    transaction.objectStore("images").put({ ...storableImage, taskId });
+    imageStore.put({ ...storableImage, taskId });
+    const siblings = await storeRequest(imageStore.index("taskId"), "getAll", taskId);
+    const completed = siblings.filter(item => item.status === "done");
+    const latest = completed.sort((a, b) => Date.parse(b.completedAt || b.createdAt) - Date.parse(a.completedAt || a.createdAt))[0];
+    const updatedTask = {
+      ...task,
+      costCredits: normalizeCreditAmount(completed.reduce((sum, item) => sum + (item.costCredits || 0), 0)),
+      remainingCreditsSnapshot: latest?.remainingCreditsSnapshot ?? task.remainingCreditsSnapshot
+    };
+    taskStore.put(updatedTask);
     await done;
-    await trimLocalHistory();
+    db.close();
+    return updatedTask;
   }
 
   async function deleteTaskFromDb(taskId) {
@@ -1154,19 +1196,22 @@ function App() {
   }
 
   async function trimLocalHistory() {
+    const protectedIds = await loadCanvasHistoryImageIds();
     const db = await openHistoryDb();
     const readTransaction = db.transaction(["tasks", "images"], "readonly");
     const readDone = transactionDone(readTransaction);
     const images = await storeRequest(readTransaction.objectStore("images"), "getAll");
     await readDone;
 
-    if (images.length <= MAX_LOCAL_IMAGES) {
+    const completed = images.filter(image => (image.status === "done" || image.blob) && !protectedIds.has(image.id));
+    if (completed.length <= MAX_LOCAL_IMAGES) {
+      db.close();
       return;
     }
 
-    const removable = images
+    const removable = completed
       .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
-      .slice(0, images.length - MAX_LOCAL_IMAGES);
+      .slice(0, completed.length - MAX_LOCAL_IMAGES);
     const removableTaskIds = new Set(removable.map(image => image.taskId));
     const removableImageIds = new Set(removable.map(image => image.id));
     const remainingTaskIds = new Set(
@@ -1187,6 +1232,7 @@ function App() {
     }
 
     await writeDone;
+    db.close();
   }
 
   async function refreshCurrentUser() {
@@ -1548,42 +1594,52 @@ function App() {
     ));
   }
 
-  async function requestImage(task, imageId) {
+  async function requestImage(task, image) {
+    const imageId = image.id;
+    if (inFlightImagesRef.current.has(imageId)) return;
+    inFlightImagesRef.current.add(imageId);
+    setHistory(prev => prev.map(item => item.id === task.id
+      ? { ...item, images: item.images.map(entry => entry.id === imageId ? { ...entry, status: "loading", error: "" } : entry) }
+      : item));
+    let requestId = image.requestId;
     try {
-      if (!currentUser) {
+      if (!currentUserIdRef.current || task.userId !== currentUserIdRef.current) {
         throw new Error(t("error.loginRequired"));
       }
 
-      const response = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clientTaskId: task.id,
-          clientImageId: imageId,
-          prompt: task.prompt,
-          model: task.model,
-          aspectRatio: task.aspectRatio || "auto",
-          quality: task.quality || "medium",
-          mode: task.mode,
-          referenceImages: task.referenceImages || []
-        })
-      });
-
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.detail || payload.error || t("error.generateFailed"));
+      let payload;
+      if (!requestId) {
+        const response = await fetch("/api/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            clientTaskId: task.id,
+            clientImageId: imageId,
+            clientUserId: task.userId,
+            prompt: task.prompt,
+            model: task.model,
+            aspectRatio: task.aspectRatio || "auto",
+            quality: task.quality || "medium",
+            mode: task.mode,
+            referenceImages: task.referenceImages || []
+          })
+        });
+        payload = await response.json();
+        if (!response.ok) {
+          throw Object.assign(new Error(payload.detail || payload.error || t("error.generateFailed")), {
+            terminal: payload.status === "failed" || [400, 402, 404, 410].includes(response.status)
+          });
+        }
+        requestId = payload.requestId;
+        await saveImage(task.id, { ...image, requestId, status: "loading", recoverable: true });
       }
 
-      const result = payload.status === "pending"
-        ? await pollGenerationResult(payload.requestId, task.id, imageId)
-        : payload;
+      const result = payload?.status === "succeeded" || payload?.status === "completed"
+        ? payload
+        : await pollGenerationResult(requestId, task.id, imageId, task.userId);
 
       if (result.status !== "succeeded" && result.status !== "completed") {
         throw new Error(result.detail || result.error || t("error.generateFailed"));
-      }
-
-      if (Number.isFinite(result.remainingCredits)) {
-        setCurrentUser(prev => prev ? { ...prev, credits: result.remainingCredits } : prev);
       }
 
       const blob = base64ToBlob(result.imageBase64, result.mimeType || "image/png");
@@ -1595,9 +1651,18 @@ function App() {
         mimeType: result.mimeType || "image/png",
         outputFormat: result.outputFormat || "png",
         requestId: result.requestId,
+        recoverable: false,
+        costCredits: result.costCredits || 0,
+        remainingCreditsSnapshot: result.remainingCredits,
+        completedAt: result.completedAt || new Date().toISOString(),
         createdAt: new Date().toISOString()
       };
 
+      const savedTask = await saveImage(task.id, doneImage);
+      if (!savedTask) {
+        URL.revokeObjectURL(doneImage.url);
+        return;
+      }
       setHistory(prev => prev.map(item => {
         if (item.id !== task.id) {
           return item;
@@ -1606,14 +1671,23 @@ function App() {
         return {
           ...item,
           model: result.model || item.model,
-          costCredits: Math.round(((item.costCredits || 0) + (result.costCredits || 0)) * 100) / 100,
-          remainingCreditsSnapshot: result.remainingCredits,
+          costCredits: savedTask.costCredits,
+          remainingCreditsSnapshot: savedTask.remainingCreditsSnapshot,
           images: item.images.map(image => image.id === imageId ? doneImage : image)
         };
       }));
-      await saveImage(task.id, doneImage);
+      // 清理失败不应把已经生成并保存的图片标记为失败。
+      trimLocalHistory().catch(error => console.error("History cleanup failed", error));
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      const failedImage = {
+        ...image, requestId, status: "error", error: message, recoverable: !error.terminal
+      };
+      const savedTask = await saveImage(task.id, failedImage).catch(saveError => {
+        console.error(saveError);
+        return undefined;
+      });
+      if (savedTask === null) return;
       setHistory(prev => prev.map(item => {
         if (item.id !== task.id) {
           return item;
@@ -1621,14 +1695,16 @@ function App() {
 
         return {
           ...item,
-          images: item.images.map(image => image.id === imageId ? { ...image, status: "error", error: message } : image)
+          images: item.images.map(image => image.id === imageId ? { ...image, ...failedImage } : image)
         };
       }));
       showToast(message);
+    } finally {
+      inFlightImagesRef.current.delete(imageId);
     }
   }
 
-  async function pollGenerationResult(requestId, taskId, imageId) {
+  async function pollGenerationResult(requestId, taskId, imageId, userId) {
     if (!requestId) {
       throw new Error(t("error.missingRequestId"));
     }
@@ -1636,8 +1712,14 @@ function App() {
     const startedAt = Date.now();
     while (Date.now() - startedAt < GENERATION_POLL_TIMEOUT_MS) {
       await new Promise(resolve => window.setTimeout(resolve, GENERATION_POLL_INTERVAL_MS));
-      const response = await fetch(`/api/generate/${encodeURIComponent(requestId)}`);
-      const payload = await response.json();
+      if (currentUserIdRef.current !== userId) throw new Error(t("error.loginRequired"));
+      let response, payload;
+      try {
+        response = await fetch(`/api/generate/${encodeURIComponent(requestId)}`);
+        payload = await response.json();
+      } catch {
+        continue; // 短暂断网不会把服务器仍在执行的任务记成终态失败。
+      }
 
       if (response.ok && payload.status === "streaming") {
         updateStreamingImage(taskId, imageId, payload);
@@ -1649,7 +1731,9 @@ function App() {
       }
 
       if (!response.ok || payload.status === "failed") {
-        throw new Error(payload.detail || payload.error || t("error.generateFailed"));
+        throw Object.assign(new Error(payload.detail || payload.error || t("error.generateFailed")), {
+          terminal: currentUserIdRef.current === userId && (payload.status === "failed" || [400, 404, 410].includes(response.status))
+        });
       }
     }
 
@@ -1706,7 +1790,15 @@ function App() {
   }
 
   async function runTaskImages(task, images) {
-    await Promise.allSettled(images.map(image => requestImage(task, image.id)));
+    await Promise.allSettled(images.map(image => requestImage(task, image)));
+    // 恢复旧任务时，历史余额快照不能覆盖账户的当前余额。
+    try {
+      const response = await fetch("/api/auth/me");
+      const payload = await response.json();
+      if (payload.user?.id === task.userId) {
+        setCurrentUser(prev => prev?.id === task.userId ? payload.user : prev);
+      }
+    } catch { /* 下次账户刷新时更新余额。 */ }
     const updatedTask = historyRef.current.find(item => item.id === task.id);
     const generatedCount = updatedTask?.images.filter(image => image.status === "done").length || 0;
     const failedCount = updatedTask?.images.filter(image => image.status === "error").length || 0;
@@ -1749,18 +1841,17 @@ function App() {
       mode,
       referenceImages: requestedReferences
     });
-    const task = canvasContext ? { ...baseTask, canvasContext } : baseTask;
+    const task = { ...baseTask, userId: currentUser.id, ...(canvasContext ? { canvasContext } : {}) };
 
     setHistory(prev => [task, ...prev]);
-    saveTask(task).catch(error => {
+    saveTask(task).then(() => runTaskImages(task, task.images)).catch(error => {
       console.error(error);
-      showToast(t("toast.historyStillGenerating"));
+      setHistory(prev => prev.map(item => item.id === task.id
+        ? { ...item, images: item.images.map(image => ({ ...image, status: "error", error: t("toast.historyUnavailable") })) }
+        : item));
+      showToast(t("toast.historyUnavailable"));
     });
     showToast(t("toast.submitted"));
-    runTaskImages(task, task.images).catch(error => {
-      console.error(error);
-      showToast(error instanceof Error ? error.message : String(error));
-    });
     return task;
   }
 
@@ -1802,18 +1893,18 @@ function App() {
       mode: task.referenceImages?.length ? "edit" : "generate",
       referenceImages: task.referenceImages || []
     });
+    nextTask.userId = currentUser.id;
 
     setDeleteConfirmId(null);
     setHistory(prev => [nextTask, ...prev]);
-    saveTask(nextTask).catch(error => {
+    saveTask(nextTask).then(() => runTaskImages(nextTask, nextTask.images)).catch(error => {
       console.error(error);
-      showToast(t("toast.historyStillGenerating"));
+      setHistory(prev => prev.map(item => item.id === nextTask.id
+        ? { ...item, images: item.images.map(image => ({ ...image, status: "error", error: t("toast.historyUnavailable") })) }
+        : item));
+      showToast(t("toast.historyUnavailable"));
     });
     showToast(t("toast.submittedFromHistory"));
-    runTaskImages(nextTask, nextTask.images).catch(error => {
-      console.error(error);
-      showToast(error instanceof Error ? error.message : String(error));
-    });
   }
 
   function fillFromTask(task) {

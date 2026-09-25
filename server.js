@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { extname, join, resolve } from "node:path";
+import { extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 import { isSupportedImageModel, upgradeLegacyImageModel } from "./src/lib/image-models.js";
@@ -83,6 +83,7 @@ function normalizeUsers(users) {
 mkdirSync(dataDir, { recursive: true });
 mkdirSync(historyAssetsDir, { recursive: true });
 ensureDataFile();
+recoverInterruptedGenerations();
 
 function loadLocalEnv() {
   const envPaths = [
@@ -284,6 +285,49 @@ function writeData(data, { persistProviders = false } = {}) {
   }
   writeFileSync(tmpPath, JSON.stringify(storableData, null, 2));
   renameSync(tmpPath, dataPath);
+}
+
+// 单进程中同步完成读、改、写；异步工作结束后必须重新进入此提交边界。
+function mutateData(update) {
+  const data = readData();
+  const result = update(data);
+  writeData(data);
+  return result;
+}
+
+function recoverInterruptedGenerations() {
+  const data = readData();
+  const now = new Date().toISOString();
+  let changed = false;
+  for (const log of data.usageLogs) {
+    const record = data.generationHistory.find(item => item.requestId === log.requestId);
+    if (log.status !== "reserved" && record?.status !== "running") continue;
+    const user = data.users.find(item => item.id === log.userId);
+    const asset = record?.assets?.generated?.[0];
+    const hasResult = asset?.path && existsSync(resolve(historyAssetsDir, asset.path));
+    if (hasResult) {
+      log.status = "succeeded";
+    } else if (log.status === "reserved" || (log.status === "succeeded" && record?.status === "running")) {
+      if (user) {
+        user.credits = normalizeCreditAmount(user.credits + log.costCredits);
+        user.updatedAt = now;
+      }
+      log.status = "refunded";
+    }
+    log.updatedAt = now;
+    log.errorMessage = hasResult ? "" : "服务重启中断了生成任务；预扣额度已返还。";
+    if (record) {
+      Object.assign(record, {
+        status: hasResult ? "succeeded" : "failed",
+        errorMessage: log.errorMessage,
+        completedAt: now,
+        remainingCredits: user?.credits ?? record.remainingCredits,
+        durationMs: Math.max(0, Date.parse(now) - Date.parse(record.startedAt || now))
+      });
+    }
+    changed = true;
+  }
+  if (changed) writeData(data);
 }
 
 function readProviderStore(data = {}) {
@@ -923,20 +967,20 @@ async function saveHistoryAssets(requestId, { referenceImages = [], generatedBas
       name: "generated-1"
     })] : [];
 
-    record.assets = { references, generated };
-    record.generatedCount = generated.length;
-    record.totalAssetBytes = calculateRecordAssetBytes(record);
-    record.assetsPruned = false;
-    record.prunedAt = "";
-    record.assetSaveFailed = false;
-    record.assetSaveError = "";
-    writeData(data);
-    return record;
+    return updateHistoryRecord(requestId, {
+      assets: { references, generated },
+      generatedCount: generated.length,
+      totalAssetBytes: calculateRecordAssetBytes({ assets: { references, generated } }),
+      assetsPruned: false,
+      prunedAt: "",
+      assetSaveFailed: false,
+      assetSaveError: ""
+    });
   } catch (error) {
-    record.assetSaveFailed = true;
-    record.assetSaveError = error instanceof Error ? error.message : String(error);
-    writeData(data);
-    return record;
+    return updateHistoryRecord(requestId, {
+      assetSaveFailed: true,
+      assetSaveError: error instanceof Error ? error.message : String(error)
+    });
   }
 }
 
@@ -1349,22 +1393,31 @@ function readBody(req) {
   return new Promise((resolveBody, reject) => {
     let body = "";
     req.on("data", chunk => {
+      if (body.length > 80_000_000) return;
       body += chunk;
       if (body.length > 80_000_000) {
-        reject(new Error("Request body is too large."));
-        req.destroy();
+        reject(Object.assign(new Error("请求内容过大。"), { status: 413 }));
       }
     });
     req.on("end", () => resolveBody(body));
     req.on("error", reject);
+    req.on("aborted", () => reject(Object.assign(new Error("请求已中断。"), { status: 400 })));
   });
+}
+
+async function readJsonBody(req) {
+  const body = JSON.parse(await readBody(req) || "{}");
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    throw Object.assign(new Error("请求体必须是 JSON 对象。"), { status: 400 });
+  }
+  return body;
 }
 
 function safeStaticPath(baseDir, urlPath) {
   const decoded = decodeURIComponent(urlPath);
   const relativePath = decoded === "/" ? "index.html" : decoded.replace(/^\/+/, "");
   const filePath = resolve(baseDir, relativePath);
-  return filePath.startsWith(resolve(baseDir)) ? filePath : null;
+  return filePath === resolve(baseDir) || filePath.startsWith(`${resolve(baseDir)}${sep}`) ? filePath : null;
 }
 
 function rememberJob(requestId, job) {
@@ -1372,7 +1425,6 @@ function rememberJob(requestId, job) {
     ...job,
     updatedAt: new Date().toISOString()
   });
-  setTimeout(() => generationJobs.delete(requestId), JOB_TTL_MS).unref?.();
 }
 
 function updateJob(requestId, patch) {
@@ -1386,6 +1438,9 @@ function updateJob(requestId, patch) {
     ...patch,
     updatedAt: new Date().toISOString()
   });
+  if (patch.status === "succeeded" || patch.status === "failed") {
+    setTimeout(() => generationJobs.delete(requestId), JOB_TTL_MS).unref?.();
+  }
 }
 
 function updatePartialImageJob(requestId, patch) {
@@ -1835,7 +1890,8 @@ function finishUsage(requestId, status, errorMessage = "") {
   const user = data.users.find(item => item.id === log.userId);
   const now = new Date().toISOString();
 
-  if (status === "failed" && log.status === "reserved" && user) {
+  if (log.status !== "reserved") return { remainingCredits: user?.credits ?? null };
+  if (status === "failed" && user) {
     user.credits = normalizeCreditAmount(user.credits + log.costCredits);
     user.updatedAt = now;
     log.status = "refunded";
@@ -1854,7 +1910,7 @@ function finishUsage(requestId, status, errorMessage = "") {
 
 async function handleAdmin(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/admin/login") {
-    const body = JSON.parse(await readBody(req) || "{}");
+    const body = await readJsonBody(req);
     const adminKey = process.env.IMAGE2_ADMIN_KEY || "";
     const key = String(body.key || "").trim();
     if (!adminKey || !key || !safeEqual(hashSecret(key), hashSecret(adminKey))) {
@@ -1902,7 +1958,7 @@ async function handleAdmin(req, res, url) {
   }
 
   if (req.method === "POST" && url.pathname === "/api/admin/providers") {
-    const body = JSON.parse(await readBody(req) || "{}");
+    const body = await readJsonBody(req);
     const apiUrl = String(body.apiUrl || "").trim();
     const label = String(body.label || "").trim();
     if (!apiUrl) {
@@ -1942,7 +1998,7 @@ async function handleAdmin(req, res, url) {
 
   const providerMatch = /^\/api\/admin\/providers\/([^/]+)$/.exec(url.pathname);
   if (providerMatch && req.method === "PATCH") {
-    const body = JSON.parse(await readBody(req) || "{}");
+    const body = await readJsonBody(req);
     const data = readData();
     const provider = data.providers.find(item => item.id === providerMatch[1]);
     if (!provider) {
@@ -2010,23 +2066,21 @@ async function handleAdmin(req, res, url) {
     } else if (action === "test") {
       try {
         const probe = await testProviderConnection(provider);
-        addAdminLog(data, "provider-tested", {
+        mutateData(latest => addAdminLog(latest, "provider-tested", {
           providerId: provider.id,
           label: provider.label,
           ok: probe.ok
-        });
-        writeData(data);
+        }));
         sendJson(res, 200, probe);
         return;
       } catch (error) {
         const detail = error instanceof Error ? error.message : String(error);
-        addAdminLog(data, "provider-tested", {
+        mutateData(latest => addAdminLog(latest, "provider-tested", {
           providerId: provider.id,
           label: provider.label,
           ok: false,
           detail
-        });
-        writeData(data);
+        }));
         sendJson(res, 500, {
           ok: false,
           error: "连接测试失败。",
@@ -2078,7 +2132,7 @@ async function handleAdmin(req, res, url) {
 
   const userCreditsMatch = /^\/api\/admin\/users\/([^/]+)\/credits$/.exec(url.pathname);
   if (req.method === "POST" && userCreditsMatch) {
-    const body = JSON.parse(await readBody(req) || "{}");
+    const body = await readJsonBody(req);
     const rawDelta = Number(body.delta);
     if (body.delta === undefined || body.delta === null || String(body.delta).trim() === "" || !Number.isFinite(rawDelta)) {
       sendJson(res, 400, { error: "delta 必须是数字。" });
@@ -2135,7 +2189,7 @@ async function handleAdmin(req, res, url) {
   }
 
   if (req.method === "POST" && url.pathname === "/api/admin/gift-cards") {
-    const body = JSON.parse(await readBody(req) || "{}");
+    const body = await readJsonBody(req);
     const credits = Number.parseInt(body.credits, 10);
     const count = Math.max(1, Math.min(200, Number.parseInt(body.count, 10) || 1));
     const expiresAt = parseOptionalDate(body.expiresAt);
@@ -2542,7 +2596,7 @@ async function handleAuth(req, res, url) {
   }
 
   if (req.method === "POST" && url.pathname === "/api/auth/request-code") {
-    const body = JSON.parse(await readBody(req) || "{}");
+    const body = await readJsonBody(req);
     const email = normalizeEmail(body.email);
     if (!isValidEmail(email)) {
       sendJson(res, 400, { error: "请输入有效邮箱。" });
@@ -2599,7 +2653,7 @@ async function handleAuth(req, res, url) {
   }
 
   if (req.method === "POST" && url.pathname === "/api/auth/verify-code") {
-    const body = JSON.parse(await readBody(req) || "{}");
+    const body = await readJsonBody(req);
     const email = normalizeEmail(body.email);
     const code = String(body.code || "").trim();
     if (!isValidEmail(email) || !/^\d{6}$/.test(code)) {
@@ -2695,7 +2749,7 @@ async function handleRedeem(req, res) {
     return;
   }
 
-  const body = JSON.parse(await readBody(req) || "{}");
+  const body = await readJsonBody(req);
   const key = String(body.key || "").trim();
   if (!key) {
     sendJson(res, 400, { error: "请输入礼品卡 Key。" });
@@ -2774,14 +2828,29 @@ async function handleGenerate(req, res) {
       return;
     }
 
-    const body = JSON.parse(await readBody(req) || "{}");
+    const body = await readJsonBody(req);
     const prompt = String(body.prompt || "").trim();
+    if (body.clientUserId && body.clientUserId !== sessionUser.user.id) {
+      sendJson(res, 403, { error: "登录账号已切换，请切回任务所属账号后继续。" });
+      return;
+    }
     if (body.model !== undefined && !isSupportedImageModel(body.model)) {
       sendJson(res, 400, { error: "请选择有效的图片模型：gpt-image-2.5-flare 或 gpt-image-2.5-sunburst。" });
       return;
     }
     const clientTaskId = String(body.clientTaskId || "").trim();
     const clientImageId = String(body.clientImageId || "").trim();
+    // 响应丢失或页面刷新后使用相同客户端 ID 恢复，不重新扣款或调用上游。
+    if (clientTaskId && clientImageId) {
+      const existing = readData().generationHistory.find(record => (
+        record.userId === sessionUser.user.id
+        && record.clientTaskId === clientTaskId && record.clientImageId === clientImageId
+      ));
+      if (existing) {
+        sendGenerationResult(res, existing);
+        return;
+      }
+    }
     const quality = qualityOptions.has(body.quality) ? body.quality : "medium";
     const aspectRatio = aspectRatioOptions.has(body.aspectRatio) ? body.aspectRatio : "auto";
     const mode = body.mode === "edit" ? "edit" : "generate";
@@ -2839,6 +2908,8 @@ async function handleGenerate(req, res) {
       : imagePrompt;
 
     rememberJob(reservation.requestId, {
+      userId: sessionUser.user.id,
+      model,
       status: "pending",
       requestId: reservation.requestId,
       costCredits: reservation.costCredits,
@@ -2874,6 +2945,14 @@ async function handleGenerate(req, res) {
       costCredits: reservation.costCredits,
       remainingCredits: reservation.remainingCredits,
       providerId: provider.id
+    }).catch(error => {
+      // 存储不可写时，失败记账本身也可能抛错；后台 Promise 仍需最终边界。
+      // 保留磁盘上的预扣记录，由启动恢复流程在存储恢复后结算或退款。
+      console.error("[generation] persistence failed", error.code || error.name);
+      updateJob(reservation.requestId, {
+        status: "failed",
+        error: "任务状态保存失败，请稍后查询或联系管理员。"
+      });
     });
 
     sendJson(res, 202, {
@@ -2897,7 +2976,7 @@ async function handleGenerate(req, res) {
       });
     }
 
-    sendJson(res, 500, {
+    sendJson(res, requestErrorStatus(error), {
       error: "生成失败。",
       detail: error instanceof Error ? error.message : String(error)
     });
@@ -2933,7 +3012,8 @@ async function runGenerationJob({ requestId, model, input, prompt, aspectRatio, 
     const upstream = await fetch(upstreamRequest.url, {
       method: "POST",
       headers: upstreamRequest.headers,
-      body: upstreamRequest.body
+      body: upstreamRequest.body,
+      signal: AbortSignal.timeout(JOB_TTL_MS)
     });
 
     const { text, payload } = await readUpstreamImageResponse(upstream, requestId);
@@ -2967,7 +3047,6 @@ async function runGenerationJob({ requestId, model, input, prompt, aspectRatio, 
       return;
     }
 
-    const usage = finishUsage(requestId, "succeeded");
     const outputFormat = imageResult.outputFormat || "png";
     const mimeType = `image/${outputFormat}`;
     const savedRecord = await saveHistoryAssets(requestId, {
@@ -2975,6 +3054,7 @@ async function runGenerationJob({ requestId, model, input, prompt, aspectRatio, 
       generatedBase64: base64,
       generatedMimeType: mimeType
     });
+    const usage = finishUsage(requestId, "succeeded");
     completeHistoryRecord(requestId, {
       status: "succeeded",
       errorMessage: "",
@@ -2985,7 +3065,6 @@ async function runGenerationJob({ requestId, model, input, prompt, aspectRatio, 
       generatedCount: savedRecord?.generatedCount ?? 1,
       totalAssetBytes: savedRecord?.totalAssetBytes ?? 0
     });
-    trimGenerationHistoryAssets();
     updateJob(requestId, {
       status: "succeeded",
       id: payload.id,
@@ -2998,6 +3077,10 @@ async function runGenerationJob({ requestId, model, input, prompt, aspectRatio, 
       costCredits,
       remainingCredits: usage?.remainingCredits ?? remainingCredits
     });
+    // 清理归档失败不能把已经交付成功的任务改成失败。
+    try { trimGenerationHistoryAssets(); } catch (error) {
+      console.error("[history] cleanup failed", error.code || error.name);
+    }
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     const usage = finishUsage(requestId, "failed", detail);
@@ -3469,30 +3552,64 @@ function guessImageFormat(value) {
 }
 
 function handleGenerateStatus(req, res, requestId) {
-  const job = generationJobs.get(requestId);
-  if (!job) {
+  const sessionUser = requireSession(req, res);
+  if (!sessionUser) return;
+  const record = sessionUser.data.generationHistory.find(item => (
+    item.requestId === requestId && item.userId === sessionUser.user.id
+  ));
+  if (!record) {
     sendJson(res, 404, { error: "生成任务不存在或已过期。" });
     return;
   }
+  sendGenerationResult(res, record);
+}
 
-  if (job.status === "failed") {
-    sendJson(res, 500, job);
+function sendGenerationResult(res, record) {
+  const job = generationJobs.get(record.requestId);
+  const result = {
+    requestId: record.requestId,
+    status: job?.status || record.status,
+    model: record.model,
+    costCredits: record.costCredits,
+    remainingCredits: job?.remainingCredits ?? record.remainingCredits,
+    completedAt: record.completedAt || ""
+  };
+  if (result.status === "failed") {
+    sendJson(res, 500, { ...result, error: job?.error || record.errorMessage, detail: job?.detail });
     return;
   }
-
-  sendJson(res, 200, job);
+  if (job?.imageBase64) {
+    Object.assign(result, {
+      imageBase64: job.imageBase64, mimeType: job.mimeType, outputFormat: job.outputFormat,
+      partial: job.partial, imageStatus: job.imageStatus
+    });
+  } else if (result.status === "succeeded") {
+    const asset = record.assets?.generated?.[0];
+    const path = asset?.path && safeStaticPath(historyAssetsDir, `/${asset.path}`);
+    if (!path || !existsSync(path) || !statSync(path).isFile()) {
+      sendJson(res, 410, { ...result, error: "生成结果的服务器归档已清理，无法再次下载。" });
+      return;
+    }
+    Object.assign(result, {
+      imageBase64: readFileSync(path).toString("base64"),
+      mimeType: asset.mimeType,
+      outputFormat: imageExtensionFromMimeType(asset.mimeType)
+    });
+  }
+  sendJson(res, 200, result);
 }
 
 function serveFile(res, filePath) {
-  if (!filePath || !existsSync(filePath)) {
+  if (!filePath || !existsSync(filePath) || !statSync(filePath).isFile()) {
     res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
     res.end("Not found");
     return;
   }
 
   const contentType = mimeTypes[extname(filePath).toLowerCase()] || "application/octet-stream";
+  const bytes = readFileSync(filePath);
   res.writeHead(200, { "Content-Type": contentType });
-  res.end(readFileSync(filePath));
+  res.end(bytes);
 }
 
 function serveAdmin(req, res) {
@@ -3524,22 +3641,19 @@ function serveClient(req, res, url) {
   serveFile(res, clientPath);
 }
 
-const server = createServer((req, res) => {
-  const url = new URL(req.url || "/", `http://${req.headers.host}`);
+async function routeRequest(req, res) {
+  const url = new URL(req.url || "/", "http://localhost");
 
   if (url.pathname.startsWith("/api/auth/")) {
-    handleAuth(req, res, url);
-    return;
+    return handleAuth(req, res, url);
   }
 
   if (url.pathname.startsWith("/api/admin/")) {
-    handleAdmin(req, res, url);
-    return;
+    return handleAdmin(req, res, url);
   }
 
   if (req.method === "POST" && url.pathname === "/api/redeem") {
-    handleRedeem(req, res);
-    return;
+    return handleRedeem(req, res);
   }
 
   const statusMatch = /^\/api\/generate\/([^/]+)$/.exec(url.pathname);
@@ -3549,8 +3663,7 @@ const server = createServer((req, res) => {
   }
 
   if (req.method === "POST" && url.pathname === "/api/generate") {
-    handleGenerate(req, res);
-    return;
+    return handleGenerate(req, res);
   }
 
   if (req.method === "GET" && url.pathname === "/admin") {
@@ -3565,6 +3678,23 @@ const server = createServer((req, res) => {
   }
 
   serveClient(req, res, url);
+}
+
+function requestErrorStatus(error) {
+  return error.status || (error instanceof SyntaxError || error instanceof URIError ? 400 : 500);
+}
+
+const server = createServer((req, res) => {
+  routeRequest(req, res).catch(error => {
+    if (res.destroyed || res.writableEnded) return;
+    if (res.headersSent) {
+      res.destroy();
+      return;
+    }
+    const status = requestErrorStatus(error);
+    if (status === 500) console.error("[request] failed", error.code || error.name);
+    sendJson(res, status, { error: status === 400 ? "请求格式不正确。" : status === 413 ? "请求内容过大。" : "服务暂时无法处理请求，请稍后重试。" });
+  });
 });
 
 function listen(port) {

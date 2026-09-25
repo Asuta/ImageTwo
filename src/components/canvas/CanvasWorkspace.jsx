@@ -96,6 +96,7 @@ const canvasCopy = {
     uploadPartial: "部分图片无法读取，其他图片已添加。",
     referenceLimit: "最多使用 {count} 张参考图。",
     missingReference: "所选图片还没有生成完成。",
+    missingAsset: "本地图片已删除或暂时无法读取，节点和连线已保留。",
     taskFailed: "生成任务未能创建。",
     submitted: "已在画布中创建生成任务。",
     localAsset: "本地素材",
@@ -145,6 +146,7 @@ const canvasCopy = {
     annotate: "标注"
   },
   en: {
+    missingAsset: "The local image was removed or cannot be read. Its node and connections are preserved.",
     title: "Infinite Canvas",
     saved: "Saved locally",
     saving: "Saving…",
@@ -754,8 +756,8 @@ function CanvasWorkspace({
           blob: null,
           mimeType: "image/png",
           name: "",
-          status: "loading",
-          error: ""
+          status: historyLoading ? "loading" : "error",
+          error: historyLoading ? "" : text("missingAsset")
         };
   }
 
@@ -816,9 +818,6 @@ function CanvasWorkspace({
 
     const availableHistoryIds = new Set(historyImageMap.keys());
     const restoredNodes = snapshot.nodes.flatMap(node => {
-      if (node.type === "history-image" && !availableHistoryIds.has(node.imageId)) {
-        return [];
-      }
       if (node.type === "upload") {
         if (!node.assetBlob) {
           return [];
@@ -958,7 +957,6 @@ function CanvasWorkspace({
         availableImages.push({ task, image });
       });
     });
-    const availableImageIds = new Set(availableImages.map(item => item.image.id));
     const canvasImages = availableImages.filter(({ task }) => {
       const context = task.canvasContext;
       if (!context) return false;
@@ -975,8 +973,7 @@ function CanvasWorkspace({
     commitNodes(previousNodes => {
       let changed = false;
       const reconciledNodes = previousNodes.filter(node => {
-        const keep = !replacedNodeIds.has(node.id)
-          && (node.type !== "history-image" || availableImageIds.has(node.imageId));
+        const keep = !replacedNodeIds.has(node.id);
         changed ||= !keep;
         return keep;
       });
@@ -2944,9 +2941,10 @@ function CanvasWorkspace({
     setSelectedIds([nodeId]);
     commitSetting(
       "prompt",
-      language === "en"
+      (language === "en"
         ? "Modify only the marked region while preserving the rest of the image."
-        : "仅修改标注区域，保持画面其他部分不变。",
+        : "仅修改标注区域，保持画面其他部分不变。")
+        + ` @[${nodeDisplayName(target).replace(/[\[\]\r\n]/g, " ")}](canvas:${nodeId})`,
       setPrompt
     );
     window.requestAnimationFrame(() => promptRef.current?.focus());
