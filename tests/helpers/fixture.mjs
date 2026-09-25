@@ -25,7 +25,7 @@ export async function fixture(name) {
   const upstream = createServer(async(req,res) => {
     let raw=''; for await (const chunk of req) raw += chunk;
     requests.push({url:req.url,body:raw});
-    const reply = () => { res.writeHead(responseStatus, {'Content-Type':'application/json'}); res.end(JSON.stringify({data:[{b64_json:png.toString('base64')}]})); };
+    const reply = () => { res.writeHead(responseStatus, {'Content-Type':'application/json'}); res.end(JSON.stringify(responseStatus >= 400 ? {error:{message:'Test provider rejected this image'}} : {data:[{b64_json:png.toString('base64')}]})); };
     if (hold) pending.push(reply); else reply();
   });
   upstream.listen(0,'127.0.0.1'); await once(upstream,'listening');

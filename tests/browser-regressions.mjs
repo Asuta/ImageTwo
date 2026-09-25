@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createServer } from "vite";
 import { chromium } from "@playwright/test";
 import { fixture, until, sleep } from "./helpers/fixture.mjs";
+import { checkRedesignedCanvas } from "./canvas-redesign.mjs";
 import { checkCanvasInteractions } from "./helpers/canvas-interactions.mjs";
 
 const f = await fixture(`browser-${Date.now()}`);
@@ -139,40 +140,7 @@ try {
   assert.equal(f.data().generationHistory.filter(record => record.prompt === "account-isolation").length, 1);
   console.log("PASS 账号切换不会恢复或扣费到其他账号，切回后可恢复");
 
-  await page.goto(`${url}/?mode=canvas`);
-  await page.locator(".canvas-project-new-card").click();
-  await page.locator(".canvas-project-card-open").first().waitFor();
-  assert.equal(await page.locator(".canvas-stage").count(), 0);
-  await page.locator(".canvas-project-card-open").first().click();
-  await page.locator(".canvas-hidden-upload").first().setInputFiles({ name: "reference.png", mimeType: "image/png", buffer: f.png });
-  await page.locator("[data-node-id]").first().waitFor();
-  assert.equal(await page.locator(".wuli-reference-card").count(), 0);
-  await page.locator(".canvas-toolbar-more-trigger").click();
-  await page.locator(".canvas-node-more-menu").getByRole("button", { name: "标注", exact: true }).click();
-  const annotation = page.locator(".canvas-annotation-surface canvas");
-  await until(() => page.getByRole("button", { name: "使用标注图", exact: true }).isEnabled());
-  const box = await annotation.boundingBox();
-  await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.3);
-  await page.mouse.down();
-  await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5, { steps: 5 });
-  await page.mouse.up();
-  await page.getByRole("button", { name: "使用标注图", exact: true }).click();
-  await until(async () => await page.locator(".wuli-reference-card").count() === 1);
-  assert.match(await page.locator(".canvas-composer textarea").inputValue(), /@\[/);
-  await page.locator(".canvas-composer select").first().selectOption("gpt-image-2.5-sunburst");
-  const sentCount = sent.length;
-  await page.locator(".canvas-composer button[type=submit]").click();
-  await until(() => sent.length > sentCount);
-  const request = sent.at(-1);
-  assert.equal(request.mode, "edit");
-  assert.equal(request.referenceImages.length, 1);
-  assert.equal(request.model, "gpt-image-2.5-sunburst");
-  assert(!request.prompt.includes("@["));
-  assert.notEqual(request.referenceImages[0].dataUrl.split(",")[1], f.png.toString("base64"));
-  await waitCompleted(request.prompt);
-  await page.reload();
-  await until(async () => await page.locator("[data-node-id]").count() === 2);
-  console.log("PASS 标注图真实进入编辑请求，Canvas 结果落位且刷新恢复");
+  await checkRedesignedCanvas(page, url, f);
 
   await checkCanvasInteractions(page, url, f.png);
 

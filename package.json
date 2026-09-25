@@ -8,7 +8,7 @@
     "dev": "vite --host 127.0.0.1 --port 5176",
     "dev:api": "node scripts/dev-api.mjs",
     "build": "vite build",
-    "test": "node --test tests/api-regressions.test.mjs",
+    "test": "node --test tests/api-regressions.test.mjs tests/canvas-model.test.mjs",
     "test:browser": "node tests/browser-regressions.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "start": "pnpm run build && node server.js"

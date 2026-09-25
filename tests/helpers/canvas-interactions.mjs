@@ -24,7 +24,7 @@ export async function checkCanvasInteractions(page, url, png) {
   const snapshot = () => page.evaluate(async id => {
     const { loadCanvasSnapshot } = await import("/src/lib/canvas-db.js");
     const saved = await loadCanvasSnapshot(id);
-    return { nodes: saved.nodes.map(({ assetBlob, annotationBlob, ...node }) => node), viewport: saved.viewport };
+    return { nodes: saved.nodes.map(({ assetBlob, annotationBlob, ...node }) => node), viewport: saved.viewport, drafts: saved.drafts, runs: saved.runs };
   }, canvasId);
   const node = id => page.locator(`[data-node-id="${id}"]`);
   async function drag(locator, dx, dy) {
@@ -37,9 +37,9 @@ export async function checkCanvasInteractions(page, url, png) {
     await page.mouse.up();
   }
   async function settled() { await sleep(700); }
-  async function focusStage() { await page.mouse.click(1350, 130); }
+  async function focusStage() { await page.mouse.click(1010, 120); }
 
-  await page.locator('.wuli-canvas-toolbar > button[title="添加图像节点"]').click();
+  await page.locator('.wuli-canvas-toolbar > button[title="新建生成"]').click();
   await page.locator(".wuli-add-menu").getByRole("button", { name: /添加文本节点/ }).click();
   const textNode = page.locator(".canvas-node.is-text-node");
   await textNode.waitFor();
@@ -69,16 +69,16 @@ export async function checkCanvasInteractions(page, url, png) {
   await page.keyboard.press("Control+y");
   await until(async () => await page.locator("[data-node-id]").count() === 2);
   await page.locator('button[title="复制"]').click();
-  await page.mouse.move(1080, 240);
+  await page.mouse.move(940, 220);
   // 无头浏览器不保证空系统剪贴板触发原生 paste，直接派发标准粘贴事件。
   await page.evaluate(() => window.dispatchEvent(new ClipboardEvent("paste", { bubbles: true, clipboardData: new DataTransfer() })));
   await until(async () => await page.locator("[data-node-id]").count() === 3);
   const pasted = await page.locator(".canvas-node.is-selected").boundingBox();
-  assert(Math.abs(pasted.x + pasted.width / 2 - 1080) < 3);
-  assert(Math.abs(pasted.y + pasted.height / 2 - 240) < 3);
+  assert(Math.abs(pasted.x + pasted.width / 2 - 940) < 3);
+  assert(Math.abs(pasted.y + pasted.height / 2 - 220) < 3);
 
   await focusStage();
-  await page.mouse.move(1100, 700);
+  await page.mouse.move(1000, 700);
   const planeBefore = await page.locator(".canvas-plane").getAttribute("style");
   await page.mouse.wheel(35, 90);
   await until(async () => await page.locator(".canvas-plane").getAttribute("style") !== planeBefore);
@@ -88,9 +88,9 @@ export async function checkCanvasInteractions(page, url, png) {
   await page.keyboard.up("Control");
   await until(async () => await page.locator(".canvas-zoom-value").innerText() !== zoomBefore);
   assert.equal(await page.evaluate(() => visualViewport.scale), 1);
-  await page.mouse.move(1300, 120);
+  await page.mouse.move(970, 120);
   await page.mouse.down({ button: "right" });
-  await page.mouse.move(1330, 150, { steps: 4 });
+  await page.mouse.move(1000, 150, { steps: 4 });
   await page.mouse.up({ button: "right" });
   assert.equal(await page.locator(".canvas-context-menu").count(), 0);
   await page.locator('[title="适应内容"]').click();
@@ -103,8 +103,8 @@ export async function checkCanvasInteractions(page, url, png) {
     const { saveCanvasSnapshot } = await import("/src/lib/canvas-db.js");
     await saveCanvasSnapshot({ canvasId: id, nodes: [
       { id: "source", type: "text", content: "上游文字", x: 280, y: 230, width: 250, height: 180 },
-      { id: "target", type: "empty-image", x: 800, y: 230, width: 250, height: 180 }
-    ], viewport: { x: 0, y: 0, zoom: 1 }, settings: { prompt: "" } });
+      { id: "target", type: "generation", draftId: "draft-target", x: 700, y: 230, width: 250, height: 180 }
+    ], viewport: { x: 0, y: 0, zoom: 1 }, settings: { activeDraftId: "draft-target" }, drafts: [{ id: "draft-target", title: "测试草稿", prompt: "", refs: [], model: "gpt-image-2.5-flare", aspectRatio: "auto", quality: "medium", count: 1, revision: 1 }] });
   }, canvasId);
   await page.goto(canvasUrl);
   await node("target").waitFor();
@@ -113,8 +113,8 @@ export async function checkCanvasInteractions(page, url, png) {
   await sourceBall.dragTo(targetBall);
   await until(async () => await page.locator(".canvas-connector-line").count() === 1);
   await node("target").click();
-  assert.match(await page.locator(".canvas-composer").innerText(), /上游文字/);
-  await page.locator(".wuli-reference-card").click();
+  assert.match(await page.locator(".canvas-inspector").innerText(), /上游文字/);
+  await page.locator(".canvas-inspector").getByTitle("移除参考", { exact: true }).click();
   await until(async () => await page.locator(".canvas-connector-line").count() === 0);
   await targetBall.dragTo(sourceBall);
   await until(async () => await page.locator(".canvas-connector-line").count() === 1);
@@ -125,10 +125,10 @@ export async function checkCanvasInteractions(page, url, png) {
     return { x: screenPoint.x, y: screenPoint.y };
   });
   await page.mouse.click(midpoint.x, midpoint.y);
-  await page.locator('.canvas-edge-toolbar [title="断开连线"]').click();
+  await page.locator('.canvas-edge-toolbar [title="移除参考"]').click();
   await until(async () => await page.locator(".canvas-connector-line").count() === 0);
 
-  for (const [origin, side, dropX, dropY] of [["source", "is-input", 150, 600], ["target", "is-output", 1200, 600]]) {
+  for (const [origin, side, dropX, dropY] of [["target", "is-input", 650, 730], ["source", "is-output", 740, 540]]) {
     const handle = node(origin).locator(`.${side}`);
     const box = await handle.boundingBox();
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -137,40 +137,45 @@ export async function checkCanvasInteractions(page, url, png) {
     await page.mouse.up();
     await page.locator(".canvas-connection-menu").waitFor();
     assert.equal(await page.locator(".canvas-connector-draft").count(), 1);
-    await page.locator(".canvas-connection-menu").getByRole("button", { name: /文本/ }).click();
+    await page.locator(".canvas-connection-menu").getByRole("button", { name: side === "is-input" ? /文本/ : /新建生成/ }).click();
     await settled();
     assert.equal(await page.locator(".canvas-connector-draft").count(), 0);
   }
   await node("target").click();
-  await page.locator('[title="添加参考"]').click();
-  await page.locator(".wuli-reference-add-menu").getByRole("button", { name: "上传", exact: true }).click();
-  await page.locator(".canvas-hidden-upload").nth(2).setInputFiles({ name: "direct.png", mimeType: "image/png", buffer: png });
-  await until(async () => await page.locator(".wuli-reference-card").filter({ hasText: "direct.png" }).count() === 1);
+  const chooserPromise = page.waitForEvent("filechooser");
+  await page.locator(".canvas-inspector").getByRole("button", { name: "上传参考", exact: true }).click();
+  await (await chooserPromise).setFiles({ name: "direct.png", mimeType: "image/png", buffer: png });
+  await until(async () => await page.locator(".canvas-reference-item").filter({ hasText: "direct.png" }).count() === 1);
   assert.equal(await page.locator("[data-node-id]").count(), 4);
   await settled();
   const saved = await snapshot();
-  assert.equal(saved.nodes.find(item => item.id === "target").referenceAssets.length, 1);
+  const direct = saved.nodes.find(item => item.name === "direct.png");
+  assert(direct.hidden);
+  assert(saved.drafts.find(draft => draft.id === "draft-target").refs.some(ref => ref.nodeId === direct.id));
+  // Empty text is an explicit error, not a silently skipped input.
+  assert.equal(await page.getByTestId("canvas-generate").isEnabled(), false);
+  const emptyText = saved.nodes.find(item => item.type === "text" && !item.content);
+  await page.locator(`.canvas-reference-item[data-reference-id="${emptyText.id}"]`).getByTitle("移除参考", { exact: true }).click();
+  await page.getByTestId("canvas-draft-prompt").fill("独立生成卡回归");
   const planeBeforeGeneration = await page.locator(".canvas-plane").getAttribute("style");
-  await page.locator(".canvas-composer textarea").fill("原地替换回归");
-  await page.locator(".canvas-composer button[type=submit]").click();
-  await until(async () => await page.locator('[data-node-id^="history-"] img').count() === 1);
-  assert.equal(await node("target").count(), 0);
-  assert.equal(await page.locator("[data-node-id]").count(), 4);
+  await page.getByTestId("canvas-generate").click();
+  await until(async () => await page.locator('[data-node-id^="history-"] > img').count() === 1, 20000);
+  assert.equal(await node("target").count(), 1);
+  assert.equal(await page.locator("[data-node-id]").count(), 5);
   assert.equal(await page.locator(".canvas-plane").getAttribute("style"), planeBeforeGeneration);
   await settled();
   const generatedNode = (await snapshot()).nodes.find(item => item.type === "history-image");
-  assert.equal(generatedNode.x, 800);
-  assert.equal(generatedNode.y, 230);
+  assert(generatedNode.x > 950);
   await page.reload();
-  await until(async () => await page.locator("[data-node-id]").count() === 4);
+  await until(async () => await page.locator("[data-node-id]").count() === 5);
   assert.deepEqual((await snapshot()).viewport, saved.viewport);
 
   // 框选保留多节点；聚焦所选是明确的用户操作。
   await page.mouse.move(230, 190);
   await page.mouse.down();
-  await page.mouse.move(1100, 450, { steps: 5 });
+  await page.mouse.move(990, 450, { steps: 5 });
   await page.mouse.up();
-  assert.equal(await page.locator(".canvas-node.is-selected").count(), 2);
+  assert.equal(await page.locator(".canvas-node.is-selected").count(), 3);
   await page.keyboard.press("f");
   await page.locator('[data-testid="canvas-history-trigger"]').click();
   await page.locator(".canvas-history-scroll").waitFor();

@@ -31,12 +31,16 @@ try {
   const migrated = await migration.evaluate(async () => {
     const m = await import("/src/lib/canvas-db.js");
     const projects = await m.loadCanvasProjects();
-    return { projects, snapshot: await m.loadCanvasSnapshot("default-workspace") };
+    const snapshot = await m.loadCanvasSnapshot("default-workspace");
+    return { projects, snapshot, backup: await m.loadCanvasMigrationBackup("default-workspace") };
   });
   assert.equal(migrated.projects.length, 1);
-  assert.deepEqual(migrated.snapshot.nodes.map(node => node.id), ["legacy-text"]);
+  assert.deepEqual(migrated.snapshot.nodes.map(node => node.id), ["legacy-text", "generation-recovered-prompt"]);
   assert.deepEqual(migrated.snapshot.viewport, { x: 100, y: 200, zoom: 0.7 });
-  assert.equal(migrated.snapshot.settings.prompt, "legacy prompt");
+  assert.equal(migrated.snapshot.drafts[0].prompt, "legacy prompt");
+  assert.equal(migrated.snapshot.settings.prompt, "");
+  assert.equal(migrated.backup.snapshot.settings.prompt, "legacy prompt");
+  assert.equal(migrated.snapshot.schemaVersion, 3);
   console.log("PASS 旧单画布数据库迁移");
 
   const isolated = await migration.evaluate(async () => {
@@ -150,9 +154,34 @@ try {
   await sleep(700);
   assert.equal(await page.evaluate(async id => {
     const { loadCanvasSnapshot } = await import("/src/lib/canvas-db.js");
-    return (await loadCanvasSnapshot(id)).nodes.length;
+    return (await loadCanvasSnapshot(id)).nodes.filter(node => !node.hidden).length;
   }, canvasId), 1);
   console.log("PASS 素材缺失时保留节点，撤销后也不丢失布局");
+
+  const missingUploadId = await page.evaluate(async () => {
+    const m = await import("/src/lib/canvas-db.js");
+    const project = await m.createCanvasProject({ title: "缺失上传素材" });
+    await m.saveCanvasSnapshot({ canvasId: project.id, nodes: [
+      { id: "missing-generation", type: "generation", draftId: "missing-draft", x: 500, y: 100, width: 300, height: 200 }
+    ], settings: { activeDraftId: "missing-draft" }, viewport: { x: 0, y: 0, zoom: 1 }, drafts: [
+      { id: "missing-draft", title: "缺失输入", prompt: "仍需原图片", refs: [], model: "gpt-image-2.5-flare", aspectRatio: "auto", quality: "medium", count: 1, revision: 1 }
+    ] });
+    const key = `image2-canvas-workspace-fallback:${project.id}`;
+    const fallback = JSON.parse(localStorage.getItem(key));
+    fallback.nodes.push({ id: "missing-upload", type: "upload", name: "missing.png", x: 100, y: 100, width: 300, height: 260 });
+    fallback.drafts[0].refs.push({ nodeId: "missing-upload" });
+    localStorage.setItem(key, JSON.stringify(fallback));
+    return project.id;
+  });
+  await page.goto(`${url}/?mode=canvas&canvas=${missingUploadId}`);
+  await page.locator('[data-node-id="missing-upload"].is-error').waitFor();
+  assert.match(await page.locator('[data-node-id="missing-upload"]').innerText(), /节点和连线已保留/);
+  assert.equal(await page.locator(".canvas-reference-item.is-missing").count(), 1);
+  assert.equal(await page.getByTestId("canvas-generate").isEnabled(), false);
+  await page.reload();
+  await page.locator('[data-node-id="missing-upload"].is-error').waitFor();
+  assert.equal(await page.locator(".canvas-reference-item.is-missing").count(), 1);
+  console.log("PASS fallback 中缺失上传 Blob 仍保留节点和引用，刷新后明确报错并阻止少图提交");
 } finally {
   await browser?.close();
   await vite?.close();

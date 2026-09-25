@@ -2577,6 +2577,13 @@ function App() {
             history={history}
             historyLoading={historyLoading}
             onGenerate={startGeneration}
+            onRecoverTask={taskId => {
+              const task = history.find(item => item.id === taskId);
+              if (task && task.userId === currentUser?.id) {
+                const pending = task.images.filter(image => image.recoverable || image.status === "loading" || image.status === "streaming");
+                if (pending.length) runTaskImages(task, pending);
+              }
+            }}
             onRequireLogin={promptLoginBeforeGeneration}
             onToast={showToast}
             onPreview={(src, items) => openImagePreview(src, { items })}

@@ -1,7 +1,8 @@
 import { DEFAULT_IMAGE_MODEL } from "./image-models.js";
+import { CANVAS_SCHEMA_VERSION, migrateCanvasModel } from "./canvas-model.js";
 
 const CANVAS_DB_NAME = "image2-canvas-workspace";
-const CANVAS_DB_VERSION = 2;
+const CANVAS_DB_VERSION = 3;
 export const LEGACY_CANVAS_ID = "default-workspace";
 const CANVAS_FALLBACK_KEY = "image2-canvas-workspace-fallback";
 const CANVAS_FALLBACK_PREFIX = `${CANVAS_FALLBACK_KEY}:`;
@@ -51,8 +52,9 @@ function getFallbackKey(canvasId) {
     : `${CANVAS_FALLBACK_PREFIX}${canvasId}`;
 }
 
-function makeFallbackSnapshot({ nodes, viewport, settings, updatedAt }) {
+function makeFallbackSnapshot({ nodes, viewport, settings, drafts, runs, schemaVersion, updatedAt }) {
   return {
+    schemaVersion, drafts, runs,
     nodes: nodes.map(node => sanitizeNode(node, { keepBlobs: false })),
     viewport,
     settings,
@@ -125,6 +127,9 @@ function openCanvasDatabase() {
 
       if (!database.objectStoreNames.contains("meta")) {
         database.createObjectStore("meta", { keyPath: "key" });
+      }
+      if (!database.objectStoreNames.contains("backups")) {
+        database.createObjectStore("backups", { keyPath: "canvasId" });
       }
       const projectStore = database.objectStoreNames.contains("projects")
         ? transaction.objectStore("projects")
@@ -292,10 +297,11 @@ export async function renameCanvasProject(canvasId, title) {
 
 export async function deleteCanvasProject(canvasId) {
   const database = await openCanvasDatabase();
-  const transaction = database.transaction(["projects", "nodes", "meta"], "readwrite");
+  const transaction = database.transaction(["projects", "nodes", "meta", "backups"], "readwrite");
   const done = transactionToPromise(transaction);
   transaction.objectStore("projects").delete(canvasId);
   transaction.objectStore("meta").delete(canvasId);
+  transaction.objectStore("backups").delete(canvasId);
   const nodeStore = transaction.objectStore("nodes");
   const cursorRequest = nodeStore.index("canvasId").openCursor(canvasId);
   cursorRequest.onsuccess = () => {
@@ -328,21 +334,15 @@ export async function loadCanvasSnapshot(canvasId) {
     const databaseNodes = new Map(nodes.map(node => [node.id, node]));
     const recoveredNodes = fallback.nodes.flatMap(node => {
       const storedNode = databaseNodes.get(node.id);
-      if (node.type === "upload" && !storedNode?.assetBlob) {
-        return [];
-      }
       const storedReferences = new Map(
         (storedNode?.referenceAssets || []).map(reference => [reference.id, reference])
       );
       const referenceAssets = (node.referenceAssets || []).flatMap(reference => {
         const storedReference = storedReferences.get(reference.id);
-        if (!storedReference?.blob) {
-          return [];
-        }
         return [{
           ...storedReference,
           ...reference,
-          blob: storedReference.blob
+          blob: storedReference?.blob
         }];
       });
       return [{
@@ -353,29 +353,50 @@ export async function loadCanvasSnapshot(canvasId) {
         referenceAssets
       }];
     });
-    return {
+    return migrateStoredSnapshot(canvasId, {
+      schemaVersion: fallback.schemaVersion, drafts: fallback.drafts, runs: fallback.runs,
       project,
       nodes: recoveredNodes.sort((left, right) => new Date(left.createdAt) - new Date(right.createdAt)),
       viewport: fallback.viewport,
       settings: fallback.settings
-    };
+    });
   }
 
-  return {
+  return migrateStoredSnapshot(canvasId, {
+    schemaVersion: meta?.schemaVersion, drafts: meta?.drafts, runs: meta?.runs,
     project,
     nodes: nodes.sort((left, right) => new Date(left.createdAt) - new Date(right.createdAt)),
     viewport: meta?.viewport,
     settings: meta?.settings
-  };
+  });
 }
 
-export async function saveCanvasSnapshot({ canvasId, nodes, viewport, settings }) {
+async function migrateStoredSnapshot(canvasId, snapshot) {
+  if (snapshot.schemaVersion === CANVAS_SCHEMA_VERSION) return snapshot;
+  const database = await openCanvasDatabase();
+  const transaction = database.transaction("backups", "readwrite");
+  const done = transactionToPromise(transaction);
+  const store = transaction.objectStore("backups");
+  const existing = await requestToPromise(store.get(canvasId));
+  if (!existing) store.put({ canvasId, snapshot, createdAt: new Date().toISOString() });
+  await done;
+  const migrated = migrateCanvasModel(snapshot);
+  await saveCanvasSnapshot({ ...migrated, canvasId });
+  return migrated;
+}
+
+export async function loadCanvasMigrationBackup(canvasId) {
+  const database = await openCanvasDatabase();
+  return requestToPromise(database.transaction("backups", "readonly").objectStore("backups").get(canvasId));
+}
+
+export async function saveCanvasSnapshot({ canvasId, nodes, viewport, settings, drafts = [], runs = [], schemaVersion = CANVAS_SCHEMA_VERSION }) {
   if (!canvasId) {
     throw new Error("A canvasId is required to save a Canvas workspace.");
   }
 
   const updatedAt = new Date().toISOString();
-  writeFallbackSnapshot(canvasId, { nodes, viewport, settings, updatedAt });
+  writeFallbackSnapshot(canvasId, { nodes, viewport, settings, drafts, runs, schemaVersion, updatedAt });
 
   const database = await openCanvasDatabase();
   const transaction = database.transaction(["projects", "nodes", "meta"], "readwrite");
@@ -399,6 +420,7 @@ export async function saveCanvasSnapshot({ canvasId, nodes, viewport, settings }
 
   transaction.objectStore("meta").put({
     key: canvasId,
+    schemaVersion, drafts, runs,
     viewport,
     settings,
     updatedAt
